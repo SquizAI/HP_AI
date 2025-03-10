@@ -203,4 +203,60 @@ export const calculateUserScore = (): number => {
   const varietyBonus = uniqueChallengeTypes * 50;
   
   return challengePoints + varietyBonus;
+};
+
+// Function to get user progress data from localStorage
+const getUserProgress = () => {
+  try {
+    const userProgressData = localStorage.getItem('ai_hub_user_progress');
+    if (!userProgressData) {
+      return {
+        completedChallenges: [],
+        challengeData: {},
+        lastActive: new Date().toISOString()
+      };
+    }
+    return JSON.parse(userProgressData);
+  } catch (error) {
+    console.error('Error getting user progress:', error);
+    return {
+      completedChallenges: [],
+      challengeData: {},
+      lastActive: new Date().toISOString()
+    };
+  }
+};
+
+// Function to save user progress data to localStorage
+const saveUserProgress = (userProgress: any) => {
+  try {
+    localStorage.setItem('ai_hub_user_progress', JSON.stringify(userProgress));
+  } catch (error) {
+    console.error('Error saving user progress:', error);
+  }
+};
+
+export const saveChallengeSocialMedia = (data: any): void => {
+  try {
+    const userProgress = getUserProgress();
+    
+    if (!userProgress.challengeData['social-media-strategist']) {
+      userProgress.challengeData['social-media-strategist'] = {};
+    }
+    
+    userProgress.challengeData['social-media-strategist'] = {
+      ...data,
+      updatedAt: new Date().toISOString()
+    };
+    
+    // If the challenge is complete, add it to completed challenges
+    if (data.isComplete && !userProgress.completedChallenges.includes('social-media-strategist')) {
+      userProgress.completedChallenges.push('social-media-strategist');
+    }
+    
+    userProgress.lastActive = new Date().toISOString();
+    saveUserProgress(userProgress);
+  } catch (error) {
+    console.error('Error saving social media challenge data:', error);
+  }
 }; 

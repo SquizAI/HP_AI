@@ -7,6 +7,7 @@ import TrendSpotterChallenge from './components/challenges/TrendSpotter/TrendSpo
 import BizStrategistChallenge from './components/challenges/BizStrategist/BizStrategistMain'
 import DataAnalystChallenge from './components/challenges/DataAnalyst/DataAnalystMain'
 import BrainstormBuddyChallenge from './components/challenges/BrainstormBuddy/BrainstormBuddyMain'
+import SocialMediaStrategistChallenge from './components/challenges/SocialMediaStrategist/SocialMediaStrategistMain'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/challenge/bizstrategist" element={<BizStrategistChallenge />} />
           <Route path="/challenge/dataanalyst" element={<DataAnalystChallenge />} />
           <Route path="/challenge/brainstormbuddy" element={<BrainstormBuddyChallenge />} />
+          <Route path="/challenge/social-media-strategist" element={<SocialMediaStrategistChallenge />} />
           {/* Placeholder routes for challenges under development */}
           <Route 
             path="/challenge/*" 

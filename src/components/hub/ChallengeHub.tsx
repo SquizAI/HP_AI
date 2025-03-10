@@ -110,12 +110,21 @@ const ChallengeHub: React.FC = () => {
       icon: '💡',
       color: '#FF9800',
       path: '/challenge/brainstormbuddy'
+    },
+    {
+      id: 'challenge-12',
+      challengeNumber: 12,
+      title: 'AI Social Media Strategist',
+      description: "Build a comprehensive social media strategy with AI assistance that would make marketing agencies jealous.",
+      icon: '📱',
+      color: '#E91E63',
+      path: '/challenge/social-media-strategist'
     }
   ]
 
   // Check if a challenge is implemented
   const isImplemented = (challengeId: string) => {
-    return ['challenge-1', 'challenge-2', 'challenge-3', 'challenge-10', 'challenge-11'].includes(challengeId)
+    return ['challenge-1', 'challenge-2', 'challenge-3', 'challenge-10', 'challenge-11', 'challenge-12'].includes(challengeId)
   }
   
   // Check if a challenge is completed
