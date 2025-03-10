@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-600 text-white hover:bg-primary-700;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow p-6;
+  }
+  
+  .challenge-header {
+    @apply flex items-center justify-between border-b pb-4 mb-6;
+  }
+  
+  .progress-bar {
+    @apply w-full bg-gray-200 rounded-full h-2.5;
+  }
+  
+  .progress-bar-fill {
+    @apply bg-primary-600 h-2.5 rounded-full;
+  }
+}
+
+/* Toggle Switch Styles */
+.toggle-checkbox {
+  right: 0;
+  transition: all 0.3s;
+}
+
+.toggle-checkbox:checked {
+  right: 6px;
+}
+
+.toggle-label {
+  transition: background-color 0.3s;
+  width: 100%;
+} 
