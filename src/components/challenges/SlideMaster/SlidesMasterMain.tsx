@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { saveChallengeSlidemaster, useUserProgress } from '../../../utils/userDataManager';
-import PresentationSetup from './PresentationSetup';
-import SlideContentCreation from './SlideContentCreation';
-import VisualCustomization from './VisualCustomization';
-import PresentationPreview from './PresentationPreview';
-import CompletionScreen from './CompletionScreen';
-import LandingPage from './LandingPage';
-import PasteContent from './PasteContent';
 import PromptEditor from './PromptEditor';
 import ThemeSelector from './ThemeSelector';
+import CompletionScreen from './CompletionScreen';
+import SlideEditor from './SlideEditor';
+import { generatePresentationContent, parseContentIntoSlides } from '../../../utils/contentGenerator';
+import { generateImage, generateImagePromptFromSlide, generateMultipleImages } from '../../../utils/imageGenerator';
+import { useNavigate } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
+import { shouldUseMockData } from '../../../utils/envConfig';
 
 /*
  * SLIDE MASTER CHALLENGE REDESIGN PLAN
@@ -61,53 +61,40 @@ import ThemeSelector from './ThemeSelector';
  *    - Export options with quality settings
  */
 
-// Define interfaces for state management
-export interface SlideMasterState {
-  // Presentation metadata
-  title: string;
-  purpose: string;
-  targetAudience: string;
-  audience?: string; // For backward compatibility
-  lengthMinutes: number;
-  presentationStyle: string;
-  
-  // Content structure
-  slides: Slide[];
-  slideTemplates: SlideTemplate[];
-  selectedTemplate: string;
-  theme: Theme;
-  customColors: string[];
-  visualElements?: string[];
-  transition?: TransitionType;
-  
-  // Input content
-  pastedContent?: string;
-  generatedPrompt?: string;
-  importedFileUrl?: string;
-  
-  // Progress tracking
-  currentStep: number;
-  currentSlideIndex: number;
-  isComplete: boolean;
-  lastUpdated: string;
-  
-  // New properties for the landing page and content input methods
-  contentMethod?: string; // 'paste', 'generate', 'import'
-  isShowingThemeSelector: boolean;
-}
+// Step titles - streamlined workflow
+const STEPS = {
+  PROMPT: 0,        // Enter prompt and generate content
+  THEME: 1,         // Select theme for presentation
+  GENERATE_IMAGES: 2, // Generate images for slides
+  EDIT: 3,          // Edit slides if needed
+  EXPORT: 4,        // Export and complete
+  LOADING: 5        // Loading state during processing
+};
 
-export interface Slide {
-  id: string;
-  type: SlideType;
-  title: string;
-  content: SlideContent;
-  notes: string;
-  imagePrompt?: string;
-  generatedImageUrl?: string;
-  transition?: TransitionType;
-  background?: string;
-}
+// Define types
+export type SlideType = 
+  | 'title'
+  | 'content'
+  | 'twoColumn'
+  | 'image'
+  | 'quote'
+  | 'chart'
+  | 'table'
+  | 'comparison'
+  | 'timeline'
+  | 'agenda'
+  | 'section'
+  | 'conclusion'
+  | 'thankyou';
 
+export type TransitionType = 
+  | 'none'
+  | 'fade'
+  | 'slide'
+  | 'zoom'
+  | 'flip';
+
+// Interfaces
 export interface SlideContent {
   mainText?: string;
   bullets?: string[];
@@ -135,12 +122,16 @@ export interface TableData {
   rows: string[][];
 }
 
-export interface SlideTemplate {
+export interface Slide {
   id: string;
-  name: string;
-  description: string;
-  slideTypes: SlideType[];
-  example: string;
+  type: SlideType;
+  title: string;
+  content: SlideContent;
+  notes: string;
+  imagePrompt?: string;
+  generatedImageUrl?: string;
+  transition?: TransitionType;
+  background?: string;
 }
 
 export interface Theme {
@@ -154,122 +145,90 @@ export interface Theme {
   backgroundColor: string;
 }
 
-export type SlideType = 
-  | 'title'
-  | 'content'
-  | 'twoColumn'
-  | 'image'
-  | 'quote'
-  | 'chart'
-  | 'table'
-  | 'comparison'
-  | 'timeline'
-  | 'agenda'
-  | 'section'
-  | 'conclusion'
-  | 'thankyou';
+export interface SlideMasterState {
+  // Presentation metadata
+  title: string;
+  purpose: string;
+  targetAudience: string;
+  audience?: string; // For backward compatibility
+  lengthMinutes: number;
+  presentationStyle: string;
+  
+  // Content structure
+  slides: Slide[];
+  theme: Theme;
+  customColors: string[];
+  visualElements?: string[];
+  transition?: TransitionType;
+  
+  // Input content
+  generatedPrompt: string;
+  rawGeneratedContent: string; // Raw content with page breaks
+  
+  // Progress tracking
+  currentStep: number;
+  currentSlideIndex: number;
+  isComplete: boolean;
+  lastUpdated: string;
+  
+  // UI state
+  isShowingThemeSelector: boolean;
+  isGeneratingImages: boolean;
+}
 
-export type TransitionType = 
-  | 'none'
-  | 'fade'
-  | 'slide'
-  | 'zoom'
-  | 'flip';
-
-// Initial slide templates
-const SLIDE_TEMPLATES: SlideTemplate[] = [
+// Website theme-inspired themes
+const THEMES: Theme[] = [
   {
-    id: 'business',
-    name: 'Professional Business',
-    description: 'Clean and corporate style with a focus on clarity and professionalism',
-    slideTypes: ['title', 'agenda', 'content', 'twoColumn', 'chart', 'quote', 'conclusion'],
-    example: 'business-example.jpg'
-  },
-  {
-    id: 'creative',
-    name: 'Creative Storytelling',
-    description: 'Visually rich presentation focused on narrative and engagement',
-    slideTypes: ['title', 'image', 'quote', 'comparison', 'content', 'conclusion'],
-    example: 'creative-example.jpg'
-  },
-  {
-    id: 'academic',
-    name: 'Academic/Research',
-    description: 'Structured presentation with emphasis on data and findings',
-    slideTypes: ['title', 'agenda', 'content', 'chart', 'table', 'twoColumn', 'conclusion'],
-    example: 'academic-example.jpg'
-  },
-  {
-    id: 'pitch',
-    name: 'Startup Pitch',
-    description: 'Impactful presentation designed to sell an idea or product',
-    slideTypes: ['title', 'content', 'chart', 'quote', 'image', 'conclusion'],
-    example: 'pitch-example.jpg'
-  },
-  {
-    id: 'minimal',
-    name: 'Minimalist',
-    description: 'Clean design with plenty of white space and focus on essential content',
-    slideTypes: ['title', 'content', 'image', 'quote', 'conclusion'],
-    example: 'minimal-example.jpg'
-  }
-];
-
-// Initial theme options
-const INITIAL_THEMES: Theme[] = [
-  {
-    name: 'Professional Blue',
-    primaryColor: '#1A4B8C',
-    secondaryColor: '#2D6CC0',
-    accentColor: '#F39237',
+    name: 'HP Professional Blue',
+    primaryColor: '#0096D6',
+    secondaryColor: '#00447C',
+    accentColor: '#F3CD00',
     backgroundColor: '#FFFFFF',
     fontTitle: 'Arial, sans-serif',
     fontBody: 'Arial, sans-serif',
     backgroundStyle: 'solid'
   },
   {
-    name: 'Modern Dark',
-    primaryColor: '#333333',
-    secondaryColor: '#555555',
-    accentColor: '#4CAF50',
-    backgroundColor: '#F5F5F5',
+    name: 'Modern Gradient',
+    primaryColor: '#4F46E5',
+    secondaryColor: '#7C3AED',
+    accentColor: '#EC4899',
+    backgroundColor: '#F9FAFB',
     fontTitle: 'Helvetica, sans-serif',
     fontBody: 'Helvetica, sans-serif',
+    backgroundStyle: 'gradient'
+  },
+  {
+    name: 'Clean Minimalist',
+    primaryColor: '#1F2937',
+    secondaryColor: '#4B5563',
+    accentColor: '#22C55E',
+    backgroundColor: '#F9FAFB',
+    fontTitle: 'Inter, sans-serif',
+    fontBody: 'Inter, sans-serif',
     backgroundStyle: 'solid'
   },
   {
-    name: 'Creative Purple',
-    primaryColor: '#6200EA',
-    secondaryColor: '#B388FF',
-    accentColor: '#FF5722',
+    name: 'Bold Impact',
+    primaryColor: '#18181B',
+    secondaryColor: '#3F3F46',
+    accentColor: '#EAB308',
+    backgroundColor: '#FFFFFF',
+    fontTitle: 'Montserrat, sans-serif',
+    fontBody: 'Open Sans, sans-serif',
+    backgroundStyle: 'solid'
+  },
+  {
+    name: 'Vibrant Creative',
+    primaryColor: '#7C3AED',
+    secondaryColor: '#6366F1',
+    accentColor: '#F97316',
     backgroundColor: '#FAFAFA',
-    fontTitle: 'Georgia, serif',
-    fontBody: 'Verdana, sans-serif',
+    fontTitle: 'Poppins, sans-serif',
+    fontBody: 'Roboto, sans-serif',
     backgroundStyle: 'gradient'
   }
 ];
-
-// Presentation tips
-const PRESENTATION_TIPS = [
-  "The average audience attention span is about 10 minutes before engagement drops",
-  "Using images increases retention by 65% compared to text-only slides",
-  "The ideal slide has no more than 6 bullet points with 6 words per bullet",
-  "Practice your presentation at least 3-5 times before delivering it",
-  "93% of communication effectiveness is determined by nonverbal cues",
-  "Color psychology matters: blue builds trust, orange creates enthusiasm, green suggests growth",
-  "Stories are 22 times more memorable than facts alone",
-  "Eye contact with your audience increases perceived trustworthiness by 40%",
-  "Presentations with clear structure are 40% more likely to achieve their objectives",
-  "Including a surprising fact or statistic increases audience attention by 30%"
-];
-
-// Step titles - simplified workflow
-const STEPS = {
-  PROMPT: 0,
-  PREVIEW: 1,
-  THEME: 2,
-  EXPORT: 3
-};
 
 // Helper function to create initial state
 const createInitialState = (): SlideMasterState => {
@@ -278,26 +237,114 @@ const createInitialState = (): SlideMasterState => {
     purpose: '',
     targetAudience: '',
     lengthMinutes: 15,
-    presentationStyle: '',
+    presentationStyle: 'professional',
     
     slides: [],
-    slideTemplates: SLIDE_TEMPLATES,
-    selectedTemplate: SLIDE_TEMPLATES[0].id,
-    theme: INITIAL_THEMES[0], // Using the first theme as default
+    theme: THEMES[0], 
     customColors: [],
     visualElements: ['shadows', 'roundedCorners'],
     transition: 'fade',
     
     generatedPrompt: '',
-    isShowingThemeSelector: false,
+    rawGeneratedContent: '',
     
     currentStep: STEPS.PROMPT,
     currentSlideIndex: 0,
     isComplete: false,
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
+    
+    isShowingThemeSelector: false,
+    isGeneratingImages: false
   };
 };
 
+// Import or implement the mock content generator function
+function generateMockPresentationContent(prompt: string, style: string, audience: string): string {
+  // Create a mock presentation based on the prompt
+  const topic = prompt.length > 50 ? prompt.substring(0, 50) + '...' : prompt;
+   
+  return `# ${topic}
+## Your ${style} presentation for ${audience}
+
+___
+
+# Introduction to ${topic}
+* Understanding the basics
+* Why this matters to ${audience}
+* Key objectives for this presentation
+[IMAGE: An engaging opening image showing the main concept of ${topic} with a ${style} aesthetic]
+[NOTES: Welcome everyone and introduce the topic with enthusiasm. Establish your credibility on this subject.]
+
+___
+
+# Agenda
+* Background and Context
+* Key Concepts
+* Applications and Use Cases
+* Benefits and Challenges
+* Next Steps and Recommendations
+[IMAGE: A clean organized roadmap or journey visual showing the presentation flow]
+[NOTES: Briefly walk through what we'll cover today to set expectations.]
+
+___
+
+# Background and Context
+* Historical development of ${topic}
+* Current landscape and trends
+* Relevance to ${audience}
+[IMAGE: Timeline or evolution diagram showing how ${topic} has developed over time]
+[NOTES: Provide enough context to ensure everyone has the foundational knowledge needed.]
+
+___
+
+# Key Concepts
+* Fundamental principles
+* Important terminology
+* Core frameworks to understand
+[IMAGE: Visual diagram showing the relationship between the key concepts of ${topic}]
+[NOTES: Explain these concepts in simple terms with real-world examples that resonate with ${audience}.]
+
+___
+
+# Applications and Use Cases
+* Real-world examples
+* Success stories
+* Potential opportunities
+* How ${audience} can leverage this
+[IMAGE: Collage of real application examples or implementation scenarios for ${topic}]
+[NOTES: Share specific examples that are most relevant to this audience. Consider asking if anyone has experience with these applications.]
+
+___
+
+# Benefits and Challenges
+* Advantages of implementation
+* Potential obstacles to consider
+* Strategies for overcoming challenges
+* ROI considerations for ${audience}
+[IMAGE: Balance scale or comparison chart showing the benefits versus challenges]
+[NOTES: Be honest about the challenges while maintaining an optimistic tone about overcoming them.]
+
+___
+
+# Next Steps and Recommendations
+* Practical implementation advice
+* Resources for further learning
+* Recommended timeline
+* Support options
+[IMAGE: Action plan or roadmap showing the path forward with clear steps]
+[NOTES: Make these recommendations specific and actionable. Offer yourself as a resource for follow-up questions.]
+
+___
+
+# Thank You!
+* Contact information
+* Q&A session
+* Additional resources
+[IMAGE: Professional closing image with contact details and a thank you message in ${style} style]
+[NOTES: Thank the audience for their time. Encourage questions and engagement after the presentation.]`;
+}
+
+// Component implementation
 const SlidesMasterMain: React.FC = () => {
   // Get user progress
   const [userProgress, setUserProgress] = useUserProgress();
@@ -312,176 +359,232 @@ const SlidesMasterMain: React.FC = () => {
     const savedState = localStorage.getItem('slidesMasterState');
     if (savedState) {
       try {
-        setState(JSON.parse(savedState));
-      } catch (err) {
-        console.error('Error loading saved state:', err);
+        const parsedState = JSON.parse(savedState);
+        setState(parsedState);
+      } catch (e) {
+        console.error('Error loading saved state:', e);
       }
     }
   }, []);
   
-  // Save state to local storage on state changes
+  // Save state to local storage when it changes
   useEffect(() => {
     localStorage.setItem('slidesMasterState', JSON.stringify(state));
   }, [state]);
   
-  // Update state
+  // Update state helper function
   const updateState = (newState: Partial<SlideMasterState>) => {
-    setState(prevState => ({
-      ...prevState,
-      ...newState,
-      lastUpdated: new Date().toISOString()
-    }));
+    setState(prev => {
+      const updated = { ...prev, ...newState, lastUpdated: new Date().toISOString() };
+      return updated;
+    });
   };
   
-  // Generate presentation from prompt
-  const generatePresentation = async (prompt: string) => {
-    setIsGenerating(true);
-    setError(null);
-    
+  // Step 1: Generate presentation content from prompt
+  const generatePresentation = async (prompt: string, style: string, audience: string) => {
     try {
-      // In a real implementation, this would call OpenAI API
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      setError(null);
+      setIsGenerating(true);
+      updateState({ currentStep: STEPS.LOADING });
       
-      // Example slide structure for demo
-      const slideTypes = ['title', 'content', 'content', 'image', 'content', 'chart', 'content', 'conclusion'];
-      const slideTitles = [
-        'Introduction',
-        'Key Concepts',
-        'Important Features',
-        'Visual Representation',
-        'Best Practices',
-        'Data Analysis',
-        'Implementation Steps',
-        'Summary & Next Steps'
-      ];
+      console.log(`Generating presentation for prompt: "${prompt}"`);
       
-      // Generate slides based on the prompt
-      const newSlides = slideTypes.map((type, index) => ({
-        id: `slide-${Date.now()}-${index}`,
-        type: type as SlideType,
-        title: slideTitles[index],
-        content: generateSlideContent(type as SlideType, prompt, index),
-        notes: `Speaker notes for slide ${index + 1}: ${slideTitles[index]}`,
-        transition: 'fade' as TransitionType
-      }));
+      // Call the OpenAI API to generate presentation content
+      const content = await generatePresentationContent(prompt, style, audience);
       
-      // Set the title and other metadata based on the prompt
-      const presentationTitle = `${prompt.charAt(0).toUpperCase() + prompt.slice(1)}`;
+      // If we got content back (either real or mock), proceed
+      if (content) {
+        // Parse the generated content into structured slides
+        const slides = parseContentIntoSlides(content);
+        
+        // Update presentation metadata
+        const presentationTitle = slides[0]?.title || 'Generated Presentation';
+        
+        // Update state with the generated content and move to theme selection
+        updateState({
+          title: presentationTitle,
+          slides,
+          rawGeneratedContent: content,
+          generatedPrompt: prompt,
+          currentStep: STEPS.THEME,  // Move directly to theme selection
+          presentationStyle: style,
+          targetAudience: audience,
+        });
+      } else {
+        throw new Error("No content was generated. Please try again with a different prompt.");
+      }
       
-      // Update state with generated content
-      updateState({
-        title: presentationTitle,
-        slides: newSlides,
-        generatedPrompt: prompt,
-        currentStep: STEPS.PREVIEW
-      });
-    } catch (err) {
-      console.error('Error generating presentation:', err);
-      setError('Failed to generate presentation. Please try again.');
-    } finally {
+      setIsGenerating(false);
+    } catch (error: any) {
+      console.error("Error generating presentation:", error);
+      
+      // Provide a specific error message to the user
+      let errorMessage = "Failed to generate presentation. Please try again with a different prompt.";
+      if (error?.message) {
+        // If there's a readable error message, show it to the user
+        if (error.message.includes('API key')) {
+          errorMessage = "The OpenAI API key is not configured. Using mock data instead.";
+          
+          // We'll try to use mock data as a fallback
+          try {
+            const mockContent = generateMockPresentationContent(prompt, style, audience);
+            const slides = parseContentIntoSlides(mockContent);
+            const presentationTitle = slides[0]?.title || 'Mock Presentation';
+            
+            updateState({
+              title: presentationTitle,
+              slides,
+              rawGeneratedContent: mockContent,
+              generatedPrompt: prompt,
+              currentStep: STEPS.THEME,
+              presentationStyle: style,
+              targetAudience: audience,
+            });
+            
+            setIsGenerating(false);
+            return; // Exit early after successful mock generation
+          } catch (mockError) {
+            console.error("Error generating mock presentation:", mockError);
+            errorMessage = "Failed to generate presentation content. Please try again later.";
+          }
+        }
+      }
+      
+      setError(errorMessage);
+      updateState({ currentStep: STEPS.PROMPT });
       setIsGenerating(false);
     }
   };
   
-  // Helper to generate content for each slide type
-  const generateSlideContent = (type: SlideType, prompt: string, index: number): SlideContent => {
-    switch (type) {
-      case 'title':
-        return {
-          mainText: `A comprehensive presentation about ${prompt}`
-        };
-      case 'content':
-        return {
-          mainText: '',
-          bullets: [
-            `Key point about ${prompt} - item ${index}.1`,
-            `Supporting detail for ${prompt} - item ${index}.2`,
-            `Important consideration about ${prompt} - item ${index}.3`,
-            `Notable aspect of ${prompt} - item ${index}.4`
-          ]
-        };
-      case 'image':
-        return {
-          mainText: `Visual representation of ${prompt}`,
-          imageDescription: `${prompt} visualization`,
-          // In a real implementation, this would be generated with DALL-E
-          generatedImageUrl: 'https://via.placeholder.com/800x450?text=AI+Generated+Image'
-        };
-      case 'chart':
-        return {
-          mainText: 'Data Analysis',
-          chartData: {
-            type: 'bar',
-            labels: ['Category A', 'Category B', 'Category C', 'Category D'],
-            datasets: [
-              {
-                label: 'Data Series 1',
-                data: [12, 19, 8, 15],
-                backgroundColor: ['#4F46E5', '#7C3AED', '#EC4899', '#F59E0B']
-              }
-            ]
-          }
-        };
-      case 'conclusion':
-        return {
-          mainText: '',
-          bullets: [
-            `Summary of key points about ${prompt}`,
-            `Main takeaways from this presentation`,
-            `Recommended next steps`,
-            `Thank you for your attention! Questions?`
-          ]
-        };
-      default:
-        return { mainText: `Content for ${type} slide` };
+  // Step 2: Select theme for the presentation
+  const selectTheme = (theme: Theme) => {
+    updateState({ 
+      theme,
+      currentStep: STEPS.GENERATE_IMAGES,
+      isShowingThemeSelector: false 
+    });
+    
+    // Automatically start generating images after theme selection
+    generateImagesForSlides();
+  };
+  
+  // Step 3: Generate images for slides
+  const generateImagesForSlides = async () => {
+    try {
+      setError(null);
+      updateState({ 
+        isGeneratingImages: true,
+        currentStep: STEPS.LOADING
+      });
+
+      // Find slides with image prompts but no generated images
+      const slidesToGenerateImages = state.slides.filter(
+        slide => slide.imagePrompt && !slide.generatedImageUrl
+      );
+
+      if (slidesToGenerateImages.length === 0) {
+        // No images to generate, move to edit step
+        updateState({ 
+          isGeneratingImages: false,
+          currentStep: STEPS.EDIT
+        });
+        return;
+      }
+
+      console.log(`Generating images for ${slidesToGenerateImages.length} slides`);
+      
+      // Extract image prompts
+      const imagePrompts = slidesToGenerateImages.map(slide => slide.imagePrompt || '');
+
+      // Generate images using DALL-E API
+      const imageUrls = await generateMultipleImages(imagePrompts, {
+        size: 'large',
+        style: state.presentationStyle === 'professional' ? 'professional' : 'natural'
+      });
+
+      // Update slides with generated image URLs
+      const updatedSlides = [...state.slides];
+      slidesToGenerateImages.forEach((slide, index) => {
+        const slideIndex = updatedSlides.findIndex(s => s.id === slide.id);
+        if (slideIndex !== -1 && imageUrls[index]) {
+          updatedSlides[slideIndex] = {
+            ...updatedSlides[slideIndex],
+            generatedImageUrl: imageUrls[index]
+          };
+        }
+      });
+
+      // Update state and move to edit step
+      updateState({ 
+        slides: updatedSlides,
+        isGeneratingImages: false,
+        currentStep: STEPS.EDIT
+      });
+    } catch (error) {
+      console.error("Error generating images:", error);
+      setError("Failed to generate images. You can continue without images or try again.");
+      updateState({ 
+        isGeneratingImages: false,
+        currentStep: STEPS.EDIT // Still proceed to edit step
+      });
     }
   };
   
-  // Navigate to next step
+  // Navigation functions
   const handleNext = () => {
     updateState({ currentStep: state.currentStep + 1 });
   };
   
-  // Navigate to previous step
   const handleBack = () => {
     updateState({ currentStep: state.currentStep - 1 });
   };
   
-  // Mark challenge as complete
   const handleComplete = () => {
-    // Mark challenge as complete in user progress
-    const updatedProgress = { ...userProgress };
-    if (!updatedProgress.completedChallenges.includes('challenge-7')) {
-      updatedProgress.completedChallenges.push('challenge-7');
+    try {
+      // Mark the challenge as complete in user progress
+      setUserProgress((prev: any) => {
+        const newProgress = { ...prev };
+        
+        if (!newProgress.challenges) {
+          newProgress.challenges = {};
+        }
+        
+        newProgress.challenges.slidemaster = {
+          ...newProgress.challenges.slidemaster,
+          completed: true,
+          completedAt: new Date().toISOString()
+        };
+        
+        // Save challenge data with required parameters
+        saveChallengeSlidemaster(
+          'slidemaster',  // challengeId
+          state.title || 'Untitled Presentation',  // presentationTitle
+          state.theme.name || 'default',  // theme
+          state.slides.length,  // totalSlides
+          state.slides.filter(slide => slide.generatedImageUrl).length  // generatedImages
+        );
+        
+        return newProgress;
+      });
+      
+      updateState({ 
+        isComplete: true,
+        currentStep: STEPS.EXPORT
+      });
+    } catch (error) {
+      console.error("Error completing challenge:", error);
     }
-    updatedProgress.lastActive = new Date().toISOString();
-    setUserProgress(updatedProgress);
-    
-    // Save slide master data
-    saveChallengeSlidemaster(
-      'slidemaster',
-      state.title,
-      state.theme.name,
-      state.slides.length,
-      state.slides.filter(slide => slide.type === 'image').length
-    );
-    
-    // Mark as complete in state
-    updateState({ isComplete: true, currentStep: STEPS.EXPORT });
   };
   
-  // Restart the challenge
   const handleRestart = () => {
     setState(createInitialState());
   };
   
-  // Toggle theme selector
   const toggleThemeSelector = () => {
     updateState({ isShowingThemeSelector: !state.isShowingThemeSelector });
   };
   
-  // Render current step
+  // Render the current step
   const renderCurrentStep = () => {
     switch (state.currentStep) {
       case STEPS.PROMPT:
@@ -489,16 +592,52 @@ const SlidesMasterMain: React.FC = () => {
           <PromptEditor
             state={state}
             updateState={updateState}
-            onContinue={() => {}}
-            onBack={() => {}}
             onGenerate={generatePresentation}
             isGenerating={isGenerating}
           />
         );
-        
-      case STEPS.PREVIEW:
-        return renderPreviewStep();
-        
+      
+      case STEPS.THEME:
+        return (
+          <ThemeSelector
+            themes={THEMES}
+            selectedTheme={state.theme}
+            onSelectTheme={selectTheme}
+            presentationTitle={state.title}
+            onBack={() => updateState({ currentStep: STEPS.PROMPT })}
+          />
+        );
+      
+      case STEPS.LOADING:
+        // Show loading indicator while generating content or images
+        return (
+          <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 py-12 px-4">
+            <div className="bg-white shadow-xl rounded-lg p-8 max-w-md w-full text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
+              <h2 className="text-xl font-bold text-gray-800 mt-6 mb-2">
+                {state.isGeneratingImages 
+                  ? "Generating Images with DALL-E" 
+                  : "Creating Your Presentation"}
+              </h2>
+              <p className="text-gray-600">
+                {state.isGeneratingImages
+                  ? "We're generating custom images for your slides. This may take a moment..."
+                  : "Our AI is crafting your presentation. Please wait..."}
+              </p>
+            </div>
+          </div>
+        );
+      
+      case STEPS.EDIT:
+        return (
+          <SlideEditor
+            state={state}
+            updateState={updateState}
+            onNext={handleComplete}
+            onBack={() => updateState({ currentStep: STEPS.THEME })}
+          />
+        );
+      
       case STEPS.EXPORT:
         return (
           <CompletionScreen
@@ -506,64 +645,62 @@ const SlidesMasterMain: React.FC = () => {
             onRestart={handleRestart}
           />
         );
-        
+      
       default:
-        return <div>Unknown step</div>;
+        return (
+          <div className="text-center p-8">
+            <p className="text-red-600">Unknown step: {state.currentStep}</p>
+            <button
+              onClick={handleRestart}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md"
+            >
+              Start Over
+            </button>
+          </div>
+        );
     }
   };
   
-  // Render preview step
-  const renderPreviewStep = () => {
-    return (
-      <div className="flex flex-col h-screen">
-        <div className="bg-gray-100 border-b border-gray-200 p-4 flex justify-between items-center">
-          <h1 className="text-xl font-semibold">{state.title}</h1>
-          <div className="flex space-x-4">
-            <button
-              onClick={toggleThemeSelector}
-              className="px-4 py-2 bg-white text-gray-800 border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+  // Main component render
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100">
+      {/* Error message display */}
+      {error && (
+        <div className="fixed top-4 inset-x-0 mx-auto max-w-md z-50">
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md shadow-lg flex items-center justify-between">
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+              </svg>
+              <span>{error}</span>
+            </div>
+            <button 
+              onClick={() => setError(null)}
+              className="text-red-600 hover:text-red-800"
             >
-              Change Theme
-            </button>
-            <button
-              onClick={handleComplete}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700"
-            >
-              Export Presentation
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
             </button>
           </div>
         </div>
-        <div className="flex-grow overflow-auto">
-          <PresentationPreview
-            state={state}
-            updateState={updateState}
-            onNext={handleComplete}
-            onBack={() => updateState({ currentStep: STEPS.PROMPT })}
-          />
-        </div>
-      </div>
-    );
-  };
-  
-  return (
-    <div className="h-screen bg-gray-50">
-      {renderCurrentStep()}
+      )}
       
-      {/* Theme Selector Modal */}
+      {/* Theme selector overlay */}
       {state.isShowingThemeSelector && (
         <ThemeSelector
-          state={state}
-          updateState={updateState}
-          onClose={toggleThemeSelector}
+          themes={THEMES}
+          selectedTheme={state.theme}
+          onSelectTheme={selectTheme}
+          presentationTitle={state.title}
+          onBack={toggleThemeSelector}
         />
       )}
       
-      {/* Error message */}
-      {error && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-md">
-          {error}
-        </div>
-      )}
+      {/* Main content */}
+      <div className="container mx-auto">
+        {renderCurrentStep()}
+      </div>
     </div>
   );
 };

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="HP AI Challenge - Interactive learning platform for AI-powered business tools"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <title>HP AI Challenge</title>
+    
+    <!-- Environment variables for client-side access -->
+    <script>
+      window.ENV = {
+        // Default values - these would be replaced in production
+        OPENAI_API_KEY: '%REACT_APP_OPENAI_API_KEY%',
+        OPENAI_MODEL: 'gpt-4o-2024-08-06', // Using the latest model
+        DALLE_MODEL: 'dall-e-3',
+        USE_MOCK_DATA: false // Set to false to use real API calls with your API key
+      };
+      
+      // Add process polyfill for browser environment
+      if (typeof window.process === 'undefined') {
+        window.process = { env: {} };
+      }
+      
+      // Copy environment variables from window.ENV to process.env
+      if (window.process && window.process.env) {
+        window.process.env.REACT_APP_OPENAI_API_KEY = window.ENV.OPENAI_API_KEY;
+        window.process.env.REACT_APP_OPENAI_MODEL = window.ENV.OPENAI_MODEL;
+        window.process.env.REACT_APP_DALLE_MODEL = window.ENV.DALLE_MODEL;
+        window.process.env.REACT_APP_USE_MOCK_DATA = window.ENV.USE_MOCK_DATA ? 'true' : 'false';
+      }
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html> 

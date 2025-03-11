@@ -8,7 +8,7 @@ import BizStrategistChallenge from './components/challenges/BizStrategist/BizStr
 import DataAnalystChallenge from './components/challenges/DataAnalyst/DataAnalystMain'
 import BrainstormBuddyChallenge from './components/challenges/BrainstormBuddy/BrainstormBuddyMain'
 import SocialMediaStrategistChallenge from './components/challenges/SocialMediaStrategist/SocialMediaStrategistMain'
-import SlideMasterChallenge from './components/challenges/SlideMaster/SlidesMasterMain'
+import SlideMasterWrapper from './components/challenges/SlideMaster/SlideMasterWrapper'
 import ContentTransformerChallenge from './components/challenges/ContentTransformer/ContentTransformerMain'
 
 function App() {
@@ -24,7 +24,7 @@ function App() {
           <Route path="/challenge/dataanalyst" element={<DataAnalystChallenge />} />
           <Route path="/challenge/brainstormbuddy" element={<BrainstormBuddyChallenge />} />
           <Route path="/challenge/social-media-strategist" element={<SocialMediaStrategistChallenge />} />
-          <Route path="/challenge/slidemaster" element={<SlideMasterChallenge />} />
+          <Route path="/challenge/slidemaster" element={<SlideMasterWrapper />} />
           <Route path="/challenge/content-transformer" element={<ContentTransformerChallenge />} />
           {/* Placeholder routes for challenges under development */}
           <Route 
