@@ -10,10 +10,19 @@ import BrainstormBuddyChallenge from './components/challenges/BrainstormBuddy/Br
 import SocialMediaStrategistChallenge from './components/challenges/SocialMediaStrategist/SocialMediaStrategistMain'
 import SlideMasterWrapper from './components/challenges/SlideMaster/SlideMasterWrapper'
 import ContentTransformerChallenge from './components/challenges/ContentTransformer/ContentTransformerMain'
+import GlobalCommunicatorWrapper from './components/challenges/GlobalCommunicator/GlobalCommunicatorWrapper'
+import ImageGeneratorTest from './components/challenges/SlideMaster/ImageGeneratorTest'
+import SmartSelectMain from './components/challenges/SmartSelect/SmartSelectMain'
+import EmotionalInsightMain from './components/challenges/EmotionalInsight/EmotionalInsightMain'
 
 function App() {
   return (
-    <Router>
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
       <Layout>
         <Routes>
           <Route path="/" element={<ChallengeHub />} />
@@ -24,8 +33,12 @@ function App() {
           <Route path="/challenge/dataanalyst" element={<DataAnalystChallenge />} />
           <Route path="/challenge/brainstormbuddy" element={<BrainstormBuddyChallenge />} />
           <Route path="/challenge/social-media-strategist" element={<SocialMediaStrategistChallenge />} />
-          <Route path="/challenge/slidemaster" element={<SlideMasterWrapper />} />
+          <Route path="/challenge/slidemaster/*" element={<SlideMasterWrapper />} />
+          <Route path="/challenge/slidemaster/image-test" element={<ImageGeneratorTest />} />
           <Route path="/challenge/content-transformer" element={<ContentTransformerChallenge />} />
+          <Route path="/challenge/global-communicator/*" element={<GlobalCommunicatorWrapper />} />
+          <Route path="/challenge/smartselect" element={<SmartSelectMain />} />
+          <Route path="/challenge/emotional-insight" element={<EmotionalInsightMain />} />
           {/* Placeholder routes for challenges under development */}
           <Route 
             path="/challenge/*" 
@@ -45,7 +58,7 @@ function App() {
               <div className="p-8 text-center">
                 <div className="bg-red-50 p-6 rounded-lg text-red-800 mb-4">
                   <h2 className="text-xl font-bold mb-2">Page Not Found</h2>
-                  <p>The page you're looking for doesn't exist.</p>
+                  <p>The page you are looking for does not exist.</p>
                 </div>
                 <a href="/" className="btn btn-primary">Return to Challenge Hub</a>
               </div>

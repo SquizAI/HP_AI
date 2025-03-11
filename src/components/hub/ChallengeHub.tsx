@@ -1,14 +1,10 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
-import { useUserProgress, useUserPreferences, getUserId } from '../../utils/userDataManager'
-import Leaderboard from '../leaderboard/Leaderboard'
-import UserSettings from '../settings/UserSettings'
+import { useUserProgress } from '../../utils/userDataManager'
 
 const ChallengeHub: React.FC = () => {
-  // Get user progress and preferences from localStorage
+  // Get user progress from localStorage
   const [userProgress] = useUserProgress();
-  const [userPreferences] = useUserPreferences();
-  const [activeTab, setActiveTab] = useState<'settings' | 'leaderboard' | null>(null);
   
   // Challenge data with exact labels from challenges.md
   const challenges = [
@@ -121,8 +117,26 @@ const ChallengeHub: React.FC = () => {
       path: '/challenge/social-media-strategist'
     },
     {
+      id: 'challenge-13',
+      challengeNumber: 13,
+      title: 'AI Emotional Insight',
+      description: "Analyze emotions in content and learn how emotion recognition can transform business interactions.",
+      icon: '😊',
+      color: '#4CAF50',
+      path: '/challenge/emotional-insight'
+    },
+    {
       id: 'challenge-14',
       challengeNumber: 14,
+      title: 'AI Global Communicator',
+      description: "Break language barriers and navigate cross-cultural communication with AI that understands cultural nuances.",
+      icon: '🌐',
+      color: '#3F51B5',
+      path: '/challenge/global-communicator'
+    },
+    {
+      id: 'challenge-15',
+      challengeNumber: 15,
       title: 'AI Content Transformer',
       description: "Transform plain content into engaging, interactive experiences that captivate your audience and leave a lasting impression.",
       icon: '✏️',
@@ -133,7 +147,7 @@ const ChallengeHub: React.FC = () => {
 
   // Check if a challenge is implemented
   const isImplemented = (challengeId: string) => {
-    return ['challenge-1', 'challenge-2', 'challenge-3', 'challenge-7', 'challenge-10', 'challenge-11', 'challenge-12', 'challenge-14'].includes(challengeId)
+    return ['challenge-1', 'challenge-2', 'challenge-3', 'challenge-5', 'challenge-7', 'challenge-10', 'challenge-11', 'challenge-12', 'challenge-13', 'challenge-14', 'challenge-15'].includes(challengeId)
   }
   
   // Check if a challenge is completed
@@ -151,24 +165,14 @@ const ChallengeHub: React.FC = () => {
           Welcome to your AI training dojo! Complete challenges, earn bragging rights, 
           and become the colleague everyone secretly asks for help. No cape required.
         </p>
-        <div className="mt-8 flex justify-center space-x-4">
+        <div className="mt-8 flex justify-center">
           <a href="#challenges" className="px-6 py-3 bg-[#5CB2CC] text-white rounded-lg text-lg font-medium hover:bg-[#4A90E2] transition-all hover:scale-105 shadow-md">
             Start Your Adventure
           </a>
-          <button 
-            onClick={() => setActiveTab(activeTab === 'leaderboard' ? null : 'leaderboard')}
-            className={`px-6 py-3 text-lg font-medium rounded-lg transition-all ${
-              activeTab === 'leaderboard' 
-                ? 'bg-[#FF7F50] text-white' 
-                : 'bg-white text-gray-800 border border-gray-200'
-            }`}
-          >
-            {activeTab === 'leaderboard' ? 'Hide Leaderboard' : 'Show Leaderboard'}
-          </button>
         </div>
       </div>
       
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col">
         <section id="challenges" className="flex-grow mb-12">
           <h2 className="mb-8 text-3xl font-bold text-center">
             <span className="text-gray-900">Choose Your </span> 
@@ -230,39 +234,6 @@ const ChallengeHub: React.FC = () => {
             ))}
           </div>
         </section>
-        
-        {/* Side panel for leaderboard and settings */}
-        <aside className={`lg:w-80 xl:w-96 mb-12 transition-all ${
-          activeTab ? 'opacity-100' : 'lg:opacity-100 opacity-0 hidden lg:block'
-        }`}>
-          <div className="sticky top-24">
-            <div className="flex mb-4 border-b border-gray-200">
-              <button 
-                onClick={() => setActiveTab('leaderboard')}
-                className={`flex-1 py-3 px-4 text-center font-medium ${
-                  activeTab === 'leaderboard' || !activeTab
-                    ? 'text-[#5CB2CC] border-b-2 border-[#5CB2CC]' 
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Leaderboard
-              </button>
-              <button 
-                onClick={() => setActiveTab('settings')}
-                className={`flex-1 py-3 px-4 text-center font-medium ${
-                  activeTab === 'settings'
-                    ? 'text-[#5CB2CC] border-b-2 border-[#5CB2CC]' 
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Settings
-              </button>
-            </div>
-            
-            {(activeTab === 'leaderboard' || !activeTab) && <Leaderboard />}
-            {activeTab === 'settings' && <UserSettings />}
-          </div>
-        </aside>
       </div>
 
       <div className="bg-gray-50 p-8 rounded-xl text-center mb-16 shadow-inner">
