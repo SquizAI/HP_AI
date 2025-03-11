@@ -2,9 +2,10 @@
 import { getOpenAIKey, shouldUseMockData, getDALLEModel } from './envConfig';
 
 export interface ImageGenerationOptions {
-  size?: '1024x1024' | '1792x1024' | '1024x1792';
+  size?: '1024x1024' | '1792x1024' | '1024x1792' | '1024x1024';
   style?: 'natural' | 'vivid';
   quality?: 'standard' | 'hd';
+  model?: 'dall-e-3' | 'dall-e-2';
 }
 
 // Fallback placeholder images only for error conditions
@@ -36,27 +37,31 @@ export async function generateImage(
     const enhancedPrompt = enhanceImagePrompt(prompt);
     
     // Prepare API call
-    const model = getDALLEModel();
+    const model = options.model || getDALLEModel() || 'dall-e-3';
     const size = options.size || '1024x1024';
     const style = options.style || 'vivid';
     const quality = options.quality || 'standard';
     
-    // API endpoint and headers
+    // DALL-E 3 API requires a different approach than DALL-E 2
+    // Using the endpoint directly to ensure correct parameters
     const url = 'https://api.openai.com/v1/images/generations';
     const headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     };
     
-    // Request body
+    // Request body with all proper parameters
     const body = {
       model: model,
       prompt: enhancedPrompt,
       n: 1,
       size: size,
       style: style,
-      quality: quality
+      quality: quality,
+      response_format: "url"
     };
+    
+    console.log(`Making DALL-E API call with model: ${model}, size: ${size}`);
     
     // Make the request
     const response = await fetch(url, {
@@ -65,7 +70,7 @@ export async function generateImage(
       body: JSON.stringify(body)
     });
     
-    // Parse the response
+    // Handle response
     if (!response.ok) {
       const errorData = await response.json();
       console.error('DALL-E API error:', errorData);
@@ -73,6 +78,8 @@ export async function generateImage(
     }
     
     const data = await response.json();
+    
+    console.log('DALL-E API response received successfully');
     
     // Return the image URL
     if (data.data && data.data.length > 0 && data.data[0].url) {
@@ -113,8 +120,31 @@ export function generateImagePromptFromSlide(slideTitle: string, slideContent: s
  * Enhance an image prompt with additional details to get better results
  */
 function enhanceImagePrompt(prompt: string): string {
-  // Add style and quality details to the prompt
-  return `Professional, high-quality image of ${prompt}. Clear details, balanced composition, vibrant colors.`;
+  // High-quality image prompting techniques for DALL-E 3
+  // This helps ensure better image quality and adherence to prompts
+  
+  // Check if the prompt is already detailed
+  if (prompt.length > 100) return prompt;
+  
+  // Basic improvement for short prompts
+  let enhancedPrompt = prompt;
+  
+  // Add style specification if not present
+  if (!prompt.toLowerCase().includes("style") && !prompt.toLowerCase().includes("design")) {
+    enhancedPrompt += ", in a professional presentation style";
+  }
+  
+  // Add quality indicators
+  if (!prompt.toLowerCase().includes("high quality") && !prompt.toLowerCase().includes("detailed")) {
+    enhancedPrompt += ", high-quality image with clear details";
+  }
+  
+  // Add lighting/composition guidance
+  if (!prompt.toLowerCase().includes("lighting") && !prompt.toLowerCase().includes("composition")) {
+    enhancedPrompt += ", well-composed with balanced lighting";
+  }
+  
+  return enhancedPrompt;
 }
 
 /**
@@ -130,7 +160,9 @@ function getMockImage(prompt: string): string {
     'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=870&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1606857521015-7f9fcf423740?q=80&w=870&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=388&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1522152302542-71a8e5172aa1?q=80&w=829&auto=format&fit=crop'
+    'https://images.unsplash.com/photo-1522152302542-71a8e5172aa1?q=80&w=829&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=870&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=870&auto=format&fit=crop'
   ];
   
   // Deterministic-ish selection based on the prompt

@@ -8,8 +8,26 @@ export interface SlideContent {
   bullets?: string[];
 }
 
+// Define structured output schema for OpenAI API
+interface PresentationSlide {
+  title: string;
+  content: {
+    mainText?: string;
+    bullets?: string[];
+  };
+  imagePrompt?: string;
+  notes?: string;
+  type: SlideType;
+}
+
+interface StructuredPresentation {
+  title: string;
+  subtitle?: string;
+  slides: PresentationSlide[];
+}
+
 /**
- * Generate presentation content using OpenAI API
+ * Generate presentation content using OpenAI API with structured output
  */
 export async function generatePresentationContent(
   prompt: string,
@@ -28,22 +46,84 @@ export async function generatePresentationContent(
     
     const model = getOpenAIModel();
     
+    // Define the schema for structured output
+    const responseFormat = {
+      type: "json_object",
+      schema: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "The main title of the presentation"
+          },
+          subtitle: {
+            type: "string",
+            description: "Optional subtitle for the presentation"
+          },
+          slides: {
+            type: "array",
+            description: "Array of slides for the presentation",
+            items: {
+              type: "object",
+              properties: {
+                title: {
+                  type: "string",
+                  description: "The title of this slide"
+                },
+                content: {
+                  type: "object",
+                  properties: {
+                    mainText: {
+                      type: "string",
+                      description: "Optional main text content for the slide"
+                    },
+                    bullets: {
+                      type: "array",
+                      description: "Optional bullet points for the slide",
+                      items: {
+                        type: "string"
+                      }
+                    }
+                  }
+                },
+                imagePrompt: {
+                  type: "string",
+                  description: "A detailed description for generating an image for this slide"
+                },
+                notes: {
+                  type: "string",
+                  description: "Speaker notes for this slide"
+                },
+                type: {
+                  type: "string",
+                  enum: ["title", "agenda", "content", "image", "conclusion", "thankyou"],
+                  description: "The type of slide"
+                }
+              },
+              required: ["title", "type"]
+            }
+          }
+        },
+        required: ["title", "slides"]
+      }
+    };
+    
     // Create a detailed system prompt to generate well-structured slides
     const systemPrompt = `You are a presentation expert that creates well-structured slide content. 
       Generate a complete presentation in the ${style} style for a ${audience} audience.
-      Use triple underscores "___" to separate each slide. 
       
       For each slide:
       1. Include a clear, concise title
-      2. For content slides, use bullet points (prefixed with *) for key information
-      3. For slides that would benefit from visuals, include an image prompt in the format [IMAGE: detailed description]
-      4. End each slide with presenter notes in the format [NOTES: helpful speaking notes]
+      2. For content slides, use bullet points for key information
+      3. For slides that would benefit from visuals, include a detailed image prompt
+      4. Include helpful speaker notes
       
       Follow this structure:
-      - First slide: Title slide with a compelling title and subtitle
-      - Second slide: Agenda or overview listing the main sections
-      - Content slides: Include at least one slide with an image suggestion
-      - Conclusion slide: Summarize key takeaways
+      - First slide: Title slide with a compelling title and subtitle (type: title)
+      - Second slide: Agenda or overview listing the main sections (type: agenda)
+      - Content slides: Include several detailed content slides (type: content)
+      - Conclusion slide: Summarize key takeaways (type: conclusion)
+      - Thank you slide: Include contact information and Q&A prompt (type: thankyou)
       
       Total slides should be between 7-10 for a complete presentation.
       Make the presentation comprehensive, engaging, and visually descriptive.`;
@@ -62,7 +142,7 @@ export async function generatePresentationContent(
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 4000
+      response_format: responseFormat
     };
     
     // Make the API call
@@ -84,12 +164,65 @@ export async function generatePresentationContent(
       throw new Error('No content returned from OpenAI API');
     }
     
-    return data.choices[0].message.content;
+    // Convert structured output to the legacy format for compatibility with existing code
+    const structuredPresentation = JSON.parse(data.choices[0].message.content) as StructuredPresentation;
+    return convertStructuredPresentationToLegacyFormat(structuredPresentation);
   } catch (error) {
     console.error('Error generating presentation content:', error);
     // Fall back to mock data on error
     return generateMockPresentationContent(prompt, style, audience);
   }
+}
+
+/**
+ * Convert structured presentation to legacy format with page breaks
+ */
+function convertStructuredPresentationToLegacyFormat(presentation: StructuredPresentation): string {
+  let legacyContent = '';
+  
+  // Title slide
+  legacyContent += `# ${presentation.title}\n`;
+  if (presentation.subtitle) {
+    legacyContent += `${presentation.subtitle}\n`;
+  }
+  legacyContent += '\n___\n\n';
+  
+  // Other slides
+  for (let i = 1; i < presentation.slides.length; i++) {
+    const slide = presentation.slides[i];
+    
+    // Add title
+    legacyContent += `# ${slide.title}\n`;
+    
+    // Add bullets
+    if (slide.content.bullets && slide.content.bullets.length > 0) {
+      for (const bullet of slide.content.bullets) {
+        legacyContent += `* ${bullet}\n`;
+      }
+    }
+    
+    // Add main text if present
+    if (slide.content.mainText) {
+      legacyContent += `${slide.content.mainText}\n`;
+    }
+    
+    // Add image prompt if present
+    if (slide.imagePrompt) {
+      legacyContent += `[IMAGE: ${slide.imagePrompt}]\n`;
+    }
+    
+    // Add notes if present
+    if (slide.notes) {
+      legacyContent += `[NOTES: ${slide.notes}]\n`;
+    }
+    
+    // Add page break after each slide except the last one
+    if (i < presentation.slides.length - 1) {
+      legacyContent += '\n___\n\n';
+    }
+  }
+  
+  return legacyContent;
 }
 
 /**

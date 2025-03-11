@@ -31,7 +31,7 @@ interface EnvConfig {
 if (typeof window !== 'undefined' && !window.ENV) {
   window.ENV = {
     OPENAI_API_KEY: process.env.REACT_APP_OPENAI_API_KEY || '',
-    OPENAI_MODEL: process.env.REACT_APP_OPENAI_MODEL || 'gpt-4-turbo',
+    OPENAI_MODEL: process.env.REACT_APP_OPENAI_MODEL || 'gpt-4o-2024-08-06',
     DALLE_MODEL: process.env.REACT_APP_DALLE_MODEL || 'dall-e-3',
     API_ENDPOINT: process.env.REACT_APP_API_ENDPOINT || 'https://api.openai.com/v1',
     USE_MOCK_DATA: process.env.REACT_APP_USE_MOCK_DATA === 'true' || false
@@ -49,7 +49,7 @@ export function getConfig(): EnvConfig {
   
   const defaultConfig: EnvConfig = {
     OPENAI_API_KEY: 'not-a-real-key',  // Default to true to use mock data
-    OPENAI_MODEL: 'gpt-4-turbo',
+    OPENAI_MODEL: 'gpt-4o-2024-08-06',
     DALLE_MODEL: 'dall-e-3',
     API_ENDPOINT: 'https://api.openai.com/v1',
     USE_MOCK_DATA: true  // Default to true to use mock data
