@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Theme } from './SlidesMasterMain';
 
 interface ThemeSelectorProps {
@@ -8,6 +8,90 @@ interface ThemeSelectorProps {
   presentationTitle: string;
   onBack: () => void;
 }
+
+// Enhanced theme collection with more options and better visuals
+const ENHANCED_THEMES: Theme[] = [
+  {
+    name: 'Modern Minimalist',
+    primaryColor: '#2563eb',
+    secondaryColor: '#111827',
+    accentColor: '#4f46e5',
+    fontTitle: 'Montserrat, sans-serif',
+    fontBody: 'Inter, sans-serif',
+    backgroundStyle: 'solid',
+    backgroundColor: '#ffffff'
+  },
+  {
+    name: 'Gradient Blue',
+    primaryColor: '#0284c7',
+    secondaryColor: '#ffffff',
+    accentColor: '#fbbf24',
+    fontTitle: 'Poppins, sans-serif',
+    fontBody: 'Roboto, sans-serif',
+    backgroundStyle: 'gradient',
+    backgroundColor: 'linear-gradient(135deg, #3b82f6 0%, #93c5fd 100%)'
+  },
+  {
+    name: 'Dark Elegance',
+    primaryColor: '#f9fafb',
+    secondaryColor: '#94a3b8',
+    accentColor: '#ec4899',
+    fontTitle: 'Playfair Display, serif',
+    fontBody: 'Source Sans Pro, sans-serif',
+    backgroundStyle: 'solid',
+    backgroundColor: '#0f172a'
+  },
+  {
+    name: 'Nature Inspired',
+    primaryColor: '#064e3b',
+    secondaryColor: '#374151',
+    accentColor: '#f59e0b',
+    fontTitle: 'Merriweather, serif',
+    fontBody: 'Lato, sans-serif',
+    backgroundStyle: 'solid',
+    backgroundColor: '#ecfdf5'
+  },
+  {
+    name: 'Vibrant Coral',
+    primaryColor: '#be123c',
+    secondaryColor: '#1e293b',
+    accentColor: '#06b6d4',
+    fontTitle: 'Nunito, sans-serif',
+    fontBody: 'Open Sans, sans-serif',
+    backgroundStyle: 'gradient',
+    backgroundColor: 'linear-gradient(135deg, #fb7185 0%, #fda4af 100%)'
+  },
+  {
+    name: 'Corporate Professional',
+    primaryColor: '#334155',
+    secondaryColor: '#475569',
+    accentColor: '#3b82f6',
+    fontTitle: 'Raleway, sans-serif',
+    fontBody: 'IBM Plex Sans, sans-serif',
+    backgroundStyle: 'solid',
+    backgroundColor: '#f8fafc'
+  },
+  {
+    name: 'Bold Creative',
+    primaryColor: '#fafafc',
+    secondaryColor: '#d4d4d8',
+    accentColor: '#22c55e',
+    fontTitle: 'Bebas Neue, sans-serif',
+    fontBody: 'Cabin, sans-serif',
+    backgroundStyle: 'solid',
+    backgroundColor: '#18181b'
+  },
+  {
+    name: 'Pastel Dreams',
+    primaryColor: '#6d28d9',
+    secondaryColor: '#4b5563',
+    accentColor: '#f43f5e',
+    fontTitle: 'Quicksand, sans-serif',
+    fontBody: 'Nunito Sans, sans-serif',
+    backgroundStyle: 'gradient',
+    backgroundColor: 'linear-gradient(135deg, #fbcfe8 0%, #e9d5ff 100%)'
+  }
+];
 
 const ThemeSelector: React.FC<ThemeSelectorProps> = ({ 
   themes, 
@@ -19,6 +103,14 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({
   const [activeTab, setActiveTab] = useState<'preset' | 'custom'>('preset');
   const [customTheme, setCustomTheme] = useState<Theme>({ ...selectedTheme });
   const [previewBackground, setPreviewBackground] = useState(selectedTheme.backgroundColor);
+  const [availableThemes, setAvailableThemes] = useState<Theme[]>(themes);
+  
+  // Use enhanced themes if available, otherwise use the provided themes
+  useEffect(() => {
+    if (ENHANCED_THEMES.length > 0) {
+      setAvailableThemes(ENHANCED_THEMES);
+    }
+  }, []);
   
   // Apply selected theme
   const applyTheme = (theme: Theme) => {
@@ -33,8 +125,14 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({
     }));
     
     // Update preview background if that's what changed
-    if (property === 'backgroundColor') {
-      setPreviewBackground(value);
+    if (property === 'backgroundColor' || property === 'backgroundStyle') {
+      if (property === 'backgroundStyle' && value === 'gradient') {
+        setPreviewBackground(`linear-gradient(135deg, ${customTheme.primaryColor} 0%, ${customTheme.secondaryColor} 100%)`);
+      } else if (property === 'backgroundStyle' && value === 'solid') {
+        setPreviewBackground(customTheme.backgroundColor);
+      } else {
+        setPreviewBackground(value);
+      }
     }
   };
   
@@ -49,55 +147,90 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({
     applyTheme(customTheme);
   };
 
-  // Theme selection card component
-  const ThemeCard = ({ theme }: { theme: Theme }) => (
-    <div 
-      className={`border rounded-lg overflow-hidden cursor-pointer transition-all hover:shadow-md ${
-        selectedTheme.name === theme.name ? 'ring-2 ring-blue-500' : ''
-      }`}
-      onClick={() => applyTheme(theme)}
-    >
-      {/* Theme preview */}
+  // Enhanced theme preview component
+  const ThemeCard = ({ theme }: { theme: Theme }) => {
+    // Determine background style based on theme
+    let backgroundStyle = {};
+    if (theme.backgroundStyle === 'gradient') {
+      // Check if backgroundColor already contains a gradient
+      if (theme.backgroundColor.includes('linear-gradient')) {
+        backgroundStyle = { background: theme.backgroundColor };
+      } else {
+        backgroundStyle = { background: `linear-gradient(135deg, ${theme.primaryColor} 0%, ${theme.secondaryColor} 100%)` };
+      }
+    } else {
+      backgroundStyle = { background: theme.backgroundColor };
+    }
+
+    // Determine text color based on background brightness
+    const textColor = theme.backgroundStyle === 'gradient' || 
+                     theme.backgroundColor.includes('#0') || 
+                     theme.backgroundColor.includes('#1') ||
+                     theme.backgroundColor.includes('#2') || 
+                     theme.backgroundColor.includes('#3')
+                     ? '#ffffff' : theme.primaryColor;
+    
+    return (
       <div 
-        className="h-32 p-4 flex flex-col justify-between"
-        style={{ 
-          background: theme.backgroundStyle === 'gradient' 
-            ? `linear-gradient(135deg, ${theme.primaryColor} 0%, ${theme.secondaryColor} 100%)` 
-            : theme.backgroundColor
-        }}
+        className={`border rounded-lg overflow-hidden cursor-pointer transition-all hover:shadow-md transform hover:scale-105 ${
+          selectedTheme.name === theme.name ? 'ring-2 ring-blue-500 shadow-lg' : ''
+        }`}
+        onClick={() => applyTheme(theme)}
       >
+        {/* Theme preview with enhanced visuals */}
         <div 
-          className="text-lg font-bold"
-          style={{ 
-            color: theme.backgroundStyle === 'gradient' ? '#ffffff' : theme.primaryColor, 
-            fontFamily: theme.fontTitle 
-          }}
+          className="h-40 p-4 flex flex-col justify-between"
+          style={backgroundStyle}
         >
-          Sample Title
+          <div 
+            className="text-lg font-bold"
+            style={{ 
+              color: textColor, 
+              fontFamily: theme.fontTitle 
+            }}
+          >
+            Presentation Title
+          </div>
+          <div className="space-y-1 mt-2">
+            <div 
+              className="text-sm flex items-center"
+              style={{ 
+                color: textColor, 
+                fontFamily: theme.fontBody 
+              }}
+            >
+              <span className="mr-1">•</span> Key point one
+            </div>
+            <div 
+              className="text-sm flex items-center"
+              style={{ 
+                color: textColor, 
+                fontFamily: theme.fontBody 
+              }}
+            >
+              <span className="mr-1">•</span> Key point two
+            </div>
+          </div>
+          <div 
+            className="text-xs self-end mt-2"
+            style={{ color: theme.accentColor }}
+          >
+            Accent element
+          </div>
         </div>
-        <div 
-          className="text-sm"
-          style={{ 
-            color: theme.backgroundStyle === 'gradient' ? '#ffffff' : theme.secondaryColor, 
-            fontFamily: theme.fontBody 
-          }}
-        >
-          • Sample bullet point
-        </div>
-        <div 
-          className="text-xs self-end"
-          style={{ color: theme.accentColor }}
-        >
-          Accent text
+        
+        {/* Theme name with better styling */}
+        <div className="bg-white border-t border-gray-200 px-4 py-3">
+          <div className="font-medium text-gray-800">{theme.name}</div>
+          <div className="flex mt-1 space-x-1">
+            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.primaryColor }}></div>
+            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.secondaryColor }}></div>
+            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.accentColor }}></div>
+          </div>
         </div>
       </div>
-      
-      {/* Theme name */}
-      <div className="bg-white border-t border-gray-200 px-4 py-2">
-        <div className="font-medium text-gray-800">{theme.name}</div>
-      </div>
-    </div>
-  );
+    );
+  };
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 py-12 px-4">
@@ -154,7 +287,7 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({
                   Select a theme that best fits your presentation style and audience. Your content will automatically be formatted using the selected theme.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {themes.map((theme, index) => (
+                  {availableThemes.map((theme, index) => (
                     <ThemeCard key={index} theme={theme} />
                   ))}
                 </div>

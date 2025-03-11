@@ -15,7 +15,6 @@ declare global {
       API_ENDPOINT?: string;
       USE_MOCK_DATA?: boolean;
     };
-    process?: any;
   }
 }
 
@@ -30,17 +29,17 @@ interface EnvConfig {
 // For development, we can use a global ENV object
 if (typeof window !== 'undefined' && !window.ENV) {
   window.ENV = {
-    OPENAI_API_KEY: process.env.REACT_APP_OPENAI_API_KEY || '',
-    OPENAI_MODEL: process.env.REACT_APP_OPENAI_MODEL || 'gpt-4o-2024-08-06',
-    DALLE_MODEL: process.env.REACT_APP_DALLE_MODEL || 'dall-e-3',
-    API_ENDPOINT: process.env.REACT_APP_API_ENDPOINT || 'https://api.openai.com/v1',
-    USE_MOCK_DATA: process.env.REACT_APP_USE_MOCK_DATA === 'true' || false
+    OPENAI_API_KEY: import.meta.env.VITE_OPENAI_API_KEY || '',
+    OPENAI_MODEL: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-2024-08-06',
+    DALLE_MODEL: import.meta.env.VITE_DALLE_MODEL || 'dall-e-3',
+    API_ENDPOINT: import.meta.env.VITE_API_ENDPOINT || 'https://api.openai.com/v1',
+    USE_MOCK_DATA: import.meta.env.VITE_USE_MOCK_DATA === 'true' || false
   };
 }
 
 /**
  * Gets a configuration value from the appropriate source based on environment
- * Checks window.ENV first (for runtime injection), then process.env (for build-time)
+ * Checks window.ENV first (for runtime injection), then import.meta.env (for build-time)
  * Falls back to defaults for development
  */
 export function getConfig(): EnvConfig {
@@ -59,24 +58,24 @@ export function getConfig(): EnvConfig {
   // @ts-ignore - window.ENV might not exist in all contexts
   const windowEnv = typeof window !== 'undefined' && window.ENV ? window.ENV : {};
   
-  // Check for process.env (build-time injection)
-  const processEnv = {
-    OPENAI_API_KEY: process.env.REACT_APP_OPENAI_API_KEY,
-    OPENAI_MODEL: process.env.REACT_APP_OPENAI_MODEL,
-    DALLE_MODEL: process.env.REACT_APP_DALLE_MODEL,
-    API_ENDPOINT: process.env.REACT_APP_API_ENDPOINT,
-    USE_MOCK_DATA: process.env.REACT_APP_USE_MOCK_DATA === 'true',
+  // Check for import.meta.env (build-time injection)
+  const buildEnv = {
+    OPENAI_API_KEY: import.meta.env.VITE_OPENAI_API_KEY,
+    OPENAI_MODEL: import.meta.env.VITE_OPENAI_MODEL,
+    DALLE_MODEL: import.meta.env.VITE_DALLE_MODEL,
+    API_ENDPOINT: import.meta.env.VITE_API_ENDPOINT,
+    USE_MOCK_DATA: import.meta.env.VITE_USE_MOCK_DATA === 'true',
   };
   
-  // Combine sources with precedence: window.ENV > process.env > defaults
+  // Combine sources with precedence: window.ENV > import.meta.env > defaults
   return {
-    OPENAI_API_KEY: windowEnv.OPENAI_API_KEY || processEnv.OPENAI_API_KEY || defaultConfig.OPENAI_API_KEY,
-    OPENAI_MODEL: windowEnv.OPENAI_MODEL || processEnv.OPENAI_MODEL || defaultConfig.OPENAI_MODEL,
-    DALLE_MODEL: windowEnv.DALLE_MODEL || processEnv.DALLE_MODEL || defaultConfig.DALLE_MODEL,
-    API_ENDPOINT: windowEnv.API_ENDPOINT || processEnv.API_ENDPOINT || defaultConfig.API_ENDPOINT,
+    OPENAI_API_KEY: windowEnv.OPENAI_API_KEY || buildEnv.OPENAI_API_KEY || defaultConfig.OPENAI_API_KEY,
+    OPENAI_MODEL: windowEnv.OPENAI_MODEL || buildEnv.OPENAI_MODEL || defaultConfig.OPENAI_MODEL,
+    DALLE_MODEL: windowEnv.DALLE_MODEL || buildEnv.DALLE_MODEL || defaultConfig.DALLE_MODEL,
+    API_ENDPOINT: windowEnv.API_ENDPOINT || buildEnv.API_ENDPOINT || defaultConfig.API_ENDPOINT,
     USE_MOCK_DATA: windowEnv.USE_MOCK_DATA !== undefined 
       ? windowEnv.USE_MOCK_DATA 
-      : (processEnv.USE_MOCK_DATA !== undefined ? processEnv.USE_MOCK_DATA : defaultConfig.USE_MOCK_DATA)
+      : (buildEnv.USE_MOCK_DATA !== undefined ? buildEnv.USE_MOCK_DATA : defaultConfig.USE_MOCK_DATA)
   };
 }
 

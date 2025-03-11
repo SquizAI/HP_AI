@@ -2,19 +2,64 @@
 import { getOpenAIKey, shouldUseMockData, getDALLEModel } from './envConfig';
 
 export interface ImageGenerationOptions {
-  size?: '1024x1024' | '1792x1024' | '1024x1792' | '1024x1024';
+  size?: '1024x1024' | '1792x1024' | '1024x1792' | '512x512' | '256x256';
   style?: 'natural' | 'vivid';
   quality?: 'standard' | 'hd';
   model?: 'dall-e-3' | 'dall-e-2';
+  retry?: boolean;
 }
 
-// Fallback placeholder images only for error conditions
+// Fallback placeholder images for error conditions
 const FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d', // Tech/laptop
   'https://images.unsplash.com/photo-1579546929518-9e396f3cc809', // Abstract
   'https://images.unsplash.com/photo-1523961131990-5ea7c61b2107', // Data/business
   'https://images.unsplash.com/photo-1522202176988-66273c2fd55f', // Team/people
 ];
+
+// Rate limiting parameters
+let lastRequestTime = 0;
+let requestsThisMinute = 0;
+const MAX_REQUESTS_PER_MINUTE = 7; // OpenAI's limit is 7 per minute
+const RATE_LIMIT_RESET_INTERVAL = 60 * 1000; // 1 minute in milliseconds
+const RATE_LIMIT_DELAY = 1000; // Delay between requests
+
+// Reset the rate limit counter every minute
+setInterval(() => {
+  requestsThisMinute = 0;
+  console.log('Image generation rate limit counter reset');
+}, RATE_LIMIT_RESET_INTERVAL);
+
+/**
+ * Sleep helper function for rate limiting
+ */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Check if we can make another request, or need to wait
+ * Returns the time to wait in milliseconds
+ */
+async function checkRateLimit(): Promise<number> {
+  const now = Date.now();
+  
+  // If we've reached the limit, calculate time until next request
+  if (requestsThisMinute >= MAX_REQUESTS_PER_MINUTE) {
+    const timeElapsedSinceFirst = now - lastRequestTime;
+    const timeToWait = Math.max(RATE_LIMIT_RESET_INTERVAL - timeElapsedSinceFirst, 0);
+    console.log(`Rate limit reached, need to wait ${timeToWait}ms`);
+    return timeToWait;
+  }
+  
+  // If not at limit but need to space requests
+  const timeSinceLastRequest = now - lastRequestTime;
+  if (timeSinceLastRequest < RATE_LIMIT_DELAY && requestsThisMinute > 0) {
+    console.log(`Spacing requests, need to wait ${RATE_LIMIT_DELAY - timeSinceLastRequest}ms`);
+    return RATE_LIMIT_DELAY - timeSinceLastRequest;
+  }
+  
+  // No need to wait
+  return 0;
+}
 
 /**
  * Generate an image using OpenAI DALL-E API based on a prompt
@@ -33,17 +78,39 @@ export async function generateImage(
       return getMockImage(prompt);
     }
 
+    // Handle rate limiting - wait if necessary
+    const timeToWait = await checkRateLimit();
+    if (timeToWait > 0) {
+      if (options.retry !== false) {
+        console.log(`Waiting ${timeToWait}ms due to rate limiting before generating image`);
+        await sleep(timeToWait);
+        // Try again after waiting
+        return generateImage(prompt, { ...options, retry: false });
+      } else {
+        // If this is already a retry, use a mock image instead of waiting again
+        console.log('Using mock image due to rate limiting');
+        return getMockImage(prompt);
+      }
+    }
+    
+    // Increment rate limit counters
+    requestsThisMinute++;
+    lastRequestTime = Date.now();
+
     // Enhance the prompt to get better results
     const enhancedPrompt = enhanceImagePrompt(prompt);
     
-    // Prepare API call
-    const model = options.model || getDALLEModel() || 'dall-e-3';
-    const size = options.size || '1024x1024';
-    const style = options.style || 'vivid';
-    const quality = options.quality || 'standard';
+    // Prepare API call - optimize for high volume
+    // Use DALL-E 2 with smaller sizes when possible for faster generation and lower cost
+    const useHighVolumeSetting = options.model === 'dall-e-2' || options.size === '512x512' || options.size === '256x256';
+    const model = options.model || (useHighVolumeSetting ? 'dall-e-2' : getDALLEModel() || 'dall-e-3');
+    const size = options.size || (useHighVolumeSetting ? '512x512' : '1024x1024');
+    const style = model === 'dall-e-3' ? (options.style || 'vivid') : undefined;
+    const quality = model === 'dall-e-3' ? (options.quality || 'standard') : undefined;
     
-    // DALL-E 3 API requires a different approach than DALL-E 2
-    // Using the endpoint directly to ensure correct parameters
+    // Log what we're using
+    console.log(`Making DALL-E API call with model: ${model}, size: ${size}`);
+    
     const url = 'https://api.openai.com/v1/images/generations';
     const headers = {
       'Content-Type': 'application/json',
@@ -51,17 +118,19 @@ export async function generateImage(
     };
     
     // Request body with all proper parameters
-    const body = {
+    const body: any = {
       model: model,
       prompt: enhancedPrompt,
       n: 1,
       size: size,
-      style: style,
-      quality: quality,
       response_format: "url"
     };
     
-    console.log(`Making DALL-E API call with model: ${model}, size: ${size}`);
+    // Only add style and quality for DALL-E 3
+    if (model === 'dall-e-3') {
+      body.style = style;
+      body.quality = quality;
+    }
     
     // Make the request
     const response = await fetch(url, {
@@ -74,6 +143,15 @@ export async function generateImage(
     if (!response.ok) {
       const errorData = await response.json();
       console.error('DALL-E API error:', errorData);
+      
+      // Special handling for rate limit errors
+      if (response.status === 429 && options.retry !== false) {
+        console.log('Rate limit exceeded, trying again with backoff...');
+        requestsThisMinute = MAX_REQUESTS_PER_MINUTE; // Force waiting
+        await sleep(10000); // 10 second backoff
+        return generateImage(prompt, { ...options, retry: false });
+      }
+      
       throw new Error(`DALL-E API error: ${errorData.error?.message || 'Unknown error'}`);
     }
     
@@ -95,12 +173,26 @@ export async function generateImage(
 }
 
 /**
- * Generate multiple images based on an array of prompts
+ * Generate multiple images based on an array of prompts with rate limiting
  */
 export async function generateMultipleImages(prompts: string[]): Promise<string[]> {
   try {
-    const imagePromises = prompts.map(prompt => generateImage(prompt));
-    return await Promise.all(imagePromises);
+    console.log(`Generating ${prompts.length} images with rate limiting`);
+    
+    // For high volume, use smaller images and DALL-E 2 as options
+    const options: ImageGenerationOptions = {
+      model: prompts.length > 5 ? 'dall-e-2' : 'dall-e-3',
+      size: prompts.length > 5 ? '512x512' : '1024x1024'
+    };
+    
+    // Process images sequentially with rate limiting
+    const results: string[] = [];
+    for (const prompt of prompts) {
+      const imageUrl = await generateImage(prompt, options);
+      results.push(imageUrl);
+    }
+    
+    return results;
   } catch (error) {
     console.error('Error generating multiple images:', error);
     // Return mock images
@@ -109,10 +201,59 @@ export async function generateMultipleImages(prompts: string[]): Promise<string[
 }
 
 /**
+ * Generate batches of images for high-volume scenarios
+ * This processes a batch of prompts with a delay between batches
+ */
+export async function generateImageBatches(allPrompts: string[], batchSize = 5): Promise<string[]> {
+  const results: string[] = [];
+  const batches: string[][] = [];
+  
+  // Split into batches
+  for (let i = 0; i < allPrompts.length; i += batchSize) {
+    batches.push(allPrompts.slice(i, i + batchSize));
+  }
+  
+  console.log(`Processing ${batches.length} batches of images`);
+  
+  // Process each batch with a delay between batches
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    console.log(`Processing batch ${i+1} of ${batches.length}`);
+    
+    // Generate this batch
+    const batchResults = await generateMultipleImages(batch);
+    results.push(...batchResults);
+    
+    // Add delay between batches if not the last batch
+    if (i < batches.length - 1) {
+      console.log('Waiting between batches...');
+      await sleep(5000); // 5 second delay between batches
+    }
+  }
+  
+  return results;
+}
+
+/**
  * Generate an image prompt based on slide content
  */
-export function generateImagePromptFromSlide(slideTitle: string, slideContent: string): string {
-  const basePrompt = `${slideTitle} ${slideContent}`;
+export function generateImagePromptFromSlide(slideTitle: string, slideContent: string = ''): string {
+  // Create a better prompt by focusing on the most important content
+  let contentSample = '';
+  
+  // Extract core content from slide content
+  if (slideContent) {
+    // Remove any image tags or notes
+    const cleanContent = slideContent
+      .replace(/\[IMAGE:.*?\]/g, '')
+      .replace(/\[NOTES:.*?\]/g, '')
+      .trim();
+      
+    // Use first few words only to keep it focused
+    contentSample = cleanContent.split(' ').slice(0, 15).join(' ');
+  }
+  
+  const basePrompt = `${slideTitle} ${contentSample}`.trim();
   return enhanceImagePrompt(basePrompt);
 }
 
@@ -131,7 +272,7 @@ function enhanceImagePrompt(prompt: string): string {
   
   // Add style specification if not present
   if (!prompt.toLowerCase().includes("style") && !prompt.toLowerCase().includes("design")) {
-    enhancedPrompt += ", in a professional presentation style";
+    enhancedPrompt += ", in a modern professional presentation style";
   }
   
   // Add quality indicators
@@ -151,7 +292,7 @@ function enhanceImagePrompt(prompt: string): string {
  * Get a mock image URL based on the prompt
  */
 function getMockImage(prompt: string): string {
-  // List of stock placeholder images
+  // List of high-quality stock placeholder images that look professional
   const placeholderImages = [
     'https://images.unsplash.com/photo-1661956602926-db6b25f75947?q=80&w=870&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1579567761406-4684ee0c75b6?q=80&w=387&auto=format&fit=crop',
@@ -162,7 +303,12 @@ function getMockImage(prompt: string): string {
     'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=388&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1522152302542-71a8e5172aa1?q=80&w=829&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=870&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=870&auto=format&fit=crop'
+    'https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=870&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1541746972996-4e0b0f43e02a?q=80&w=1470&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1613963931023-5dc59437c8a6?q=80&w=1469&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1618761714954-0b8cd0026356?q=80&w=1470&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?q=80&w=1470&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=1470&auto=format&fit=crop'
   ];
   
   // Deterministic-ish selection based on the prompt
@@ -175,5 +321,6 @@ function getMockImage(prompt: string): string {
 export default {
   generateImage,
   generateMultipleImages,
+  generateImageBatches,
   generateImagePromptFromSlide
 }; 

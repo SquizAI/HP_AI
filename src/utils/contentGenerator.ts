@@ -46,68 +46,6 @@ export async function generatePresentationContent(
     
     const model = getOpenAIModel();
     
-    // Define the schema for structured output
-    const responseFormat = {
-      type: "json_object",
-      schema: {
-        type: "object",
-        properties: {
-          title: {
-            type: "string",
-            description: "The main title of the presentation"
-          },
-          subtitle: {
-            type: "string",
-            description: "Optional subtitle for the presentation"
-          },
-          slides: {
-            type: "array",
-            description: "Array of slides for the presentation",
-            items: {
-              type: "object",
-              properties: {
-                title: {
-                  type: "string",
-                  description: "The title of this slide"
-                },
-                content: {
-                  type: "object",
-                  properties: {
-                    mainText: {
-                      type: "string",
-                      description: "Optional main text content for the slide"
-                    },
-                    bullets: {
-                      type: "array",
-                      description: "Optional bullet points for the slide",
-                      items: {
-                        type: "string"
-                      }
-                    }
-                  }
-                },
-                imagePrompt: {
-                  type: "string",
-                  description: "A detailed description for generating an image for this slide"
-                },
-                notes: {
-                  type: "string",
-                  description: "Speaker notes for this slide"
-                },
-                type: {
-                  type: "string",
-                  enum: ["title", "agenda", "content", "image", "conclusion", "thankyou"],
-                  description: "The type of slide"
-                }
-              },
-              required: ["title", "type"]
-            }
-          }
-        },
-        required: ["title", "slides"]
-      }
-    };
-    
     // Create a detailed system prompt to generate well-structured slides
     const systemPrompt = `You are a presentation expert that creates well-structured slide content. 
       Generate a complete presentation in the ${style} style for a ${audience} audience.
@@ -135,14 +73,18 @@ export async function generatePresentationContent(
       'Authorization': `Bearer ${apiKey}`
     };
     
+    // Update the requestBody to use the correct format for response_format
     const requestBody = {
       model: model,
       messages: [
-        { role: 'system', content: systemPrompt },
+        { 
+          role: 'system', 
+          content: systemPrompt + '\n\nRespond with a JSON object that contains a title, subtitle, and an array of slides. Each slide should have a title, content (which may contain mainText and bullets), imagePrompt, notes, and type.' 
+        },
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      response_format: responseFormat
+      response_format: { type: "json_object" }
     };
     
     // Make the API call

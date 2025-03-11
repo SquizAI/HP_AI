@@ -315,4 +315,79 @@ export const saveChallengeSlidemaster = (
   
   userProgress.lastActive = new Date().toISOString();
   localStorage.setItem('ai_hub_user_progress', JSON.stringify(userProgress));
+};
+
+// Function to save Global Communicator challenge data
+export const saveChallengeGlobalCommunicator = (translationData: any): void => {
+  try {
+    const userProgress = getUserProgress();
+    const challengeId = 'challenge-14';
+    
+    // Initialize the global communicator data if it doesn't exist
+    if (!userProgress.challengeData['global-communicator']) {
+      userProgress.challengeData['global-communicator'] = {
+        translations: []
+      };
+    }
+    
+    // Add the new translation to the array
+    userProgress.challengeData['global-communicator'].translations = [
+      translationData,
+      ...userProgress.challengeData['global-communicator'].translations
+    ].slice(0, 50); // Keep only the last 50 translations
+    
+    userProgress.challengeData['global-communicator'].lastUpdated = new Date().toISOString();
+    
+    // Add to completed challenges if not already there
+    if (!userProgress.completedChallenges.includes(challengeId)) {
+      userProgress.completedChallenges.push(challengeId);
+    }
+    
+    userProgress.lastActive = new Date().toISOString();
+    saveUserProgress(userProgress);
+  } catch (error) {
+    console.error('Error saving global communicator challenge data:', error);
+  }
+};
+
+// Function to get Global Communicator translations
+export const getChallengeGlobalCommunicator = (): any[] => {
+  try {
+    const userProgress = getUserProgress();
+    
+    if (
+      userProgress.challengeData && 
+      userProgress.challengeData['global-communicator'] && 
+      userProgress.challengeData['global-communicator'].translations
+    ) {
+      return userProgress.challengeData['global-communicator'].translations;
+    }
+    
+    return []; // Return empty array if no translations exist
+  } catch (error) {
+    console.error('Error getting global communicator challenge data:', error);
+    return [];
+  }
+};
+
+// Get challenge-specific data from local storage
+export const getChallengeData = async (challengeId: string) => {
+  try {
+    const data = localStorage.getItem(`challenge_${challengeId}`);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error(`Error getting ${challengeId} data:`, error);
+    return null;
+  }
+};
+
+// Save challenge-specific data to local storage
+export const saveChallengeData = async (challengeId: string, data: any) => {
+  try {
+    localStorage.setItem(`challenge_${challengeId}`, JSON.stringify(data));
+    return true;
+  } catch (error) {
+    console.error(`Error saving ${challengeId} data:`, error);
+    return false;
+  }
 }; 

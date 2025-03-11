@@ -9,18 +9,58 @@ interface PromptEditorProps {
   isGenerating: boolean;
 }
 
+/**
+ * Enhanced prompt editor with AI suggestions
+ */
 const PromptEditor: React.FC<PromptEditorProps> = ({
   state,
   updateState,
   onGenerate,
   isGenerating
 }) => {
-  const [prompt, setPrompt] = useState(state.generatedPrompt || '');
-  const [style, setStyle] = useState(state.presentationStyle || 'professional');
-  const [audience, setAudience] = useState(state.targetAudience || 'business professionals');
+  const [prompt, setPrompt] = useState('Create a presentation about');
+  const [style, setStyle] = useState('professional');
+  const [audience, setAudience] = useState('business professionals');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
   const [showExamples, setShowExamples] = useState(false);
   const [showAiTips, setShowAiTips] = useState(false);
   
+  // Popular presentation styles
+  const styleOptions = [
+    { id: 'professional', name: 'Professional' },
+    { id: 'creative', name: 'Creative' },
+    { id: 'minimalist', name: 'Minimalist' },
+    { id: 'academic', name: 'Academic' },
+    { id: 'modern', name: 'Modern' },
+    { id: 'corporate', name: 'Corporate' },
+    { id: 'playful', name: 'Playful' },
+    { id: 'elegant', name: 'Elegant' }
+  ];
+
+  // Common audience types
+  const audienceOptions = [
+    { id: 'business professionals', name: 'Business Professionals' },
+    { id: 'executives', name: 'Executives' },
+    { id: 'general audience', name: 'General Audience' },
+    { id: 'students', name: 'Students' },
+    { id: 'technical experts', name: 'Technical Experts' },
+    { id: 'investors', name: 'Investors' },
+    { id: 'clients', name: 'Clients' },
+    { id: 'team members', name: 'Team Members' }
+  ];
+
+  // Sample prompt suggestions
+  const promptSuggestions = [
+    "Artificial Intelligence and its business applications",
+    "Sustainable business practices for the coming decade",
+    "Digital transformation strategies for traditional businesses",
+    "Building effective remote work culture",
+    "Customer experience in the digital age",
+    "Data-driven decision making for small businesses",
+    "Emerging market trends and opportunities"
+  ];
+
   const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setPrompt(e.target.value);
   };
@@ -29,7 +69,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
     setStyle(e.target.value);
   };
   
-  const handleAudienceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudienceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setAudience(e.target.value);
   };
   
@@ -37,6 +77,22 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
     if (prompt.trim()) {
       onGenerate(prompt, style, audience);
     }
+  };
+  
+  const enhancePrompt = () => {
+    setIsEnhancing(true);
+    
+    // Mock AI enhancement (would connect to OpenAI in production)
+    setTimeout(() => {
+      const enhancedPrompt = prompt + " covering: 1) introduction and background, 2) current landscape and challenges, 3) solutions and opportunities, 4) implementation strategies, and 5) future outlook. Include relevant examples for " + audience;
+      setPrompt(enhancedPrompt);
+      setIsEnhancing(false);
+    }, 1000);
+  };
+  
+  const selectSuggestion = (suggestion: string) => {
+    setPrompt(suggestion);
+    setShowSuggestions(false);
   };
   
   const toggleAiTips = () => {
@@ -115,10 +171,38 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
                 id="prompt"
                 value={prompt}
                 onChange={handlePromptChange}
+                onFocus={() => setShowSuggestions(true)}
                 placeholder="Describe your presentation topic in detail. The more specific you are, the better the AI can help. Examples: 'A business strategy for expanding our coffee shop to new locations' or 'The impact of artificial intelligence on healthcare in the next decade'..."
                 className="w-full min-h-[150px] p-4 pr-12 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 disabled={isGenerating}
               />
+              
+              {showSuggestions && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
+                  <div className="p-2 border-b border-gray-100">
+                    <h3 className="text-sm font-medium text-gray-700">Suggestions</h3>
+                  </div>
+                  <ul className="max-h-60 overflow-auto py-1">
+                    {promptSuggestions.map((suggestion, index) => (
+                      <li 
+                        key={index}
+                        className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm text-gray-700"
+                        onClick={() => selectSuggestion(suggestion)}
+                      >
+                        {suggestion}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="p-2 border-t border-gray-100">
+                    <button 
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                      onClick={() => setShowSuggestions(false)}
+                    >
+                      Close suggestions
+                    </button>
+                  </div>
+                </div>
+              )}
               
               {/* AI Assistant Button */}
               <div className="absolute bottom-3 right-3 flex items-center">
@@ -207,13 +291,11 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
                 className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 disabled={isGenerating}
               >
-                <option value="professional">Professional</option>
-                <option value="creative">Creative</option>
-                <option value="minimalist">Minimalist</option>
-                <option value="academic">Academic</option>
-                <option value="casual">Casual</option>
-                <option value="storytelling">Storytelling</option>
-                <option value="data-driven">Data-Driven</option>
+                {styleOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
               </select>
             </div>
             
@@ -221,43 +303,41 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
               <label htmlFor="audience" className="block text-gray-700 font-medium mb-2">
                 Target Audience
               </label>
-              <input
+              <select
                 id="audience"
-                type="text"
                 value={audience}
                 onChange={handleAudienceChange}
-                placeholder="e.g. executives, students, general public"
                 className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 disabled={isGenerating}
-              />
+              >
+                {audienceOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           
           <div className="flex justify-center">
             <button
-              onClick={handleGenerate}
-              disabled={isGenerating || !prompt.trim()}
-              className={`px-8 py-4 rounded-lg text-white font-medium text-lg flex items-center justify-center ${
-                isGenerating || !prompt.trim() 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+              onClick={enhancePrompt}
+              disabled={isEnhancing || prompt.length < 10}
+              className={`text-sm px-3 py-1 rounded-md ${
+                isEnhancing || prompt.length < 10
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
               }`}
             >
-              {isGenerating ? (
+              {isEnhancing ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Generating...
+                  <span className="inline-block animate-pulse">Enhancing</span>
+                  <span className="inline-block animate-pulse delay-75">.</span>
+                  <span className="inline-block animate-pulse delay-150">.</span>
+                  <span className="inline-block animate-pulse delay-300">.</span>
                 </>
               ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                  </svg>
-                  Generate Presentation
-                </>
+                <>✨ Enhance with AI</>
               )}
             </button>
           </div>
