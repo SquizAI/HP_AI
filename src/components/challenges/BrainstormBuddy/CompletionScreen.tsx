@@ -1,9 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { BrainstormState } from './BrainstormBuddyMain';
 
 interface CompletionScreenProps {
-  state: BrainstormState;
+  problemStatement: string;
+  selectedCategory: {
+    label: string;
+    icon: string;
+    description: string;
+  };
+  selectedIdea: {
+    title: string;
+    description: string;
+    pros?: string[];
+    cons?: string[];
+    tags?: string[];
+  };
+  implementationPlan: string;
+  implementationSteps?: {
+    title: string;
+    description: string;
+    duration: string;
+    resources: string[];
+    status: 'pending' | 'in-progress' | 'completed';
+  }[];
+  customNotes?: string;
+  selectedPersonality?: string;
+  lastUpdated?: Date | null;
   onRestart: () => void;
+  onShare?: () => void;
+  onSaveAsPDF?: () => void;
 }
 
 // Funny achievement titles
@@ -13,7 +37,9 @@ const ACHIEVEMENT_TITLES = [
   "Distinguished Thought Leader",
   "Professional Light Bulb Moment Generator",
   "Supreme Brainstorm Commander",
-  "Elite Innovation Ninja"
+  "Elite Innovation Ninja",
+  "Grand Wizard of Creative Solutions",
+  "Executive Thought Architect"
 ];
 
 // Humorous implementation tips
@@ -22,16 +48,41 @@ const IMPLEMENTATION_TIPS = [
   "For maximum impact, don't mention this was AI-assisted. Just nod mysteriously when asked how you came up with it.",
   "Implementation works best when you don't try to do everything at 4:55pm on a Friday.",
   "Success is 10% inspiration, 90% convincing others it was their idea all along.",
-  "The best way to implement your idea is to start before you're ready. The second best way is to start anyway."
+  "The best way to implement your idea is to start before you're ready. The second best way is to start anyway.",
+  "Don't forget to update your LinkedIn profile to include 'Innovative Solution Architect' after implementing this.",
+  "If someone asks 'But have you considered...' just smile and say 'Of course, it's in phase 2.'",
+  "When presenting this idea, use the phrase 'paradigm shift' at least twice for maximum executive approval."
+];
+
+// Shareable social media templates
+const SOCIAL_TEMPLATES = [
+  "Just solved a major challenge using innovative thinking! #ProblemSolved #Innovation",
+  "Excited to share my latest solution to a complex problem. Looking forward to implementation! #CreativeSolutions",
+  "From challenge to opportunity: Check out my latest problem-solving journey! #BrainstormBuddy #IdeaGeneration",
+  "Innovation happens at the intersection of preparation and inspiration. Proud of this solution! #CreativeThinking"
 ];
 
 const CompletionScreen: React.FC<CompletionScreenProps> = ({
-  state,
-  onRestart
+  problemStatement,
+  selectedCategory,
+  selectedIdea,
+  implementationPlan,
+  implementationSteps = [],
+  customNotes = "",
+  selectedPersonality,
+  lastUpdated,
+  onRestart,
+  onShare,
+  onSaveAsPDF
 }) => {
   const [achievementTitle, setAchievementTitle] = useState('');
   const [showConfetti, setShowConfetti] = useState(true);
   const [implementationTip, setImplementationTip] = useState('');
+  const [socialTemplate, setSocialTemplate] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [rating, setRating] = useState(0);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summary, setSummary] = useState('');
   
   useEffect(() => {
     // Get random achievement title
@@ -42,161 +93,319 @@ const CompletionScreen: React.FC<CompletionScreenProps> = ({
     const randomTipIndex = Math.floor(Math.random() * IMPLEMENTATION_TIPS.length);
     setImplementationTip(IMPLEMENTATION_TIPS[randomTipIndex]);
     
-    // Hide confetti after 5 seconds
-    const timer = setTimeout(() => setShowConfetti(false), 5000);
-    return () => clearTimeout(timer);
+    // Get random social template
+    const randomTemplateIndex = Math.floor(Math.random() * SOCIAL_TEMPLATES.length);
+    setSocialTemplate(SOCIAL_TEMPLATES[randomTemplateIndex]);
+    
+    // Show confetti for 5 seconds
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
   }, []);
   
+  // Generate a one-paragraph summary of the solution process
+  const generateSummary = () => {
+    setIsSummarizing(true);
+    
+    // This would normally call an API but we'll simulate it
+    setTimeout(() => {
+      const summary = `Starting with the problem "${problemStatement}", I explored ${selectedCategory.label} approaches. 
+      After brainstorming multiple solutions, I selected "${selectedIdea.title}" because it offers an optimal 
+      balance of feasibility and impact. The implementation plan addresses key challenges and provides a
+      clear pathway to success with ${implementationSteps.length} actionable steps.`;
+      
+      setSummary(summary);
+      setIsSummarizing(false);
+    }, 1500);
+  };
+
+  const formatDate = (date: Date | null | undefined) => {
+    if (!date) return 'Not available';
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+  
+  const handleRatingClick = (newRating: number) => {
+    setRating(newRating);
+  };
+  
+  const getCompletedSteps = () => {
+    return implementationSteps.filter(step => step.status === 'completed').length;
+  };
+  
+  const getProgressPercentage = () => {
+    if (implementationSteps.length === 0) return 0;
+    return Math.round((getCompletedSteps() / implementationSteps.length) * 100);
+  };
+  
   return (
-    <div className="relative overflow-hidden">
-      {/* Confetti effect */}
+    <div className="max-w-4xl mx-auto">
+      {/* Confetti animation */}
       {showConfetti && (
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <div className="confetti-piece rounded-sm absolute top-0 left-[10%] w-2 h-5 bg-orange-500" style={{ transform: 'rotateZ(15deg)', animation: 'confetti-fall 3s linear infinite, confetti-shake 3s infinite' }}></div>
-          <div className="confetti-piece rounded-sm absolute top-0 left-[20%] w-3 h-4 bg-yellow-500" style={{ transform: 'rotateZ(32deg)', animation: 'confetti-fall 3.5s linear infinite, confetti-shake 3.5s infinite' }}></div>
-          <div className="confetti-piece rounded-sm absolute top-0 left-[30%] w-4 h-2 bg-green-500" style={{ transform: 'rotateZ(54deg)', animation: 'confetti-fall 4s linear infinite, confetti-shake 4s infinite' }}></div>
-          <div className="confetti-piece rounded-sm absolute top-0 left-[40%] w-2 h-5 bg-blue-500" style={{ transform: 'rotateZ(139deg)', animation: 'confetti-fall 5s linear infinite, confetti-shake 5s infinite' }}></div>
-          <div className="confetti-piece rounded-sm absolute top-0 left-[50%] w-3 h-4 bg-purple-500" style={{ transform: 'rotateZ(96deg)', animation: 'confetti-fall 4.7s linear infinite, confetti-shake 4.7s infinite' }}></div>
-          <div className="confetti-piece rounded-sm absolute top-0 left-[60%] w-4 h-2 bg-red-500" style={{ transform: 'rotateZ(128deg)', animation: 'confetti-fall 6s linear infinite, confetti-shake 6s infinite' }}></div>
-          <div className="confetti-piece rounded-sm absolute top-0 left-[70%] w-2 h-5 bg-pink-500" style={{ transform: 'rotateZ(47deg)', animation: 'confetti-fall 3.2s linear infinite, confetti-shake 3.2s infinite' }}></div>
-          <div className="confetti-piece rounded-sm absolute top-0 left-[80%] w-3 h-4 bg-yellow-500" style={{ transform: 'rotateZ(117deg)', animation: 'confetti-fall 5.7s linear infinite, confetti-shake 5.7s infinite' }}></div>
-          <div className="confetti-piece rounded-sm absolute top-0 left-[90%] w-4 h-2 bg-teal-500" style={{ transform: 'rotateZ(228deg)', animation: 'confetti-fall 3.8s linear infinite, confetti-shake 3.8s infinite' }}></div>
+        <div className="fixed inset-0 pointer-events-none z-50">
+          <div className="confetti-container">
+            {Array.from({ length: 100 }).map((_, i) => (
+              <div 
+                key={i}
+                className="confetti"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 5}s`,
+                  backgroundColor: `hsl(${Math.random() * 360}, 100%, 50%)`
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
       
-      <div className="flex flex-col items-center mb-10 text-center relative z-10">
-        <div className="mb-5 relative">
-          <div className="inline-flex p-5 rounded-full bg-gradient-to-r from-orange-100 to-yellow-100 shadow-lg transform hover:rotate-12 transition-transform">
-            <div className="text-orange-500 text-6xl animate-pulse">🎉</div>
-          </div>
-          <div className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/3">
-            <div className="text-4xl animate-bounce">🏆</div>
-          </div>
+      {/* Header Section */}
+      <div className="mb-8 text-center">
+        <div className="inline-block p-3 rounded-full bg-green-100 text-green-600 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
         </div>
-        <h1 className="text-4xl font-bold text-gray-800 mb-3">
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-yellow-500">
-            Challenge Complete!
-          </span>
-        </h1>
-        <div className="bg-orange-100 text-orange-800 px-4 py-2 rounded-full font-medium text-sm mb-3 transform -rotate-2">
-          {achievementTitle}
-        </div>
-        <p className="text-xl text-gray-600 max-w-xl leading-relaxed">
-          You've successfully crafted a master plan that would make even the most seasoned project managers slow-clap in admiration.
+        <h1 className="text-3xl font-bold text-gray-800">Brainstorming Complete!</h1>
+        <p className="text-lg text-gray-600 mt-2">
+          Congratulations, <span className="text-indigo-600 font-semibold">{achievementTitle}</span>!
         </p>
       </div>
       
-      <div className="bg-white rounded-xl shadow-lg p-8 mb-8 transform hover:scale-[1.01] transition-transform">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-          <span className="text-orange-500 mr-3">🧠</span>
-          Your Brainstorm Victory Recap
-        </h2>
-        
-        <div className="mb-6 relative">
-          <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-orange-300 to-red-300"></div>
-          <h3 className="text-lg font-medium text-gray-700 flex items-center mb-3">
-            <span className="text-orange-500 mr-2">🎯</span> The Problem You Conquered
-          </h3>
-          <p className="text-gray-700 bg-gray-50 p-4 rounded-lg border-l-4 border-orange-300 font-medium">
-            "{state.problemStatement}"
-          </p>
-        </div>
-        
-        <div className="mb-6 relative">
-          <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-300 to-purple-300"></div>
-          <h3 className="text-lg font-medium text-gray-700 flex items-center mb-3">
-            <span className="text-blue-500 mr-2">💡</span> Your Million-Dollar Solution
-          </h3>
-          <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-300">
-            <h4 className="font-medium text-gray-800 text-lg">{state.selectedIdea?.title}</h4>
-            <p className="text-gray-700 mt-2">{state.selectedIdea?.description}</p>
+      {/* Solution Summary */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800">Your Solution</h2>
+          <div className="flex space-x-2">
+            <button 
+              onClick={onSaveAsPDF}
+              className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition flex items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export
+            </button>
           </div>
         </div>
         
-        <div className="mb-6 relative">
-          <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-green-300 to-teal-300"></div>
-          <h3 className="text-lg font-medium text-gray-700 flex items-center mb-3">
-            <span className="text-green-500 mr-2">📋</span> Your World-Changing Plan
-          </h3>
-          <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-green-300">
-            <div className="prose prose-sm max-w-none">
-              <pre className="whitespace-pre-wrap text-gray-800 font-sans">
-                {state.implementation.split('\n').slice(0, 15).join('\n')}...
-              </pre>
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-gray-500 uppercase">Problem</h3>
+          <div className="mt-1 p-3 bg-gray-50 rounded-md">
+            <div className="flex items-start">
+              <span className="text-xl mr-2">{selectedCategory.icon}</span>
+              <div>
+                <p className="font-medium text-gray-800">{selectedCategory.label}</p>
+                <p className="text-gray-700">{problemStatement}</p>
+              </div>
             </div>
-            <div className="flex justify-end">
-              <button 
-                onClick={() => window.open(`data:text/plain;charset=utf-8,${encodeURIComponent(state.implementation)}`, '_blank')}
-                className="mt-3 text-sm text-blue-600 hover:text-blue-800 flex items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-                Download full plan
-              </button>
+          </div>
+        </div>
+        
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-gray-500 uppercase">Selected Solution</h3>
+          <div className="mt-1 p-3 bg-blue-50 rounded-md">
+            <p className="font-bold text-blue-900">{selectedIdea.title}</p>
+            <p className="text-blue-800 mt-1">{selectedIdea.description}</p>
+            
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs font-medium text-blue-700">BENEFITS</p>
+                <ul className="mt-1 list-disc list-inside text-sm text-blue-800">
+                  {selectedIdea.pros?.map((pro, index) => (
+                    <li key={index}>{pro}</li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div>
+                <p className="text-xs font-medium text-blue-700">CHALLENGES</p>
+                <ul className="mt-1 list-disc list-inside text-sm text-blue-800">
+                  {selectedIdea.cons?.map((con, index) => (
+                    <li key={index}>{con}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            
+            {selectedIdea.tags && selectedIdea.tags.length > 0 && (
+              <div className="mt-3">
+                <div className="flex flex-wrap gap-1">
+                  {selectedIdea.tags.map((tag, index) => (
+                    <span key={index} className="px-2 py-1 bg-blue-200 text-blue-800 rounded-full text-xs">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="mb-2">
+          <h3 className="text-sm font-medium text-gray-500 uppercase">Implementation Plan</h3>
+          <div className="mt-1 p-3 bg-green-50 rounded-md">
+            <p className="text-green-800">{implementationPlan}</p>
+            
+            {implementationSteps && implementationSteps.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-medium text-green-700 mb-2">IMPLEMENTATION STEPS</p>
+                <div className="space-y-2">
+                  {implementationSteps.map((step, index) => (
+                    <div key={index} className="flex items-start">
+                      <div className="h-6 w-6 rounded-full bg-green-200 text-green-800 flex items-center justify-center text-sm font-medium flex-shrink-0 mr-2">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-800">{step.title}</p>
+                        <p className="text-sm text-green-700">{step.description}</p>
+                        <div className="mt-1 flex items-center text-xs text-green-600">
+                          <span className="mr-3">🕒 {step.duration}</span>
+                          <span>📋 {step.resources.join(', ')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Implementation Tip */}
+      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-yellow-800">Implementation Tip</h3>
+            <div className="mt-2 text-sm text-yellow-700">
+              <p>{implementationTip}</p>
             </div>
           </div>
         </div>
       </div>
       
-      <div className="bg-gradient-to-r from-orange-100 to-yellow-100 p-6 rounded-xl mb-8 border-2 border-orange-200 shadow-md">
-        <h2 className="text-xl font-semibold text-orange-800 mb-4 flex items-center">
-          <span className="mr-2">🚀</span>
-          Next Steps to World Domination
-        </h2>
-        <div className="bg-white bg-opacity-60 p-4 rounded-lg mb-4">
-          <p className="text-gray-800 font-medium italic">
-            "{implementationTip}"
-          </p>
-        </div>
-        <ul className="space-y-3">
-          <li className="flex items-start text-gray-700">
-            <span className="text-orange-500 mr-2">✓</span> 
-            Share your brilliant plan with stakeholders (optional: bring snacks to increase approval odds by 73%)
-          </li>
-          <li className="flex items-start text-gray-700">
-            <span className="text-orange-500 mr-2">✓</span> 
-            Schedule follow-up sessions to track implementation progress (and take all the credit)
-          </li>
-          <li className="flex items-start text-gray-700">
-            <span className="text-orange-500 mr-2">✓</span> 
-            Put "Innovative Problem Solver" in your email signature and LinkedIn profile
-          </li>
-          <li className="flex items-start text-gray-700">
-            <span className="text-orange-500 mr-2">✓</span> 
-            Come back to solve another challenge when you need more brilliance
-          </li>
-        </ul>
-      </div>
-      
-      <div className="flex flex-col sm:flex-row justify-center gap-4 mt-10">
+      {/* Generate Solution Summary Button */}
+      <div className="mb-8">
         <button
-          className="px-6 py-3 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-all hover:shadow-xl hover:scale-105 flex items-center justify-center"
+          onClick={generateSummary}
+          disabled={isSummarizing}
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md shadow transition flex items-center justify-center"
+        >
+          {isSummarizing ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Generating summary...
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Generate solution summary
+            </>
+          )}
+        </button>
+        
+        {summary && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-md">
+            <h3 className="font-medium text-gray-800 mb-2">Solution Summary</h3>
+            <p className="text-gray-700">{summary}</p>
+          </div>
+        )}
+      </div>
+      
+      {/* Custom Notes (if any) */}
+      {customNotes && customNotes.trim() !== '' && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h3 className="font-bold text-gray-700 mb-2">Your Notes</h3>
+          <div className="p-3 bg-gray-50 rounded-md">
+            <p className="text-gray-700 whitespace-pre-line">{customNotes}</p>
+          </div>
+        </div>
+      )}
+      
+      {/* AI Buddy Info (if applicable) */}
+      {selectedPersonality && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h3 className="font-bold text-gray-700 mb-2">AI Personality Used</h3>
+          <div className="flex items-center">
+            <div className="bg-purple-100 p-2 rounded-full">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="font-medium text-gray-800 capitalize">{selectedPersonality} Mode</p>
+              <p className="text-sm text-gray-600">
+                {selectedPersonality === 'creative' && 'Focused on generating innovative, out-of-the-box ideas'}
+                {selectedPersonality === 'analytical' && 'Focused on logical, structured problem-solving approaches'}
+                {selectedPersonality === 'optimistic' && 'Emphasized positive aspects and opportunities in solutions'}
+                {selectedPersonality === 'critical' && 'Provided thorough examination of potential pitfalls and challenges'}
+                {selectedPersonality === 'balanced' && 'Offered well-rounded perspectives on problems and solutions'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Action Buttons */}
+      <div className="mb-8 text-center">
+        <button
           onClick={onRestart}
+          className="py-3 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md shadow transition"
         >
-          <span className="mr-2">⚡</span>
-          Unleash More Brilliance!
-        </button>
-        <button
-          className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all hover:border-gray-400 flex items-center justify-center"
-          onClick={() => window.location.href = '/challenges'}
-        >
-          <span className="mr-2">🏠</span>
-          Back to Challenge Hub
+          Start a new brainstorm
         </button>
       </div>
       
-      {/* Add CSS keyframes for confetti animation */}
-      <style>{`
+      {/* Confetti CSS */}
+      <style>
+        {`
+        .confetti-container {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          z-index: 1000;
+        }
+        
+        .confetti {
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          opacity: 0.7;
+          top: -10px;
+          animation: confetti-fall 5s linear forwards;
+        }
+        
         @keyframes confetti-fall {
-          0% { transform: translateY(-10vh) rotate(0deg); }
-          100% { transform: translateY(100vh) rotate(90deg); }
+          0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(100vh) rotate(720deg);
+            opacity: 0;
+          }
         }
-        @keyframes confetti-shake {
-          0%, 100% { transform: translateX(0); }
-          50% { transform: translateX(5px); }
-        }
-      `}</style>
+        `}
+      </style>
     </div>
   );
 };

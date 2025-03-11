@@ -1,4 +1,5 @@
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import React from 'react';
 
 // Types for user data
 export interface UserProgress {
@@ -45,8 +46,33 @@ export const getUserId = (): string => {
 };
 
 // Hooks for accessing user data
-export const useUserProgress = () => {
-  return useLocalStorage<UserProgress>('ai_hub_user_progress', DEFAULT_USER_PROGRESS);
+export const useUserProgress = (): [any, React.Dispatch<React.SetStateAction<any>>] => {
+  const [userProgress, setUserProgress] = React.useState(() => {
+    // Initialize from localStorage if available
+    const saved = localStorage.getItem('userProgress');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error parsing user progress:', e);
+      }
+    }
+    
+    // Default initial state
+    return {
+      completedChallenges: [],
+      lastActive: new Date().toISOString(),
+      preferences: {},
+      challengeData: {}
+    };
+  });
+  
+  // Save to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem('userProgress', JSON.stringify(userProgress));
+  }, [userProgress]);
+  
+  return [userProgress, setUserProgress];
 };
 
 export const useUserPreferences = () => {
@@ -259,4 +285,34 @@ export const saveChallengeSocialMedia = (data: any): void => {
   } catch (error) {
     console.error('Error saving social media challenge data:', error);
   }
+};
+
+export const saveChallengeSlidemaster = (
+  challengeId: string,
+  presentationTitle: string,
+  theme: string,
+  totalSlides: number,
+  generatedImages: number
+): void => {
+  const userProgress = JSON.parse(localStorage.getItem('ai_hub_user_progress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
+  
+  if (!userProgress.challengeData[challengeId]) {
+    userProgress.challengeData[challengeId] = {};
+  }
+  
+  userProgress.challengeData[challengeId].slideMaster = {
+    presentationTitle,
+    theme,
+    totalSlides,
+    generatedImages,
+    completedAt: new Date().toISOString()
+  };
+  
+  // Add to completed challenges if not already there
+  if (!userProgress.completedChallenges.includes(challengeId)) {
+    userProgress.completedChallenges.push(challengeId);
+  }
+  
+  userProgress.lastActive = new Date().toISOString();
+  localStorage.setItem('ai_hub_user_progress', JSON.stringify(userProgress));
 }; 

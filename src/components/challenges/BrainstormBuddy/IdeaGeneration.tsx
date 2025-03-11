@@ -1,12 +1,24 @@
-import React from 'react';
-import { BrainstormState, Idea } from './BrainstormBuddyMain';
+import React, { useState } from 'react';
+import { Idea } from './BrainstormBuddyMain';
+
+// Creativity technique interface
+interface CreativityTechnique {
+  id: string;
+  name: string;
+  description: string;
+  example: string;
+}
 
 interface IdeaGenerationProps {
-  state: BrainstormState;
+  ideas: Idea[];
+  problemStatement: string;
+  selectedCategory: string;
   onSelectIdea: (idea: Idea) => void;
-  onGenerateImplementation: () => void;
+  onGenerateImplementation: () => Promise<void>;
   onBack: () => void;
+  selectedIdea: Idea | null;
   isGenerating: boolean;
+  creativityTechniques: CreativityTechnique[];
   error?: string;
 }
 
@@ -21,28 +33,44 @@ const IDEA_RATINGS = [
 ];
 
 const IdeaGeneration: React.FC<IdeaGenerationProps> = ({
-  state,
+  ideas,
+  problemStatement,
+  selectedCategory,
   onSelectIdea,
   onGenerateImplementation,
   onBack,
+  selectedIdea,
   isGenerating,
+  creativityTechniques,
   error
 }) => {
+  const [activeTechniqueId, setActiveTechniqueId] = useState<string | null>(null);
+  const [showIdeasHelp, setShowIdeasHelp] = useState(false);
+  
   // Get a random rating for an idea
   const getRandomRating = () => {
     const randomIndex = Math.floor(Math.random() * IDEA_RATINGS.length);
     return IDEA_RATINGS[randomIndex];
   };
   
+  // Toggle the creativity technique info panel
+  const toggleTechnique = (id: string) => {
+    if (activeTechniqueId === id) {
+      setActiveTechniqueId(null);
+    } else {
+      setActiveTechniqueId(id);
+    }
+  };
+  
   return (
     <div>
-      <div className="bg-gradient-to-r from-orange-100 to-yellow-100 p-6 rounded-lg mb-8">
-        <h2 className="text-xl font-semibold text-orange-800 flex items-center">
-          <span className="mr-2">✨</span>
-          Behold, the Fruits of Our Collective Genius!
+      <div className="bg-gradient-to-r from-blue-100 to-indigo-100 p-6 rounded-lg mb-8">
+        <h2 className="text-xl font-semibold text-blue-800 flex items-center">
+          <span className="mr-2">💡</span>
+          Creative Ideas for Your Challenge
         </h2>
         <p className="text-gray-700 mt-2">
-          Our AI and your brain cells collaborated on these brilliant ideas. Pick one that speaks to your soul (or at least your quarterly goals).
+          Review these AI-generated ideas for your problem: <span className="font-medium">{problemStatement}</span>
         </p>
       </div>
       
@@ -55,146 +83,266 @@ const IdeaGeneration: React.FC<IdeaGenerationProps> = ({
         </div>
       )}
       
-      <div className="mb-6 p-5 bg-white border-2 border-blue-100 rounded-lg shadow-md">
-        <h3 className="font-medium text-gray-800 text-lg flex items-center mb-3">
-          <span className="text-blue-500 text-xl mr-2">🧩</span>
-          The Problem You're Solving:
-        </h3>
-        <p className="text-gray-700 text-lg font-medium bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border border-purple-100">
-          "{state.problemStatement}"
-        </p>
-        <p className="text-sm text-gray-500 mt-3 italic">
-          Category: <span className="font-medium">{state.ideaCategory}</span> • Generated ideas: <span className="font-medium">{state.ideas.length}</span>
-        </p>
-      </div>
+      {selectedIdea ? (
+        <div className="mb-8">
+          <div className="bg-white border-2 border-blue-500 rounded-lg p-6 shadow-lg mb-4">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-xl font-semibold text-gray-800">{selectedIdea.title}</h3>
+              {selectedIdea.aiRating && (
+                <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                  {selectedIdea.aiRating}/100
+                </div>
+              )}
+            </div>
+            
+            <p className="text-gray-700 mb-4">{selectedIdea.description}</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <h4 className="font-medium text-gray-700 mb-2 flex items-center">
+                  <span className="text-green-500 mr-2">✓</span>
+                  Potential Benefits
+                </h4>
+                <ul className="space-y-1">
+                  {selectedIdea.pros.map((pro, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span className="text-gray-600">{pro}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="font-medium text-gray-700 mb-2 flex items-center">
+                  <span className="text-red-500 mr-2">!</span>
+                  Potential Challenges
+                </h4>
+                <ul className="space-y-1">
+                  {selectedIdea.cons.map((con, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-red-500 mr-2">•</span>
+                      <span className="text-gray-600">{con}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            
+            {selectedIdea.tags && selectedIdea.tags.length > 0 && (
+              <div className="mb-4">
+                <h4 className="font-medium text-gray-700 mb-2">Tags</h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedIdea.tags.map((tag, index) => (
+                    <span key={index} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {selectedIdea.inspirationSource && (
+              <div className="mb-4 text-sm text-gray-600">
+                <span className="font-medium">Inspired by:</span> {selectedIdea.inspirationSource}
+              </div>
+            )}
+            
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
+              <button
+                className="text-blue-600 hover:text-blue-800 flex items-center"
+                onClick={() => onSelectIdea({...selectedIdea, isSelected: false})}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+                Back to ideas
+              </button>
+              
+              <button
+                className={`px-6 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 
+                  transition-all hover:shadow-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed`}
+                onClick={onGenerateImplementation}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Creating Plan...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">📝</span>
+                    Create Implementation Plan
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-gray-800 flex items-center">
+              <span className="mr-2">💭</span>
+              Generated Ideas
+            </h3>
+            
+            <button
+              className="text-sm text-blue-600 flex items-center hover:text-blue-800"
+              onClick={() => setShowIdeasHelp(!showIdeasHelp)}
+            >
+              <span className="mr-1">{showIdeasHelp ? 'Hide' : 'Show'}</span>
+              Ideas Help
+            </button>
+          </div>
+          
+          {showIdeasHelp && (
+            <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-100">
+              <h4 className="font-medium text-blue-800 mb-2">How to Select the Best Idea</h4>
+              <ul className="space-y-2 text-blue-800 text-sm">
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2">•</span>
+                  <span>Consider both pros and cons - the idea with the most pros isn't always the best</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2">•</span>
+                  <span>Think about feasibility - can you realistically implement this idea?</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2">•</span>
+                  <span>Consider impact - which idea would make the biggest difference?</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2">•</span>
+                  <span>Trust your intuition - sometimes the most exciting idea is the right one</span>
+                </li>
+              </ul>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 gap-4">
+            {ideas.map((idea) => (
+              <div
+                key={idea.id}
+                className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-all hover:border-blue-300 cursor-pointer"
+                onClick={() => onSelectIdea({...idea, isSelected: true})}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <h4 className="text-lg font-medium text-gray-800">{idea.title}</h4>
+                  {idea.aiRating && (
+                    <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                      Rating: {idea.aiRating}/100
+                    </div>
+                  )}
+                </div>
+                
+                <p className="text-gray-600 mb-4">{idea.description}</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-700 mb-1 flex items-center">
+                      <span className="text-green-500 mr-1">✓</span>
+                      Pros
+                    </h5>
+                    <ul className="text-sm space-y-1">
+                      {idea.pros.slice(0, 2).map((pro, index) => (
+                        <li key={index} className="flex items-start">
+                          <span className="text-green-500 mr-1">•</span>
+                          <span className="text-gray-600">{pro}</span>
+                        </li>
+                      ))}
+                      {idea.pros.length > 2 && (
+                        <li className="text-blue-600 text-sm">+{idea.pros.length - 2} more</li>
+                      )}
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-700 mb-1 flex items-center">
+                      <span className="text-red-500 mr-1">!</span>
+                      Cons
+                    </h5>
+                    <ul className="text-sm space-y-1">
+                      {idea.cons.slice(0, 2).map((con, index) => (
+                        <li key={index} className="flex items-start">
+                          <span className="text-red-500 mr-1">•</span>
+                          <span className="text-gray-600">{con}</span>
+                        </li>
+                      ))}
+                      {idea.cons.length > 2 && (
+                        <li className="text-blue-600 text-sm">+{idea.cons.length - 2} more</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+                
+                {idea.tags && idea.tags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {idea.tags.map((tag, index) => (
+                      <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       
       <div className="mb-8">
         <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
-          <span className="text-orange-500 text-xl mr-2">💡</span>
-          Choose Your Destiny (aka an Idea Worth Implementing)
+          <span className="mr-2">🔄</span>
+          Creativity Techniques
         </h3>
-        <div className="space-y-8">
-          {state.ideas.map((idea, index) => (
-            <div 
-              key={idea.id} 
-              className={`bg-white p-6 rounded-xl border-2 transition-all duration-300 hover:shadow-xl 
-                ${idea.isSelected 
-                  ? 'border-orange-500 bg-orange-50 shadow-md transform scale-[1.02]' 
-                  : 'border-gray-200 hover:border-orange-300'
-                }`}
-            >
-              <div className="flex flex-col md:flex-row md:items-start gap-4">
-                <div className="flex-shrink-0 p-4 bg-orange-100 rounded-lg text-center w-16 h-16 flex items-center justify-center transform rotate-3">
-                  <span className="text-2xl">{['🚀', '💡', '⚡️', '🔮', '🎯', '🧠', '✨'][index % 7]}</span>
-                </div>
-                
-                <div className="flex-grow">
-                  <div className="flex flex-wrap items-center mb-2">
-                    <h4 className="font-medium text-gray-800 text-xl mr-3">{idea.title}</h4>
-                    <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
-                      {getRandomRating()}
-                    </span>
-                  </div>
-                  <p className="text-gray-700 mb-4 text-lg">{idea.description}</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-                      <h5 className="font-medium text-green-700 mb-2 flex items-center">
-                        <span className="mr-1">👍</span> Pros
-                      </h5>
-                      <ul className="space-y-2">
-                        {idea.pros.map((pro, index) => (
-                          <li key={index} className="flex items-start">
-                            <span className="text-green-600 mr-2">•</span>
-                            <span className="text-gray-700">{pro}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-                      <h5 className="font-medium text-red-700 mb-2 flex items-center">
-                        <span className="mr-1">👎</span> Cons
-                      </h5>
-                      <ul className="space-y-2">
-                        {idea.cons.map((con, index) => (
-                          <li key={index} className="flex items-start">
-                            <span className="text-red-600 mr-2">•</span>
-                            <span className="text-gray-700">{con}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                  
-                  <button
-                    className={`px-5 py-3 rounded-md font-medium transition-all flex items-center 
-                      ${idea.isSelected 
-                        ? 'bg-orange-500 text-white shadow-md' 
-                        : 'border-2 border-orange-400 text-orange-500 hover:bg-orange-50'
-                      }`}
-                    onClick={() => onSelectIdea(idea)}
+        
+        <div className="bg-white border border-gray-200 rounded-lg">
+          {creativityTechniques.map((technique) => (
+            <div key={technique.id} className="border-b border-gray-200 last:border-b-0">
+              <div
+                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => toggleTechnique(technique.id)}
+              >
+                <div className="flex justify-between items-center">
+                  <h4 className="font-medium text-gray-800">{technique.name}</h4>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-5 w-5 text-gray-400 transform transition-transform ${
+                      activeTechniqueId === technique.id ? 'rotate-180' : ''
+                    }`}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
                   >
-                    {idea.isSelected ? (
-                      <>
-                        <span className="mr-2">✅</span>
-                        This One Sparks Joy!
-                      </>
-                    ) : 'Select This Brilliant Idea'}
-                  </button>
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
                 </div>
               </div>
+              
+              {activeTechniqueId === technique.id && (
+                <div className="px-4 pb-4">
+                  <p className="text-gray-600 mb-2">{technique.description}</p>
+                  <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                    <h5 className="text-sm font-medium text-gray-700 mb-1">Example</h5>
+                    <p className="text-sm text-gray-600">{technique.example}</p>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
       </div>
       
-      <div className="mb-8">
-        <div className="bg-blue-50 p-5 rounded-lg border border-blue-100 shadow-inner">
-          <div className="flex items-start">
-            <div className="text-blue-500 text-2xl mr-3">💭</div>
-            <div>
-              <h4 className="font-medium text-blue-700 mb-1">Selection Strategy 101</h4>
-              <p className="text-blue-800 text-sm">
-                Choosing an idea is like picking a Netflix show – don't overthink it! The best solutions balance immediate 
-                feasibility ("Can we actually do this without breaking physics?") with long-term impact ("Will this still 
-                seem smart next quarter?"). When in doubt, go with the one that made you say "Huh, that could actually work!"
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-      
       <div className="flex justify-between">
         <button
-          className="px-5 py-3 border-2 border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-all hover:border-gray-400 flex items-center"
+          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
           onClick={onBack}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          Back to Drawing Board
-        </button>
-        <button
-          className={`px-6 py-3 bg-orange-500 text-white rounded-md font-medium hover:bg-orange-600 
-            transition-all hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed
-            disabled:hover:scale-100 disabled:hover:shadow-none flex items-center`}
-          onClick={onGenerateImplementation}
-          disabled={!state.selectedIdea || isGenerating}
-        >
-          {isGenerating ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Planning in Progress...
-            </>
-          ) : (
-            <>
-              <span className="mr-2">🔮</span>
-              Create Master Plan!
-            </>
-          )}
+          Back to Problem Definition
         </button>
       </div>
     </div>

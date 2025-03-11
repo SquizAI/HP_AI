@@ -1,16 +1,51 @@
 import React, { useState } from 'react';
-import { BrainstormState } from './BrainstormBuddyMain';
 
-interface ImplementationPlanProps {
-  state: BrainstormState;
-  onComplete: () => void;
-  onBack: () => void;
+interface ImplementationStep {
+  title: string;
+  description: string;
+  duration: string;
+  resources: string[];
+  status: 'pending' | 'in-progress' | 'completed';
 }
 
-// Define a type for formatted line
-interface FormattedLine {
-  type: 'empty' | 'h1' | 'h2' | 'h3' | 'list-item' | 'paragraph';
-  content: string;
+interface ImplementationPlanProps {
+  selectedIdea: string;
+  implementationPlan: string;
+  problemStatement: string;
+  onComplete: () => void;
+  onBack: () => void;
+  onSaveSteps?: (steps: ImplementationStep[]) => void;
+  customNotes?: string;
+  onUpdateNotes?: (notes: string) => void;
+}
+
+// Structured plan interfaces
+interface PlanPhase {
+  title: string;
+  weeks: string;
+  tasks: string[];
+}
+
+interface PlanRisk {
+  risk: string;
+  impact: string;
+  probability: string;
+  mitigation: string;
+}
+
+interface PlanResource {
+  category: string;
+  details: string[];
+}
+
+interface StructuredPlan {
+  title: string;
+  summary: string;
+  phases: PlanPhase[];
+  resources: PlanResource[];
+  risks: PlanRisk[];
+  metrics: string[];
+  conclusion: string;
 }
 
 // Fun implementation plan facts
@@ -19,239 +54,555 @@ const IMPLEMENTATION_FACTS = [
   "This might be the first implementation plan in history that doesn't include the phrase 'synergize cross-functional teams'.",
   "Studies show that people who follow structured implementation plans are 42% less likely to spend meetings saying 'we should really do something about that'.",
   "Warning: Implementation of brilliant ideas may lead to promotion, recognition, or being asked to lead even more projects.",
-  "A good implementation plan is like a GPS for your idea—except it won't randomly tell you to 'turn right' into a lake."
+  "A good implementation plan is like a GPS for your idea—except it won't randomly tell you to 'turn right' into a lake.",
+  "Fun fact: Implementation plans written on Fridays are 31% more likely to include impromptu team celebrations.",
+  "The average implementation plan has a half-life of 3.5 meetings before someone says 'Let's pivot'."
+];
+
+// Sample implementation step templates
+const STEP_TEMPLATES = [
+  {
+    title: "Research Phase",
+    description: "Gather all necessary information and background research",
+    duration: "1-2 weeks",
+    resources: ["Market research tools", "Competitor analysis"],
+    status: "pending" as const
+  },
+  {
+    title: "Planning & Design",
+    description: "Create detailed specifications and design documents",
+    duration: "2-3 weeks",
+    resources: ["Design software", "Project management tools"],
+    status: "pending" as const
+  },
+  {
+    title: "Development",
+    description: "Build the core functionality based on specifications",
+    duration: "3-4 weeks",
+    resources: ["Development team", "Required technologies"],
+    status: "pending" as const
+  }
 ];
 
 const ImplementationPlan: React.FC<ImplementationPlanProps> = ({
-  state,
+  selectedIdea,
+  implementationPlan,
+  problemStatement,
   onComplete,
-  onBack
+  onBack,
+  onSaveSteps,
+  customNotes = "",
+  onUpdateNotes
 }) => {
+  const [isExpanded, setIsExpanded] = useState<Record<string, boolean>>({
+    implementation: true,
+    steps: true
+  });
+  const [steps, setSteps] = useState<ImplementationStep[]>([]);
   const [factIndex, setFactIndex] = useState(Math.floor(Math.random() * IMPLEMENTATION_FACTS.length));
-  const [isExpanded, setIsExpanded] = useState<Record<string, boolean>>({});
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [notes, setNotes] = useState(customNotes);
+  const [isMarkdownView, setIsMarkdownView] = useState(false);
+  const [showExportOptions, setShowExportOptions] = useState(false);
   
   // Toggle section expansion
   const toggleSection = (sectionId: string) => {
-    setIsExpanded(prev => ({
-      ...prev,
-      [sectionId]: !prev[sectionId]
-    }));
+    setIsExpanded({ ...isExpanded, [sectionId]: !isExpanded[sectionId] });
   };
   
-  // Get a new random fact
+  // Get a new random implementation fact
   const getNewFact = () => {
-    const newIndex = (factIndex + 1) % IMPLEMENTATION_FACTS.length;
+    let newIndex;
+    do {
+      newIndex = Math.floor(Math.random() * IMPLEMENTATION_FACTS.length);
+    } while (newIndex === factIndex);
     setFactIndex(newIndex);
   };
   
-  // Format implementation text with markdown-like styling
-  const formatImplementation = (text: string): FormattedLine[] => {
-    if (!text) return [];
-    
-    const lines = text.trim().split('\n');
-    const formattedLines: FormattedLine[] = [];
-    
-    let inList = false;
-    
-    for (const line of lines) {
-      if (line.trim() === '') {
-        formattedLines.push({ type: 'empty', content: '' });
-        inList = false;
-      } else if (line.startsWith('# ')) {
-        formattedLines.push({ type: 'h1', content: line.substring(2) });
-        inList = false;
-      } else if (line.startsWith('## ')) {
-        formattedLines.push({ type: 'h2', content: line.substring(3) });
-        inList = false;
-      } else if (line.startsWith('### ')) {
-        formattedLines.push({ type: 'h3', content: line.substring(4) });
-        inList = false;
-      } else if (line.startsWith('- ')) {
-        formattedLines.push({ type: 'list-item', content: line.substring(2) });
-        inList = true;
-      } else {
-        formattedLines.push({ type: 'paragraph', content: line });
-        inList = false;
-      }
+  // Handle notes changes
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newNotes = e.target.value;
+    setNotes(newNotes);
+    if (onUpdateNotes) {
+      onUpdateNotes(newNotes);
     }
-    
-    return formattedLines;
   };
   
-  const formattedImplementation = formatImplementation(state.implementation);
-
-  return (
-    <div className="relative">
-      <div className="bg-gradient-to-r from-orange-100 to-yellow-100 p-6 rounded-lg mb-8">
-        <h2 className="text-xl font-semibold text-orange-800 flex items-center">
-          <span className="mr-2">🚀</span>
-          Your Master Plan to World Domination (or at least Problem Solving)
-        </h2>
-        <p className="text-gray-700 mt-2">
-          Behold the detailed roadmap for your brilliant idea! Follow these steps and you'll be the office hero in no time.
-        </p>
-      </div>
+  // Parse implementation plan into structured format
+  const parseStructuredPlan = (markdown: string): StructuredPlan => {
+    const lines = markdown.split('\n');
+    const plan: StructuredPlan = {
+      title: '',
+      summary: '',
+      phases: [],
+      resources: [],
+      risks: [],
+      metrics: [],
+      conclusion: ''
+    };
+    
+    let currentSection = '';
+    let currentPhase: PlanPhase | null = null;
+    let currentResource: PlanResource | null = null;
+    let inRiskTable = false;
+    let headerColumns: string[] = [];
+    
+    lines.forEach((line, index) => {
+      // Extract title
+      if (line.startsWith('# ')) {
+        plan.title = line.substring(2).trim();
+        return;
+      }
       
-      <div className="mb-6 p-5 bg-white border-2 border-blue-100 rounded-lg shadow-md">
-        <h3 className="font-medium text-gray-800 text-lg mb-3 flex items-center">
-          <span className="text-blue-500 text-xl mr-2">💡</span>
-          The Brilliant Idea You Selected:
-        </h3>
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-purple-100">
-          <h4 className="font-semibold text-gray-800 text-lg">{state.selectedIdea?.title}</h4>
-          <p className="text-gray-700 mt-2">{state.selectedIdea?.description}</p>
+      // Track current section
+      if (line.startsWith('## ')) {
+        currentSection = line.substring(3).trim().toLowerCase();
+        
+        // Reset section-specific variables
+        if (currentSection.includes('phase')) {
+          currentPhase = null;
+        } else if (currentSection.includes('resource')) {
+          currentResource = null;
+        } else if (currentSection.includes('risk')) {
+          inRiskTable = false;
+        }
+        return;
+      }
+      
+      // Handle executive summary
+      if (currentSection.includes('summary') && line.trim() && !line.startsWith('#')) {
+        plan.summary += line.trim() + ' ';
+        return;
+      }
+      
+      // Handle phases
+      if (currentSection.includes('phase') && line.match(/\*\*.*?\*\*/)) {
+        // Check if this is a phase header with weeks
+        const phaseMatch = line.match(/\*\*(.*?)\*\*\s*\(?(Weeks\s+[\d\-]+)\)?/i);
+        if (phaseMatch) {
+          // Start a new phase
+          currentPhase = {
+            title: phaseMatch[1].trim(),
+            weeks: phaseMatch[2].trim(),
+            tasks: []
+          };
+          plan.phases.push(currentPhase);
+        } else if (line.trim().startsWith('- **') && currentPhase) {
+          // This is a task within the current phase
+          const taskMatch = line.match(/\-\s*\*\*(.*?)\*\*/);
+          if (taskMatch) {
+            const task = taskMatch[1].trim() + line.substring(line.indexOf('**', 2) + 2).trim();
+            currentPhase.tasks.push(task);
+          }
+        }
+        return;
+      }
+      
+      // Handle resources
+      if (currentSection.includes('resource') && line.match(/\*\*.*?\*\*/)) {
+        // Check if this is a resource category
+        const resourceMatch = line.match(/\*\*(.*?)\*\*/);
+        if (resourceMatch && !line.trim().startsWith('-')) {
+          // Start a new resource category
+          currentResource = {
+            category: resourceMatch[1].trim(),
+            details: []
+          };
+          plan.resources.push(currentResource);
+        } else if (line.trim().startsWith('-') && currentResource) {
+          // This is a detail within the current resource
+          const detail = line.trim().substring(1).trim();
+          currentResource.details.push(detail);
+        }
+        return;
+      }
+      
+      // Handle risk table
+      if (currentSection.includes('risk')) {
+        // Detect table header row with |---|---|---|
+        if (line.includes('|') && line.includes('---')) {
+          inRiskTable = true;
+          headerColumns = lines[index - 1]
+                         .split('|')
+                         .filter(cell => cell.trim())
+                         .map(cell => cell.trim().toLowerCase());
+          return;
+        }
+        
+        // Process table row
+        if (inRiskTable && line.includes('|') && !line.includes('---')) {
+          const cells = line.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
+          
+          if (cells.length >= 4) {
+            const risk: PlanRisk = {
+              risk: cells[0],
+              impact: cells[1],
+              probability: cells[2],
+              mitigation: cells[3]
+            };
+            
+            plan.risks.push(risk);
+          }
+          return;
+        }
+      }
+      
+      // Handle metrics
+      if (currentSection.includes('metric') && line.trim().startsWith('-')) {
+        plan.metrics.push(line.trim().substring(1).trim());
+        return;
+      }
+      
+      // Handle conclusion
+      if (currentSection.includes('conclusion') && line.trim() && !line.startsWith('#')) {
+        plan.conclusion += line.trim() + ' ';
+        return;
+      }
+    });
+    
+    return plan;
+  };
+  
+  // Parse the plan
+  const structuredPlan = parseStructuredPlan(implementationPlan);
+    
+  return (
+    <div className="p-6 bg-white rounded-lg shadow-lg">
+      {/* Header */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+          <span className="text-blue-600 mr-3">📋</span>
+          Implementation Plan
+        </h2>
+        <p className="text-gray-600 mb-4">
+          A structured approach to implement your solution effectively.
+        </p>
+        
+        {/* Format toggle */}
+        <div className="flex mb-4">
+          <button
+            onClick={() => setIsMarkdownView(false)}
+            className={`px-4 py-2 text-sm font-medium rounded-l-md ${
+              !isMarkdownView 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Structured View
+          </button>
+          <button
+            onClick={() => setIsMarkdownView(true)}
+            className={`px-4 py-2 text-sm font-medium rounded-r-md ${
+              isMarkdownView 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Raw Markdown
+          </button>
         </div>
       </div>
       
-      <div className="absolute top-8 right-8 transform rotate-12 bg-orange-500 text-white py-1 px-3 rounded-lg shadow-md opacity-90 text-sm font-bold z-10">
-        APPROVED!
+      {/* Selected Idea Summary */}
+      <div className="mb-6 bg-blue-50 p-4 rounded-lg">
+        <div className="flex items-start">
+          <div className="text-blue-500 text-xl mr-3">💡</div>
+          <div>
+            <h3 className="font-medium text-blue-800">Selected Idea</h3>
+            <p className="text-blue-700">{selectedIdea}</p>
+          </div>
+        </div>
       </div>
       
-      <div className="mb-8">
-        <div className="bg-white p-6 rounded-xl border-2 border-gray-200 shadow-md relative">
-          <div className="bg-blue-50 p-5 rounded-lg border border-blue-100 mb-6">
-            <div className="flex items-start">
-              <div className="text-blue-500 text-2xl mr-3">🎬</div>
-              <div>
-                <h4 className="font-medium text-blue-700 mb-1">Implementation Insight</h4>
-                <p className="text-blue-800 text-sm">
-                  {IMPLEMENTATION_FACTS[factIndex]}
-                </p>
+      {/* Implementation Plan Content */}
+      {isMarkdownView ? (
+        <div className="bg-gray-50 p-6 rounded-lg mb-6 font-mono text-sm overflow-auto">
+          <pre className="whitespace-pre-wrap">{implementationPlan}</pre>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6 shadow-sm">
+          {/* Plan Title */}
+          <h1 className="text-2xl font-bold text-gray-900 border-b border-gray-200 pb-3 mb-6">
+            {structuredPlan.title || "Implementation Plan"}
+          </h1>
+          
+          {/* Executive Summary */}
+          {structuredPlan.summary && (
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-gray-800 mb-3">Executive Summary</h2>
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <p className="text-gray-700">{structuredPlan.summary}</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Implementation Phases */}
+          {structuredPlan.phases.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Implementation Phases</h2>
+              <div className="space-y-6">
+                {structuredPlan.phases.map((phase, index) => (
+                  <div key={index} className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold">{phase.title}</h3>
+                        <span className="text-sm bg-white/20 px-3 py-1 rounded-full">{phase.weeks}</span>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <ul className="space-y-2">
+                        {phase.tasks.map((task, taskIndex) => (
+                          <li key={taskIndex} className="flex items-start">
+                            <span className="h-5 w-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 mt-0.5 mr-3 text-xs font-bold">
+                              {taskIndex + 1}
+                            </span>
+                            <span className="text-gray-700">{task}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Resource Requirements */}
+          {structuredPlan.resources.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Resource Requirements</h2>
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                <div className="divide-y divide-gray-100">
+                  {structuredPlan.resources.map((resource, index) => (
+                    <div key={index} className="p-4">
+                      <h3 className="font-bold text-gray-800 mb-2">
+                        {resource.category}:
+                      </h3>
+                      <ul className="pl-5 list-disc space-y-1">
+                        {resource.details.map((detail, detailIndex) => (
+                          <li key={detailIndex} className="text-gray-700">{detail}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Risk Management */}
+          {structuredPlan.risks.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Risk Management</h2>
+              <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Impact</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Probability</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mitigation Strategy</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {structuredPlan.risks.map((risk, index) => (
+                      <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{risk.risk}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${risk.impact.toLowerCase().includes('high') ? 'bg-red-100 text-red-800' : 
+                              risk.impact.toLowerCase().includes('medium') ? 'bg-yellow-100 text-yellow-800' : 
+                              'bg-green-100 text-green-800'}`}>
+                            {risk.impact}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${risk.probability.toLowerCase().includes('high') ? 'bg-red-100 text-red-800' : 
+                              risk.probability.toLowerCase().includes('medium') ? 'bg-yellow-100 text-yellow-800' : 
+                              'bg-green-100 text-green-800'}`}>
+                            {risk.probability}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">{risk.mitigation}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          
+          {/* Success Metrics */}
+          {structuredPlan.metrics.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Success Metrics</h2>
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm p-4">
+                <ul className="space-y-2">
+                  {structuredPlan.metrics.map((metric, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="h-5 w-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0 mt-0.5 mr-3 text-xs font-bold">
+                        ✓
+                      </span>
+                      <span className="text-gray-700">{metric}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+          
+          {/* Conclusion */}
+          {structuredPlan.conclusion && (
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-gray-800 mb-3">Conclusion</h2>
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <p className="text-gray-700">{structuredPlan.conclusion}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Notes Section */}
+      <div className="mb-6">
+        <h3 className="font-medium text-gray-800 mb-2">Your Notes</h3>
+        <textarea
+          value={notes}
+          onChange={handleNotesChange}
+          placeholder="Add your own notes, adjustments, or additions to the implementation plan..."
+          className="w-full h-32 p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+      
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center">
+        <button
+          onClick={onBack}
+          className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 transition-colors"
+        >
+          Back to Ideas
+        </button>
+        
+        <div className="relative">
+          <button 
+            onClick={() => setShowExportOptions(!showExportOptions)}
+            className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors mr-3"
+          >
+            Export Options
+          </button>
+          
+          {showExportOptions && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+              <div className="py-1">
                 <button 
-                  onClick={getNewFact}
-                  className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => {
+                    const blob = new Blob([implementationPlan], { type: 'text/markdown' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'implementation_plan.md';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                  </svg>
-                  Another nugget of wisdom, please!
+                  Download as Markdown
+                </button>
+                <button 
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => {
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      printWindow.document.write(`
+                        <html>
+                          <head>
+                            <title>Implementation Plan</title>
+                            <style>
+                              body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+                              h1 { color: #2563eb; }
+                              h2 { color: #1e40af; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; }
+                              table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+                              th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }
+                              th { background-color: #f3f4f6; }
+                            </style>
+                          </head>
+                          <body>
+                            <h1>Implementation Plan: ${selectedIdea}</h1>
+                            <div>
+                              ${!isMarkdownView ? 
+                                `<h2>Executive Summary</h2>
+                                <p>${structuredPlan.summary}</p>
+                                
+                                ${structuredPlan.phases.map(phase => `
+                                  <h2>${phase.title} (${phase.weeks})</h2>
+                                  <ul>
+                                    ${phase.tasks.map(task => `<li>${task}</li>`).join('')}
+                                  </ul>
+                                `).join('')}
+                                
+                                <h2>Resource Requirements</h2>
+                                ${structuredPlan.resources.map(resource => `
+                                  <h3>${resource.category}</h3>
+                                  <ul>
+                                    ${resource.details.map(detail => `<li>${detail}</li>`).join('')}
+                                  </ul>
+                                `).join('')}
+                                
+                                <h2>Risk Management</h2>
+                                <table>
+                                  <thead>
+                                    <tr>
+                                      <th>Risk</th>
+                                      <th>Impact</th>
+                                      <th>Probability</th>
+                                      <th>Mitigation Strategy</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    ${structuredPlan.risks.map(risk => `
+                                      <tr>
+                                        <td>${risk.risk}</td>
+                                        <td>${risk.impact}</td>
+                                        <td>${risk.probability}</td>
+                                        <td>${risk.mitigation}</td>
+                                      </tr>
+                                    `).join('')}
+                                  </tbody>
+                                </table>
+                                
+                                <h2>Success Metrics</h2>
+                                <ul>
+                                  ${structuredPlan.metrics.map(metric => `<li>${metric}</li>`).join('')}
+                                </ul>
+                                
+                                <h2>Conclusion</h2>
+                                <p>${structuredPlan.conclusion}</p>`
+                                : implementationPlan.replace(/\n/g, '<br>')
+                              }
+                            </div>
+                            ${customNotes ? '<h2>Additional Notes</h2><p>' + customNotes + '</p>' : ''}
+                          </body>
+                        </html>
+                      `);
+                      printWindow.document.close();
+                      printWindow.print();
+                    }
+                  }}
+                >
+                  Print / Save as PDF
                 </button>
               </div>
             </div>
-          </div>
-          
-          <div className="prose max-w-none">
-            <div className="bg-orange-50 border-l-4 border-orange-500 p-4 mb-6">
-              <p className="italic text-orange-800 text-sm">
-                Dear brilliant mind, your implementation plan is ready! Click on section headers to expand/collapse sections.
-                This 30-day plan will transform your ideas into reality. May your gantt charts never be delayed and your stakeholders always be aligned!
-              </p>
-            </div>
-            
-            <div className="space-y-4">
-              {formattedImplementation.map((line, index) => {
-                if (line.type === 'h1') {
-                  return (
-                    <h1 key={index} className="text-2xl font-bold text-gray-800 border-b-2 border-orange-200 pb-2 mt-6">
-                      {line.content}
-                    </h1>
-                  );
-                } else if (line.type === 'h2') {
-                  return (
-                    <h2 key={index} className="text-xl font-semibold text-gray-800 mt-6 flex items-center">
-                      <span className="mr-2">📍</span>
-                      {line.content}
-                    </h2>
-                  );
-                } else if (line.type === 'h3') {
-                  const sectionId = `section-${index}`;
-                  return (
-                    <div key={index} className="mt-4">
-                      <button 
-                        className="text-lg font-medium text-gray-800 hover:text-orange-600 flex items-center justify-between w-full bg-gray-50 p-3 rounded-lg border border-gray-200"
-                        onClick={() => toggleSection(sectionId)}
-                      >
-                        <div className="flex items-center">
-                          <span className="mr-2">🔍</span>
-                          {line.content}
-                        </div>
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          className={`h-5 w-5 transform transition-transform ${isExpanded[sectionId] ? 'rotate-180' : ''}`} 
-                          viewBox="0 0 20 20" 
-                          fill="currentColor"
-                        >
-                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                  );
-                } else if (line.type === 'list-item') {
-                  const prevLine = formattedImplementation[index - 1];
-                  const isSectionCollapsed = prevLine && 
-                                            prevLine.type === 'h3' && 
-                                            !isExpanded[`section-${index - 1}`];
-                  
-                  const isInCollapsedSection = formattedImplementation
-                    .slice(0, index)
-                    .some((l, i) => l.type === 'h3' && !isExpanded[`section-${i}`]);
-                  
-                  if (isInCollapsedSection) {
-                    return null;
-                  }
-                  
-                  return (
-                    <div key={index} className="flex items-start ml-4 my-2">
-                      <span className="text-orange-500 mr-2 mt-1">•</span>
-                      <span className="text-gray-700">{line.content}</span>
-                    </div>
-                  );
-                } else if (line.type === 'paragraph') {
-                  const isInCollapsedSection = formattedImplementation
-                    .slice(0, index)
-                    .some((l, i) => l.type === 'h3' && !isExpanded[`section-${i}`]);
-                  
-                  if (isInCollapsedSection) {
-                    return null;
-                  }
-                  
-                  return (
-                    <p key={index} className="text-gray-700 my-2">
-                      {line.content}
-                    </p>
-                  );
-                }
-                
-                return null;
-              })}
-            </div>
-          </div>
+          )}
         </div>
-      </div>
-      
-      <div className="mb-8">
-        <div className="bg-green-50 p-5 rounded-lg border border-green-100 shadow-inner">
-          <div className="flex items-start">
-            <div className="text-green-500 text-2xl mr-3">🚀</div>
-            <div>
-              <h4 className="font-medium text-green-700 mb-1">Success Secret</h4>
-              <p className="text-green-800 text-sm">
-                The most successful implementations start with small wins to build momentum. Like snowballs of success! 
-                Begin with a pilot group of cool people who won't panic if things get weird, then expand when you've 
-                worked out all the embarrassing bugs. Remember: Rome wasn't built in a day, but they were definitely 
-                laying bricks every hour.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="flex justify-between">
+        
         <button
-          className="px-5 py-3 border-2 border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-all hover:border-gray-400 flex items-center"
-          onClick={onBack}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          Back to Ideas
-        </button>
-        <button
-          className="px-6 py-3 bg-orange-500 text-white rounded-md font-medium hover:bg-orange-600 transition-all hover:shadow-lg hover:scale-105 flex items-center"
           onClick={onComplete}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
         >
-          <span className="mr-2">🏆</span>
-          Mission Accomplished!
+          Complete Implementation
         </button>
       </div>
     </div>

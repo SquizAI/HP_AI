@@ -7,363 +7,504 @@ interface BrandProfilingProps {
   onNext: () => void;
 }
 
-// Industry options for dropdown
-const INDUSTRIES = [
-  'Technology',
-  'E-commerce',
-  'Healthcare',
-  'Finance',
-  'Education',
-  'Food & Beverage',
-  'Fashion',
-  'Entertainment',
-  'Travel',
-  'Fitness',
-  'Beauty',
-  'Real Estate',
-  'Non-profit',
-  'B2B Services',
-  'Manufacturing',
-  'Other'
-];
-
-// Personas and their traits for the brand personality quiz
-const BRAND_PERSONAS = [
+// Brand personality types with descriptive traits
+const BRAND_PERSONALITIES = [
   {
-    id: 'innovator',
-    name: 'The Innovator',
-    traits: ['Forward-thinking', 'Tech-savvy', 'Disruptive', 'Pioneering'],
-    icon: '🚀',
-    description: 'You lead with groundbreaking ideas and cutting-edge solutions.'
-  },
-  {
-    id: 'authority',
-    name: 'The Authority',
-    traits: ['Knowledgeable', 'Established', 'Reliable', 'Expert'],
-    icon: '📊',
-    description: 'You build trust through expertise and proven reliability.'
-  },
-  {
-    id: 'nurturer',
-    name: 'The Nurturer',
-    traits: ['Supportive', 'Community-focused', 'Empathetic', 'Service-oriented'],
+    id: 'authentic',
+    name: 'Authentic & Transparent',
     icon: '🤝',
-    description: 'You prioritize relationships and helping others succeed.'
+    description: 'Honest, genuine, and straightforward communication that builds trust',
+    traits: ['Honest', 'Genuine', 'Transparent', 'Trustworthy', 'Direct']
   },
   {
-    id: 'rebel',
-    name: 'The Rebel',
-    traits: ['Bold', 'Unconventional', 'Authentic', 'Challenger'],
-    icon: '🔥',
-    description: 'You stand out by challenging norms and being refreshingly different.'
+    id: 'innovative',
+    name: 'Innovative & Forward-Thinking',
+    icon: '💡',
+    description: 'Cutting-edge, creative, and focused on the future',
+    traits: ['Creative', 'Cutting-edge', 'Visionary', 'Pioneering', 'Disruptive']
   },
   {
-    id: 'optimist',
-    name: 'The Optimist',
-    traits: ['Uplifting', 'Inspiring', 'Energetic', 'Positive'],
+    id: 'playful',
+    name: 'Playful & Humorous',
+    icon: '😄',
+    description: 'Fun, entertaining, and doesn\'t take itself too seriously',
+    traits: ['Humorous', 'Fun', 'Light-hearted', 'Entertaining', 'Casual']
+  },
+  {
+    id: 'prestigious',
+    name: 'Prestigious & Luxurious',
     icon: '✨',
-    description: 'You motivate and energize your audience with positivity and possibility.'
+    description: 'Premium quality, exclusive, and high-end positioning',
+    traits: ['Exclusive', 'High-quality', 'Sophisticated', 'Refined', 'Premium']
+  },
+  {
+    id: 'empathetic',
+    name: 'Empathetic & Caring',
+    icon: '❤️',
+    description: 'Focused on people and their needs, compassionate and supportive',
+    traits: ['Caring', 'Supportive', 'Understanding', 'People-focused', 'Nurturing']
+  },
+  {
+    id: 'knowledgeable',
+    name: 'Knowledgeable & Authoritative',
+    icon: '🧠',
+    description: 'Expert, informative, and focused on providing valuable insights',
+    traits: ['Expert', 'Informative', 'Authoritative', 'Educational', 'Professional']
+  },
+  {
+    id: 'eco-conscious',
+    name: 'Eco-conscious & Sustainable',
+    icon: '🌿',
+    description: 'Environmentally responsible and committed to sustainability',
+    traits: ['Sustainable', 'Ethical', 'Eco-friendly', 'Responsible', 'Conscious']
+  },
+  {
+    id: 'bold',
+    name: 'Bold & Daring',
+    icon: '🔥',
+    description: 'Confident, challenging the status quo, and not afraid to stand out',
+    traits: ['Confident', 'Daring', 'Provocative', 'Unapologetic', 'Striking']
   }
 ];
 
-// Social media goals for selection
+// Industry options with more comprehensive list
+const INDUSTRY_OPTIONS = [
+  { value: 'technology', label: 'Technology & Software' },
+  { value: 'retail', label: 'Retail & E-commerce' },
+  { value: 'healthcare', label: 'Healthcare & Wellness' },
+  { value: 'financial', label: 'Financial Services & Fintech' },
+  { value: 'education', label: 'Education & E-learning' },
+  { value: 'food-beverage', label: 'Food & Beverage' },
+  { value: 'travel', label: 'Travel & Hospitality' },
+  { value: 'real-estate', label: 'Real Estate & Property' },
+  { value: 'professional-services', label: 'Professional Services & Consulting' },
+  { value: 'manufacturing', label: 'Manufacturing & Industrial' },
+  { value: 'media-entertainment', label: 'Media & Entertainment' },
+  { value: 'nonprofit', label: 'Nonprofit & NGO' },
+  { value: 'beauty-fashion', label: 'Beauty & Fashion' },
+  { value: 'home-decor', label: 'Home Decor & Furnishings' },
+  { value: 'fitness', label: 'Fitness & Sports' },
+  { value: 'arts-crafts', label: 'Arts & Crafts' },
+  { value: 'automotive', label: 'Automotive & Transportation' },
+  { value: 'energy', label: 'Energy & Utilities' },
+  { value: 'agriculture', label: 'Agriculture & Farming' },
+  { value: 'other', label: 'Other' }
+];
+
+// Social media goals with descriptions
 const SOCIAL_MEDIA_GOALS = [
-  { id: 'awareness', label: 'Brand Awareness', icon: '👁️' },
-  { id: 'engagement', label: 'Community Engagement', icon: '💬' },
-  { id: 'traffic', label: 'Website Traffic', icon: '🌐' },
-  { id: 'leads', label: 'Lead Generation', icon: '📋' },
-  { id: 'sales', label: 'Sales Conversion', icon: '💰' },
-  { id: 'retention', label: 'Customer Retention', icon: '🔄' },
-  { id: 'authority', label: 'Thought Leadership', icon: '🧠' },
-  { id: 'service', label: 'Customer Service', icon: '🛎️' }
+  {
+    id: 'brand-awareness',
+    name: 'Increase Brand Awareness',
+    icon: '👁️',
+    description: 'Get more people to recognize and remember your brand'
+  },
+  {
+    id: 'engagement',
+    name: 'Boost Engagement',
+    icon: '💬',
+    description: 'Increase interactions with your content (likes, comments, shares)'
+  },
+  {
+    id: 'lead-generation',
+    name: 'Generate Leads',
+    icon: '🎯',
+    description: 'Capture potential customer information for your sales funnel'
+  },
+  {
+    id: 'community-building',
+    name: 'Build Community',
+    icon: '👥',
+    description: 'Create a loyal following and strengthen customer relationships'
+  },
+  {
+    id: 'customer-service',
+    name: 'Provide Customer Support',
+    icon: '🛠️',
+    description: 'Assist customers and address their questions or concerns'
+  },
+  {
+    id: 'sales',
+    name: 'Drive Sales & Conversions',
+    icon: '💰',
+    description: 'Directly increase revenue through social media channels'
+  },
+  {
+    id: 'website-traffic',
+    name: 'Increase Website Traffic',
+    icon: '🔄',
+    description: 'Direct more visitors to your website or landing pages'
+  },
+  {
+    id: 'thought-leadership',
+    name: 'Establish Thought Leadership',
+    icon: '🏆',
+    description: 'Position your brand as an authority in your industry'
+  },
+  {
+    id: 'product-launch',
+    name: 'Support Product Launches',
+    icon: '🚀',
+    description: 'Create buzz and momentum around new offerings'
+  },
+  {
+    id: 'recruiting',
+    name: 'Talent Recruitment',
+    icon: '👔',
+    description: 'Attract potential employees and showcase company culture'
+  }
+];
+
+// Brand description templates for inspiration
+const BRAND_DESCRIPTION_TEMPLATES = [
+  {
+    title: "The Problem-Solver",
+    template: "[Brand] helps [target audience] overcome [specific challenge] through [unique solution/approach]. Unlike competitors who [competitor limitation], we focus on [key differentiator] to deliver [main benefit]."
+  },
+  {
+    title: "The Industry Innovator",
+    template: "As pioneers in [industry], [Brand] is revolutionizing how [target audience] experience [product/service category]. Our [key innovation] approach combines [feature 1] and [feature 2] to create unparalleled [main benefit]."
+  },
+  {
+    title: "The Value-Driven Brand",
+    template: "At [Brand], we believe that [core value/belief]. This drives us to provide [target audience] with [product/service] that delivers [key benefit] while ensuring [secondary benefit]. Every decision we make upholds our commitment to [brand mission]."
+  },
+  {
+    title: "The Heritage Story",
+    template: "Since [founding year], [Brand] has been dedicated to [core purpose]. What began as [origin story] has evolved into [current offering], serving [target audience] who value [key brand attributes]. Throughout our journey, we've maintained our commitment to [enduring value proposition]."
+  },
+  {
+    title: "The Lifestyle Enhancer",
+    template: "[Brand] creates [products/services] for [target audience] who aspire to [lifestyle goal]. We understand that [customer pain point], which is why we've designed [offering] to provide [key benefit] without [common compromise]."
+  }
 ];
 
 const BrandProfiling: React.FC<BrandProfilingProps> = ({ state, updateState, onNext }) => {
-  const [step, setStep] = useState(1);
-  const [selectedPersona, setSelectedPersona] = useState('');
-  const [selectedGoals, setSelectedGoals] = useState<string[]>(state.goals || []);
-  const [formValues, setFormValues] = useState({
-    brandName: state.brandName || '',
-    industry: state.industry || '',
-    description: state.description || '',
-    customPersona: state.brandPersonality || ''
-  });
+  const [showAITips, setShowAITips] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   
-  // Toggle selection of goals
+  // Toggle a goal selection
   const toggleGoal = (goalId: string) => {
-    if (selectedGoals.includes(goalId)) {
-      setSelectedGoals(selectedGoals.filter(id => id !== goalId));
-    } else {
-      // Limit to 3 goals
-      if (selectedGoals.length < 3) {
-        setSelectedGoals([...selectedGoals, goalId]);
-      }
-    }
-  };
-  
-  // Handle form input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormValues({
-      ...formValues,
-      [e.target.name]: e.target.value
-    });
-  };
-  
-  // Update state and move to next step
-  const handleNext = () => {
-    // Validate current step
-    if (step === 1) {
-      if (!formValues.brandName || !formValues.industry) {
-        return; // Don't proceed if required fields are empty
-      }
-      setStep(2);
-    } else if (step === 2) {
-      if (!selectedPersona && !formValues.customPersona) {
-        return; // Don't proceed if no persona selected
-      }
-      setStep(3);
-    } else if (step === 3) {
-      if (selectedGoals.length === 0) {
-        return; // Don't proceed if no goals selected
-      }
-      
-      // Update the main state with all brand profiling info
+    if (state.goals.includes(goalId)) {
       updateState({
-        brandName: formValues.brandName,
-        industry: formValues.industry,
-        description: formValues.description,
-        brandPersonality: selectedPersona 
-          ? BRAND_PERSONAS.find(p => p.id === selectedPersona)?.name || ''
-          : formValues.customPersona,
-        brandPersonalityTraits: selectedPersona 
-          ? BRAND_PERSONAS.find(p => p.id === selectedPersona)?.traits || []
-          : [],
-        goals: selectedGoals
+        goals: state.goals.filter(id => id !== goalId)
       });
-      
-      // Move to next main component
-      onNext();
+    } else {
+      updateState({
+        goals: [...state.goals, goalId]
+      });
     }
   };
   
-  // Go back a step
-  const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
+  // Toggle a personality trait selection
+  const togglePersonalityTrait = (trait: string) => {
+    if (state.brandPersonalityTraits.includes(trait)) {
+      updateState({
+        brandPersonalityTraits: state.brandPersonalityTraits.filter(t => t !== trait)
+      });
+    } else {
+      updateState({
+        brandPersonalityTraits: [...state.brandPersonalityTraits, trait]
+      });
     }
+  };
+  
+  // Handle input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    updateState({ [name]: value });
+  };
+  
+  // Apply a template to the description field
+  const applyTemplate = (template: string) => {
+    setSelectedTemplate(template);
+    
+    // Only replace if the description is empty or if the user confirms
+    if (!state.description || confirm('This will replace your current description. Continue?')) {
+      updateState({ description: template });
+    }
+  };
+  
+  // Select a brand personality
+  const selectPersonality = (personalityId: string) => {
+    const personality = BRAND_PERSONALITIES.find(p => p.id === personalityId);
+    if (personality) {
+      updateState({
+        brandPersonality: personality.name,
+        // Optional: also select some traits
+        brandPersonalityTraits: personality.traits.slice(0, 3)
+      });
+    }
+  };
+  
+  // Continue to next step if required fields are filled
+  const handleNext = () => {
+    // Check required fields
+    if (!state.brandName || !state.industry || !state.description || 
+        !state.brandPersonality || state.goals.length === 0) {
+      alert('Please complete all required fields before continuing.');
+      return;
+    }
+    
+    onNext();
+  };
+  
+  // Toggle AI tips visibility
+  const toggleAITips = () => {
+    setShowAITips(!showAITips);
   };
   
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Step 1: Basic Brand Information */}
-      {step === 1 && (
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg mb-8">
+      {/* Header Section */}
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg mb-8">
+        <div className="flex items-start justify-between">
+          <div>
             <h2 className="text-xl font-semibold text-blue-800 mb-2">
               Define Your Brand Identity
             </h2>
             <p className="text-gray-700">
-              Let's start by understanding the basics about your brand. This information will help create a tailored social media strategy.
+              Create a clear brand profile to guide your social media strategy and ensure consistent messaging.
             </p>
           </div>
-          
-          <div className="space-y-6">
+          <button
+            onClick={toggleAITips}
+            className="bg-blue-100 text-blue-700 px-3 py-1 rounded-md text-sm hover:bg-blue-200 transition-colors flex items-center"
+          >
+            <span className="mr-1">🧠</span>
+            {showAITips ? 'Hide AI Tips' : 'Show AI Tips'}
+          </button>
+        </div>
+      </div>
+      
+      {/* AI Tips Panel */}
+      {showAITips && (
+        <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-lg mb-8">
+          <h3 className="font-medium text-indigo-800 mb-3 flex items-center">
+            <span className="mr-2">🧠</span>
+            AI Brand Strategy Tips
+          </h3>
+          <div className="space-y-4 text-indigo-800">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Brand Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="brandName"
-                value={formValues.brandName}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter your brand name"
-                required
-              />
+              <h4 className="font-medium">Consistency is Key</h4>
+              <p className="text-sm">The most successful brands maintain consistent personality and messaging across all platforms. Your social media presence should feel like a natural extension of your overall brand.</p>
             </div>
-            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Industry <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="industry"
-                value={formValues.industry}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select your industry</option>
-                {INDUSTRIES.map(industry => (
-                  <option key={industry} value={industry}>{industry}</option>
-                ))}
-              </select>
+              <h4 className="font-medium">Focus Your Goals</h4>
+              <p className="text-sm">While it's tempting to pursue multiple objectives, the most effective social strategies prioritize 2-3 core goals. This focus allows for clearer messaging and more accurate performance measurement.</p>
             </div>
-            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Brand Description
-              </label>
-              <textarea
-                name="description"
-                value={formValues.description}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 h-32"
-                placeholder="Briefly describe what your brand does, your mission, and your values"
-              />
+              <h4 className="font-medium">Know Your Differentiators</h4>
+              <p className="text-sm">Your brand description should clearly articulate what makes you different from competitors. This unique selling proposition should inform the content you create and share.</p>
             </div>
           </div>
         </div>
       )}
       
-      {/* Step 2: Brand Personality */}
-      {step === 2 && (
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg mb-8">
-            <h2 className="text-xl font-semibold text-blue-800 mb-2">
-              Define Your Brand Personality
-            </h2>
-            <p className="text-gray-700">
-              Your brand's personality defines how you communicate with your audience. Select the persona that best represents your brand's voice and tone.
-            </p>
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8">
+        <h3 className="text-lg font-medium text-gray-800 mb-6">Brand Basics</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Brand Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="brandName"
+              value={state.brandName}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g., Acme Solutions"
+              required
+            />
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {BRAND_PERSONAS.map((persona) => (
-              <div
-                key={persona.id}
-                className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                  selectedPersona === persona.id 
-                    ? 'border-blue-500 bg-blue-50 shadow-md' 
-                    : 'border-gray-200 hover:border-blue-200'
-                }`}
-                onClick={() => setSelectedPersona(persona.id)}
-              >
-                <div className="flex items-center mb-2">
-                  <span className="text-2xl mr-2">{persona.icon}</span>
-                  <h3 className="font-medium text-gray-800">{persona.name}</h3>
-                </div>
-                <p className="text-sm text-gray-600 mb-2">{persona.description}</p>
-                <div className="flex flex-wrap gap-2">
-                  {persona.traits.map((trait, index) => (
-                    <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                      {trait}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="mb-6">
-            <div className="flex items-center mb-2">
-              <input
-                type="checkbox"
-                id="custom-persona"
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                checked={!selectedPersona}
-                onChange={() => setSelectedPersona('')}
-              />
-              <label htmlFor="custom-persona" className="ml-2 text-sm font-medium text-gray-700">
-                None of these fit my brand - I'll describe my own
-              </label>
-            </div>
-            
-            {!selectedPersona && (
-              <textarea
-                name="customPersona"
-                value={formValues.customPersona}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 h-24"
-                placeholder="Describe your brand's personality and tone"
-              />
-            )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Industry <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="industry"
+              value={state.industry}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              required
+            >
+              <option value="">Select your industry</option>
+              {INDUSTRY_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-      )}
-      
-      {/* Step 3: Social Media Goals */}
-      {step === 3 && (
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg mb-8">
-            <h2 className="text-xl font-semibold text-blue-800 mb-2">
-              Set Your Social Media Goals
-            </h2>
-            <p className="text-gray-700">
-              What do you want to achieve with your social media strategy? Select up to 3 primary goals.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            {SOCIAL_MEDIA_GOALS.map((goal) => (
-              <div
-                key={goal.id}
-                className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                  selectedGoals.includes(goal.id) 
-                    ? 'border-blue-500 bg-blue-50 shadow-md' 
-                    : 'border-gray-200 hover:border-blue-200 hover:shadow-sm'
-                }`}
-                onClick={() => toggleGoal(goal.id)}
+        
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Brand Description <span className="text-red-500">*</span>
+            </label>
+            <div className="relative group">
+              <button
+                type="button"
+                className="text-xs text-blue-600 flex items-center hover:text-blue-800"
               >
-                <div className="flex flex-col items-center text-center">
-                  <span className="text-2xl mb-2">{goal.icon}</span>
-                  <h3 className="font-medium text-gray-800 text-sm">{goal.label}</h3>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          {selectedGoals.length > 0 && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-medium text-blue-800 mb-2">Your selected goals:</h3>
-              <div className="flex flex-wrap gap-2">
-                {selectedGoals.map((goalId) => {
-                  const goal = SOCIAL_MEDIA_GOALS.find(g => g.id === goalId);
-                  return (
-                    <span key={goalId} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full flex items-center">
-                      <span className="mr-1">{goal?.icon}</span>
-                      {goal?.label}
+                <span className="mr-1">✨</span> Try a template
+                <div className="absolute z-10 top-full right-0 mt-1 w-72 bg-white shadow-lg rounded-md border border-gray-200 p-3 hidden group-hover:block">
+                  <h4 className="font-medium text-gray-700 mb-2 text-sm">Select a template</h4>
+                  <div className="space-y-2">
+                    {BRAND_DESCRIPTION_TEMPLATES.map(template => (
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleGoal(goalId);
-                        }}
-                        className="ml-2 text-blue-600 hover:text-blue-800"
+                        key={template.title}
+                        type="button"
+                        className="block w-full text-left text-xs p-2 hover:bg-blue-50 rounded-md"
+                        onClick={() => applyTemplate(template.template)}
                       >
-                        ×
+                        <span className="font-medium">{template.title}:</span>
+                        <br />
+                        <span className="text-gray-600">{template.template.substring(0, 60)}...</span>
                       </button>
-                    </span>
-                  );
-                })}
-              </div>
-              {selectedGoals.length < 3 && (
-                <p className="text-sm text-blue-600 mt-2">
-                  You can select up to {3 - selectedGoals.length} more goal{3 - selectedGoals.length > 1 ? 's' : ''}.
-                </p>
-              )}
+                    ))}
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+          
+          <textarea
+            name="description"
+            value={state.description}
+            onChange={handleInputChange}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 h-28"
+            placeholder="Describe your brand, what you offer, your target audience, and what makes you unique..."
+            required
+          />
+          
+          {selectedTemplate && (
+            <div className="mt-2 text-xs text-gray-500">
+              <p>Template tip: Replace the [bracketed text] with your specific information.</p>
             </div>
           )}
         </div>
-      )}
+      </div>
       
-      {/* Navigation */}
-      <div className="flex justify-between mt-8">
-        <button
-          onClick={handleBack}
-          className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-          disabled={step === 1}
-        >
-          {step > 1 ? 'Back' : ''}
-        </button>
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8">
+        <h3 className="text-lg font-medium text-gray-800 mb-6">Brand Personality</h3>
+        
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Select a primary brand personality <span className="text-red-500">*</span>
+          </label>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {BRAND_PERSONALITIES.map(personality => (
+              <div
+                key={personality.id}
+                className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                  state.brandPersonality === personality.name 
+                    ? 'border-blue-500 bg-blue-50 shadow-sm' 
+                    : 'border-gray-200 hover:border-blue-200'
+                }`}
+                onClick={() => selectPersonality(personality.id)}
+              >
+                <div className="text-center mb-2">
+                  <span className="text-2xl">{personality.icon}</span>
+                </div>
+                <h3 className="text-sm font-medium text-center text-gray-800 mb-1">{personality.name}</h3>
+                <p className="text-xs text-gray-500 text-center">{personality.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Select specific brand traits (choose 3-5)
+          </label>
+          
+          <div className="flex flex-wrap gap-2">
+            {BRAND_PERSONALITIES.flatMap(personality => 
+              personality.traits.map(trait => (
+                <button
+                  key={trait}
+                  type="button"
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    state.brandPersonalityTraits.includes(trait)
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                  onClick={() => togglePersonalityTrait(trait)}
+                >
+                  {trait}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8">
+        <h3 className="text-lg font-medium text-gray-800 mb-6">Social Media Goals</h3>
+        
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            What do you want to achieve? (Select 2-4 primary goals) <span className="text-red-500">*</span>
+          </label>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {SOCIAL_MEDIA_GOALS.map(goal => (
+              <div
+                key={goal.id}
+                className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                  state.goals.includes(goal.id) 
+                    ? 'border-green-500 bg-green-50 shadow-sm' 
+                    : 'border-gray-200 hover:border-green-100'
+                }`}
+                onClick={() => toggleGoal(goal.id)}
+              >
+                <div className="flex items-start">
+                  <span className="text-xl mr-2">{goal.icon}</span>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-800">{goal.name}</h3>
+                    <p className="text-xs text-gray-500">{goal.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-blue-50 p-5 rounded-lg border border-blue-100 mb-8">
+        <h3 className="font-medium text-blue-800 mb-2 flex items-center">
+          <span className="mr-2">💡</span>
+          Pro Tips
+        </h3>
+        <ul className="space-y-1 text-blue-800">
+          <li className="flex items-start">
+            <span className="text-blue-500 mr-2">•</span>
+            Your brand identity should be consistent across all platforms while adapting to each platform's unique format.
+          </li>
+          <li className="flex items-start">
+            <span className="text-blue-500 mr-2">•</span>
+            The most engaging brands have a distinctive voice that reflects their personality in every post.
+          </li>
+          <li className="flex items-start">
+            <span className="text-blue-500 mr-2">•</span>
+            Your social media goals should align with your overall business objectives.
+          </li>
+        </ul>
+      </div>
+      
+      <div className="flex justify-end mt-8">
         <button
           onClick={handleNext}
           className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          disabled={(step === 1 && (!formValues.brandName || !formValues.industry)) ||
-                  (step === 2 && !selectedPersona && !formValues.customPersona) ||
-                  (step === 3 && selectedGoals.length === 0)}
+          disabled={!state.brandName || !state.industry || !state.description || !state.brandPersonality || state.goals.length === 0}
         >
-          {step < 3 ? 'Next' : 'Complete Brand Profile'}
+          Continue to Audience Research
         </button>
       </div>
     </div>

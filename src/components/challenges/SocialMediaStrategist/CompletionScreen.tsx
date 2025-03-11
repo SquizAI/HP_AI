@@ -1,5 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { SocialMediaStrategy } from './SocialMediaStrategistMain';
+
+// Using a simple animation fallback since framer-motion may not be available
+const AnimatedDiv: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+  initial?: any;
+  animate?: any;
+  transition?: any;
+}> = ({ children, className = '', initial, animate, transition }) => {
+  return (
+    <div 
+      className={`transition-all duration-500 ${className}`} 
+      style={{ opacity: 1, transform: 'none' }}
+    >
+      {children}
+    </div>
+  );
+};
 
 interface CompletionScreenProps {
   state: SocialMediaStrategy;
@@ -7,366 +25,377 @@ interface CompletionScreenProps {
 }
 
 const CompletionScreen: React.FC<CompletionScreenProps> = ({ state, onRestart }) => {
-  const [showConfetti, setShowConfetti] = useState(false);
+  const [showCertificate, setShowCertificate] = useState(false);
   
-  useEffect(() => {
-    // Trigger confetti animation on component mount
-    setShowConfetti(true);
-    
-    // Clean up confetti after 5 seconds
-    const timer = setTimeout(() => {
-      setShowConfetti(false);
-    }, 5000);
-    
-    return () => clearTimeout(timer);
-  }, []);
+  // Calculate completion stats
+  const platformCount = state.selectedPlatforms.length;
+  const contentItemCount = state.contentCalendar.length;
+  const hasAudienceInsights = state.audienceInsights && state.audienceInsights.length > 0;
+  const hasDescription = state.description && state.description.trim().length > 0;
   
-  // Helper to get platform name from ID
-  const getPlatformName = (platformId: string) => {
-    if (platformId.startsWith('custom-')) {
-      return platformId.replace('custom-', '').replace(/-/g, ' ');
-    }
-    
-    const platformNames: {[key: string]: string} = {
-      instagram: 'Instagram',
-      facebook: 'Facebook',
-      twitter: 'Twitter',
-      linkedin: 'LinkedIn',
-      tiktok: 'TikTok',
-      youtube: 'YouTube',
-      pinterest: 'Pinterest',
-      reddit: 'Reddit'
-    };
-    
-    return platformNames[platformId] || platformId;
-  };
+  // Calculate completion percentage
+  const totalSteps = 4; // Brand profile, audience research, platform selection, content planning
+  let completedSteps = 0;
   
-  // Get top content themes from content calendar
-  const getTopContentThemes = () => {
-    if (!state.contentCalendar || state.contentCalendar.length === 0) {
-      return ['No content themes defined'];
-    }
-    
-    const themeCount: {[key: string]: number} = {};
-    
-    state.contentCalendar.forEach(item => {
-      themeCount[item.topic] = (themeCount[item.topic] || 0) + 1;
-    });
-    
-    return Object.entries(themeCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([theme]) => theme);
-  };
+  if (hasDescription) completedSteps += 1;
+  if (hasAudienceInsights) completedSteps += 1;
+  if (platformCount > 0) completedSteps += 1;
+  if (contentItemCount > 0) completedSteps += 1;
   
-  // Get strategy rating based on completeness
-  const getStrategyRating = () => {
-    let score = 0;
-    
-    // Brand details
-    if (state.brandName && state.industry && state.description) score += 20;
-    
-    // Audience definition
-    if (state.audienceInsights && state.audienceInsights.length > 0) score += 20;
-    
-    // Platform selection
-    if (state.selectedPlatforms && state.selectedPlatforms.length > 0) {
-      score += Math.min(20, state.selectedPlatforms.length * 5);
-    }
-    
-    // Content planning
-    if (state.contentCalendar && state.contentCalendar.length > 0) {
-      score += Math.min(40, state.contentCalendar.length * 5);
-    }
-    
-    // Cap at 100
-    return Math.min(100, score);
-  };
+  const completionPercentage = Math.min(100, Math.round((completedSteps / totalSteps) * 100));
   
-  const strategyRating = getStrategyRating();
+  // Get today's date for certificate
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
   
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Confetti animation */}
-      {showConfetti && (
-        <div className="fixed inset-0 pointer-events-none">
-          <div className="confetti-container">
-            {Array.from({ length: 150 }).map((_, i) => (
-              <div 
-                key={i}
-                className="confetti"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 5}s`,
-                  backgroundColor: `hsl(${Math.random() * 360}, 100%, 50%)`
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-      
-      <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-8 rounded-lg text-white text-center mb-8">
-        <h1 className="text-3xl font-bold mb-4">Congratulations! 🎉</h1>
-        <p className="text-xl">
-          You've completed your social media strategy for {state.brandName || 'your brand'}
+    <div className="max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 rounded-lg shadow-lg text-white mb-8">
+        <h2 className="text-2xl font-bold mb-2 flex items-center">
+          <span className="mr-3 text-yellow-300">🏆</span>
+          Social Media Strategy Completed!
+        </h2>
+        <p className="opacity-90">
+          Congratulations! You've successfully developed a comprehensive social media strategy for your brand.
         </p>
       </div>
       
-      {/* Strategy Summary Card */}
-      <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200 mb-8">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
-          <span className="mr-2">📊</span>
-          Your Strategy Overview
-        </h2>
+      {/* Certificate Toggle */}
+      {!showCertificate && (
+        <AnimatedDiv 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
+        >
+          <div className="p-8 text-center bg-white rounded-lg shadow-md border-2 border-indigo-100">
+            <div className="text-5xl mb-4">🎉</div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">Strategy Completed Successfully!</h3>
+            <p className="text-gray-600 mb-6">
+              You've created a professional social media strategy that's ready to implement!
+            </p>
+            <button
+              onClick={() => setShowCertificate(true)}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 px-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:translate-y-[-2px] font-medium"
+            >
+              View Your Certificate
+            </button>
+          </div>
+        </AnimatedDiv>
+      )}
+      
+      {/* Certificate Display */}
+      {showCertificate && (
+        <AnimatedDiv 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
+        >
+          <div className="p-8 bg-indigo-50 rounded-lg border-2 border-indigo-200 shadow-lg relative">
+            <div className="absolute top-4 right-4">
+              <button
+                onClick={() => setShowCertificate(false)}
+                className="text-indigo-500 hover:text-indigo-700 p-2 hover:bg-indigo-100 rounded-full"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="text-center mb-6">
+              <h3 className="text-3xl font-bold text-indigo-800 mb-1">Certificate of Completion</h3>
+              <p className="text-indigo-600">Social Media Strategy Expert</p>
+            </div>
+            
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-3">🎓</div>
+              <p className="text-gray-700">This certifies that</p>
+              <p className="text-2xl font-bold text-indigo-900 mb-2">{state.brandName || "Your Brand"}</p>
+              <p className="text-gray-700">has successfully completed the</p>
+              <p className="text-xl font-semibold text-indigo-800 mb-2">Social Media Strategist Challenge</p>
+              <p className="text-gray-700 mb-2">on {formattedDate}</p>
+              <div className="w-48 h-1 bg-gradient-to-r from-purple-500 to-indigo-500 mx-auto my-4"></div>
+              <p className="text-sm text-gray-600 italic">Advanced AI-Powered Skills Training</p>
+            </div>
+            
+            <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+              <h4 className="font-semibold text-gray-800 mb-3 text-lg">Strategy Highlights:</h4>
+              <ul className="space-y-2 text-gray-700">
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  <span>Defined brand personality and positioning</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  <span>Created detailed audience insights</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  <span>Selected {platformCount} optimal platform{platformCount !== 1 ? 's' : ''} for your audience</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  <span>Developed {contentItemCount} content item{contentItemCount !== 1 ? 's' : ''} for your content calendar</span>
+                </li>
+              </ul>
+            </div>
+            
+            <div className="text-center">
+              <button
+                onClick={() => window.print()}
+                className="bg-indigo-600 text-white py-2 px-6 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm mx-2"
+              >
+                Print Certificate
+              </button>
+            </div>
+          </div>
+        </AnimatedDiv>
+      )}
+      
+      {/* Strategy Summary */}
+      <div className="mb-8">
+        <h3 className="text-xl font-semibold mb-4 bg-gray-50 p-3 rounded-lg border-l-4 border-purple-500 text-gray-800 flex items-center">
+          <span className="mr-2 text-purple-500">📊</span>
+          Your Strategy Summary
+        </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div>
-            <h3 className="text-lg font-medium text-gray-700 mb-3">Brand Profile</h3>
-            <div className="space-y-2">
-              <p><span className="font-medium text-gray-600">Brand Name:</span> {state.brandName}</p>
-              <p><span className="font-medium text-gray-600">Industry:</span> {state.industry}</p>
-              <p><span className="font-medium text-gray-600">Personality:</span> {state.brandPersonality}</p>
-              <div>
-                <p className="font-medium text-gray-600">Key Brand Traits:</p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {state.brandPersonalityTraits.map((trait, index) => (
-                    <span key={index} className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                      {trait}
-                    </span>
-                  ))}
-                </div>
+          {/* Brand Summary */}
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+              <span className="mr-2 text-purple-500">🏢</span>
+              Brand Profile
+            </h4>
+            
+            <div className="mb-4">
+              <p className="text-sm text-gray-500 mb-1">Brand Name</p>
+              <p className="font-medium text-gray-800">{state.brandName || "Not specified"}</p>
+            </div>
+            
+            <div className="mb-4">
+              <p className="text-sm text-gray-500 mb-1">Industry</p>
+              <p className="font-medium text-gray-800">{state.industry || "Not specified"}</p>
+            </div>
+            
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Brand Personality</p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {state.brandPersonalityTraits?.map((trait, index) => (
+                  <span key={index} className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs">
+                    {trait}
+                  </span>
+                ))}
+                {(!state.brandPersonalityTraits || state.brandPersonalityTraits.length === 0) && (
+                  <p className="text-gray-400 italic">No personality traits selected</p>
+                )}
               </div>
             </div>
           </div>
           
-          <div>
-            <h3 className="text-lg font-medium text-gray-700 mb-3">Audience Segments</h3>
-            {state.audienceInsights && state.audienceInsights.length > 0 ? (
-              <div className="space-y-3">
-                {state.audienceInsights.map((insight, index) => (
-                  <div key={index} className="p-2 bg-blue-50 border border-blue-100 rounded">
-                    <p className="font-medium text-blue-800">{insight.segment}</p>
-                    <p className="text-sm text-gray-600">{insight.demographics}</p>
-                  </div>
+          {/* Audience Summary */}
+          <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+              <span className="mr-2 text-purple-500">👥</span>
+              Audience Profile
+            </h4>
+            
+            <div className="mb-4">
+              <p className="text-sm text-gray-500 mb-1">Target Audience</p>
+              {state.targetAudience && state.targetAudience.length > 0 ? (
+                <p className="font-medium text-gray-800">
+                  {state.targetAudience.join(', ')}
+                </p>
+              ) : (
+                <p className="text-gray-400 italic">No target audience defined</p>
+              )}
+            </div>
+            
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Social Media Goals</p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {state.goals?.map((goal, index) => (
+                  <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                    {goal}
+                  </span>
                 ))}
+                {(!state.goals || state.goals.length === 0) && (
+                  <p className="text-gray-400 italic">No goals specified</p>
+                )}
               </div>
-            ) : (
-              <p className="text-gray-500">No audience insights defined</p>
+            </div>
+          </div>
+        </div>
+        
+        {/* Content Planning Summary */}
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-6">
+          <h4 className="font-semibold text-gray-800 mb-4 flex items-center">
+            <span className="mr-2 text-purple-500">📱</span>
+            Platform Strategy
+          </h4>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {state.selectedPlatforms.map((platform) => {
+              // Count content items for this platform
+              const itemCount = state.contentCalendar.filter(item => item.platform === platform).length;
+              const platformName = platform.startsWith('custom-') 
+                ? platform.replace('custom-', '').replace(/-/g, ' ')
+                : platform.charAt(0).toUpperCase() + platform.slice(1);
+                
+              return (
+                <div key={platform} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="text-center">
+                    <div className="text-3xl mb-2">
+                      {platform === 'instagram' && '📸'}
+                      {platform === 'facebook' && '👍'}
+                      {platform === 'twitter' && '🐦'}
+                      {platform === 'linkedin' && '💼'}
+                      {platform === 'tiktok' && '🎵'}
+                      {platform === 'youtube' && '🎬'}
+                      {platform === 'pinterest' && '📌'}
+                      {platform === 'reddit' && '🤖'}
+                      {platform.startsWith('custom-') && '🌐'}
+                    </div>
+                    <p className="font-medium text-gray-800">{platformName}</p>
+                    <div className="mt-2 text-sm">
+                      <span className={`px-2 py-1 rounded-full ${
+                        itemCount > 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {itemCount} content item{itemCount !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {state.selectedPlatforms.length === 0 && (
+              <div className="col-span-full text-center p-4">
+                <p className="text-gray-400 italic">No platforms selected</p>
+              </div>
             )}
           </div>
         </div>
         
-        <div className="mb-6">
-          <h3 className="text-lg font-medium text-gray-700 mb-3">Platform Strategy</h3>
+        {/* Content Calendar Summary */}
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-semibold text-gray-800 flex items-center">
+              <span className="mr-2 text-purple-500">📅</span>
+              Content Calendar Overview
+            </h4>
+            <div className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
+              {contentItemCount} Total Items
+            </div>
+          </div>
           
-          {state.selectedPlatforms && state.selectedPlatforms.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {state.selectedPlatforms.map((platformId, index) => {
-                const contentItems = state.contentCalendar.filter(item => item.platform === platformId);
-                const platformName = getPlatformName(platformId);
-                
-                return (
-                  <div key={platformId} className="p-3 bg-gray-50 border border-gray-200 rounded">
-                    <div className="font-medium text-gray-800 mb-1">{index + 1}. {platformName}</div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      {contentItems.length} content items planned
-                    </p>
-                    {contentItems.length > 0 && (
-                      <p className="text-xs text-gray-500">
-                        Top content type: {
-                          Object.entries(
-                            contentItems.reduce((acc: {[key: string]: number}, item) => {
-                              acc[item.contentType] = (acc[item.contentType] || 0) + 1;
-                              return acc;
-                            }, {})
-                          )
-                          .sort(([, a], [, b]) => b - a)
-                          .map(([type]) => type)[0]
-                        }
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
+          {contentItemCount > 0 ? (
+            <div className="max-h-80 overflow-y-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platform</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Topic</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {state.contentCalendar.map((item, index) => {
+                    const platformName = item.platform.startsWith('custom-') 
+                      ? item.platform.replace('custom-', '').replace(/-/g, ' ')
+                      : item.platform.charAt(0).toUpperCase() + item.platform.slice(1);
+                      
+                    return (
+                      <tr key={index}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{platformName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.contentType}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{
+                          item.topic.length > 40 ? item.topic.substring(0, 40) + "..." : item.topic
+                        }</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.timing}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           ) : (
-            <p className="text-gray-500">No platforms selected</p>
+            <div className="text-center p-4">
+              <p className="text-gray-400 italic">No content items created</p>
+            </div>
           )}
         </div>
-        
-        <div className="mb-6">
-          <h3 className="text-lg font-medium text-gray-700 mb-3">Content Strategy</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h4 className="font-medium text-gray-600 mb-2">Top Content Themes</h4>
-              <div className="space-y-2">
-                {getTopContentThemes().map((theme, index) => (
-                  <div key={index} className="flex items-center">
-                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center text-sm mr-2">
-                      {index + 1}
-                    </span>
-                    <span className="text-gray-800">{theme}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-medium text-gray-600 mb-2">Content Calendar</h4>
-              <div className="p-3 bg-green-50 border border-green-100 rounded">
-                <p className="text-green-800">
-                  <span className="font-medium">{state.contentCalendar.length}</span> content items planned across <span className="font-medium">{state.selectedPlatforms.length}</span> platforms
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div>
-          <h3 className="text-lg font-medium text-gray-700 mb-3">Strategy Strength</h3>
-          
-          <div className="h-6 bg-gray-200 rounded-full overflow-hidden mb-2">
+      </div>
+      
+      {/* Call to Action */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
+        <div className="flex-1 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100 shadow-sm text-center md:text-left">
+          <h3 className="font-bold text-indigo-800 mb-2 text-lg">Ready to implement your strategy?</h3>
+          <p className="text-indigo-700 mb-4">
+            Your social media strategy is ready for implementation. Start executing your plan step by step.
+          </p>
+          <div className="progress-bar w-full bg-gray-200 rounded-full h-2.5 mb-3">
             <div 
-              className={`h-full rounded-full ${
-                strategyRating >= 80 ? 'bg-green-500' : 
-                strategyRating >= 60 ? 'bg-blue-500' : 
-                strategyRating >= 40 ? 'bg-yellow-500' : 
-                'bg-red-500'
-              }`}
-              style={{ width: `${strategyRating}%` }}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 h-2.5 rounded-full" 
+              style={{ width: `${completionPercentage}%` }}
             ></div>
           </div>
+          <p className="text-sm text-gray-600">{completionPercentage}% strategy completion</p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={onRestart}
+            className="px-6 py-3 border-2 border-purple-600 text-purple-700 rounded-lg hover:bg-purple-50 transition-all duration-200 flex items-center justify-center font-medium"
+          >
+            <span className="mr-2">🔄</span>
+            Start New Strategy
+          </button>
           
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Needs work</span>
-            <span className={`font-medium ${
-              strategyRating >= 80 ? 'text-green-600' : 
-              strategyRating >= 60 ? 'text-blue-600' : 
-              strategyRating >= 40 ? 'text-yellow-600' : 
-              'text-red-600'
-            }`}>
-              {strategyRating}% - {
-                strategyRating >= 80 ? 'Excellent Strategy!' : 
-                strategyRating >= 60 ? 'Good Strategy' : 
-                strategyRating >= 40 ? 'Developing Strategy' : 
-                'Basic Framework'
-              }
-            </span>
-            <span className="text-gray-600">Comprehensive</span>
-          </div>
+          <button
+            onClick={() => window.print()}
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center font-medium"
+          >
+            <span className="mr-2">📄</span>
+            Export Strategy
+          </button>
         </div>
       </div>
       
-      {/* Next Steps */}
-      <div className="bg-blue-50 p-6 rounded-lg border border-blue-100 mb-8">
-        <h2 className="text-xl font-semibold text-blue-800 mb-3 flex items-center">
-          <span className="mr-2">🚀</span>
-          Next Steps
-        </h2>
-        
-        <ul className="space-y-3 text-blue-800">
-          <li className="flex items-start">
-            <span className="text-blue-500 mr-2">1.</span>
-            <div>
-              <p className="font-medium">Set Up Your Content Calendar</p>
-              <p className="text-sm text-blue-700">
-                Transfer your strategy to a dedicated content calendar tool or spreadsheet with specific dates.
-              </p>
-            </div>
-          </li>
-          <li className="flex items-start">
-            <span className="text-blue-500 mr-2">2.</span>
-            <div>
-              <p className="font-medium">Create Content Templates</p>
-              <p className="text-sm text-blue-700">
-                Develop templates for each content type to streamline your creation process.
-              </p>
-            </div>
-          </li>
-          <li className="flex items-start">
-            <span className="text-blue-500 mr-2">3.</span>
-            <div>
-              <p className="font-medium">Set Up Analytics</p>
-              <p className="text-sm text-blue-700">
-                Ensure you have analytics in place to measure the performance of your content.
-              </p>
-            </div>
-          </li>
-          <li className="flex items-start">
-            <span className="text-blue-500 mr-2">4.</span>
-            <div>
-              <p className="font-medium">Review and Adjust Regularly</p>
-              <p className="text-sm text-blue-700">
-                Plan to review your strategy's performance every 1-3 months and make adjustments as needed.
-              </p>
-            </div>
-          </li>
-        </ul>
-      </div>
-      
-      {/* Fun Fact */}
-      <div className="bg-purple-50 p-5 rounded-lg border border-purple-100 mb-8">
-        <h3 className="font-medium text-purple-800 mb-2 flex items-center">
-          <span className="mr-2">🎯</span>
-          Social Media Strategy Fact
+      {/* Additional Resources */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
+        <h3 className="font-semibold text-gray-800 mb-4 text-lg flex items-center">
+          <span className="mr-2 text-purple-500">📚</span>
+          Additional Resources
         </h3>
-        <p className="text-purple-800">
-          Brands that implement a documented social media strategy are 538% more likely to report success 
-          than those without a strategy. You're now among the top marketers taking a strategic approach!
-        </p>
-      </div>
-      
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8">
-        <button
-          onClick={onRestart}
-          className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-        >
-          Create Another Strategy
-        </button>
-        <button
-          onClick={() => window.print()}
-          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center"
-        >
-          <span className="mr-2">🖨️</span>
-          Print Strategy
-        </button>
-      </div>
-      
-      {/* CSS for confetti animation */}
-      <style>
-        {`
-          .confetti-container {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: 1000;
-          }
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:shadow-sm transition-all">
+            <div className="text-2xl mb-2">📊</div>
+            <h4 className="font-medium text-gray-800 mb-1">Analytics Tracking Guide</h4>
+            <p className="text-sm text-gray-600">Learn how to measure the success of your social media strategy</p>
+          </div>
           
-          .confetti {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background-color: #f00;
-            opacity: 0.7;
-            animation: fall 5s linear infinite;
-          }
+          <div className="p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:shadow-sm transition-all">
+            <div className="text-2xl mb-2">🎨</div>
+            <h4 className="font-medium text-gray-800 mb-1">Content Creation Tools</h4>
+            <p className="text-sm text-gray-600">Discover tools to create engaging visual content for your platforms</p>
+          </div>
           
-          @keyframes fall {
-            0% {
-              transform: translateY(-100px) rotate(0deg);
-              opacity: 1;
-            }
-            100% {
-              transform: translateY(100vh) rotate(360deg);
-              opacity: 0;
-            }
-          }
-        `}
-      </style>
+          <div className="p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:shadow-sm transition-all">
+            <div className="text-2xl mb-2">⏱️</div>
+            <h4 className="font-medium text-gray-800 mb-1">Scheduling Best Practices</h4>
+            <p className="text-sm text-gray-600">Tips for scheduling content to maximize engagement and reach</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

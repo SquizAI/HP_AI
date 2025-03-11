@@ -119,12 +119,21 @@ const ChallengeHub: React.FC = () => {
       icon: '📱',
       color: '#E91E63',
       path: '/challenge/social-media-strategist'
+    },
+    {
+      id: 'challenge-14',
+      challengeNumber: 14,
+      title: 'AI Content Transformer',
+      description: "Transform plain content into engaging, interactive experiences that captivate your audience and leave a lasting impression.",
+      icon: '✏️',
+      color: '#8E44AD',
+      path: '/challenge/content-transformer'
     }
   ]
 
   // Check if a challenge is implemented
   const isImplemented = (challengeId: string) => {
-    return ['challenge-1', 'challenge-2', 'challenge-3', 'challenge-10', 'challenge-11', 'challenge-12'].includes(challengeId)
+    return ['challenge-1', 'challenge-2', 'challenge-3', 'challenge-7', 'challenge-10', 'challenge-11', 'challenge-12', 'challenge-14'].includes(challengeId)
   }
   
   // Check if a challenge is completed
