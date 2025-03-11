@@ -15,16 +15,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
                 <Link to="/" className="flex items-center">
-                  <span className="text-2xl mr-2">🧠</span>
+                  <img 
+                    src="/triveratech-logo.png" 
+                    alt="TriveraTech Logo" 
+                    className="h-8 w-auto mr-3" 
+                  />
                   <span className="text-[#5CB2CC] font-bold text-xl">AI Challenge Hub</span>
                 </Link>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="hidden md:flex space-x-1">
-                <a href="#" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100">
-                  Leaderboard
-                </a>
                 <a href="#" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100">
                   Resources
                 </a>

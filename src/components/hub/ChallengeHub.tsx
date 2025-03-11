@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useUserProgress } from '../../utils/userDataManager'
+import { useUserProgress, markChallengeAsCompleted } from '../../utils/userDataManager'
+import { CheckCircle, Award } from 'lucide-react'
 
 const ChallengeHub: React.FC = () => {
   // Get user progress from localStorage
-  const [userProgress] = useUserProgress();
+  const [userProgress, setUserProgress] = useUserProgress();
+  const [completionMessage, setCompletionMessage] = useState<{challengeId: string, message: string} | null>(null);
   
   // Challenge data with exact labels from challenges.md
   const challenges = [
@@ -155,6 +157,30 @@ const ChallengeHub: React.FC = () => {
     return userProgress.completedChallenges.includes(challengeId)
   }
 
+  // Handle manual challenge completion
+  const handleMarkAsCompleted = (challengeId: string, challengeName: string) => {
+    const wasCompleted = markChallengeAsCompleted(challengeId);
+    
+    if (wasCompleted) {
+      // Force a refresh of user progress state
+      setUserProgress({
+        ...userProgress,
+        completedChallenges: [...userProgress.completedChallenges, challengeId]
+      });
+      
+      // Show success message
+      setCompletionMessage({
+        challengeId,
+        message: `${challengeName} marked as completed!`
+      });
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        setCompletionMessage(null);
+      }, 3000);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-12 text-center p-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow-sm">
@@ -203,31 +229,58 @@ const ChallengeHub: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="mt-6 flex justify-between items-center">
-                    <div>
-                      {isCompleted(challenge.id) && (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                          ✓ Conquered!
-                        </span>
-                      )}
+                  <div className="mt-6 flex flex-col space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        {isCompleted(challenge.id) && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            <CheckCircle size={16} className="mr-1" /> Conquered!
+                          </span>
+                        )}
+                        
+                        {completionMessage && completionMessage.challengeId === challenge.id && (
+                          <div className="text-sm text-green-600 font-medium animate-pulse">
+                            {completionMessage.message}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        {isImplemented(challenge.id) ? (
+                          <>
+                            <Link 
+                              to={challenge.path}
+                              className="px-5 py-2 bg-[#5CB2CC] text-white rounded-lg text-sm font-medium hover:bg-[#4A90E2] transition-all shadow-sm"
+                            >
+                              {isCompleted(challenge.id) ? "Play Again" : "Accept Challenge"}
+                            </Link>
+                          </>
+                        ) : (
+                          <span className="px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm italic flex items-center">
+                            <span className="mr-1">🔜</span> Coming Soon
+                          </span>
+                        )}
+                      </div>
                     </div>
                     
-                    <div className="flex space-x-2">
-                      {isImplemented(challenge.id) ? (
-                        <>
-                          <Link 
-                            to={challenge.path}
-                            className="px-5 py-2 bg-[#5CB2CC] text-white rounded-lg text-sm font-medium hover:bg-[#4A90E2] transition-all shadow-sm"
-                          >
-                            {isCompleted(challenge.id) ? "Play Again" : "Accept Challenge"}
-                          </Link>
-                        </>
-                      ) : (
-                        <span className="px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm italic flex items-center">
-                          <span className="mr-1">🔜</span> Coming Soon
+                    {/* Manual Complete Button */}
+                    {isImplemented(challenge.id) && !isCompleted(challenge.id) && (
+                      <button
+                        onClick={() => handleMarkAsCompleted(challenge.id, challenge.title)}
+                        className="w-full mt-2 px-4 py-2 border border-green-300 text-green-700 bg-green-50 rounded-lg text-sm font-medium hover:bg-green-100 transition-all flex items-center justify-center"
+                      >
+                        <Award size={16} className="mr-1" /> Mark as Completed
+                      </button>
+                    )}
+                    
+                    {/* Complete Challenge Button (for challenges that are being played) */}
+                    {isImplemented(challenge.id) && isCompleted(challenge.id) && (
+                      <div className="text-center text-sm text-green-800 mt-1">
+                        <span className="flex items-center justify-center">
+                          <Award size={16} className="mr-1" /> Challenge completed
                         </span>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

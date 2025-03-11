@@ -390,4 +390,30 @@ export const saveChallengeData = async (challengeId: string, data: any) => {
     console.error(`Error saving ${challengeId} data:`, error);
     return false;
   }
+};
+
+// Function to manually mark a challenge as completed
+export const markChallengeAsCompleted = (challengeId: string): boolean => {
+  try {
+    const userProgress = getUserProgress();
+    
+    // Add to completed challenges if not already there
+    if (!userProgress.completedChallenges.includes(challengeId)) {
+      userProgress.completedChallenges.push(challengeId);
+      userProgress.lastActive = new Date().toISOString();
+      saveUserProgress(userProgress);
+      
+      // Update the leaderboard
+      updateLeaderboard(calculateUserScore());
+      
+      console.log(`Challenge ${challengeId} marked as completed`);
+      return true;
+    } else {
+      console.log(`Challenge ${challengeId} was already completed`);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error marking challenge as completed:', error);
+    return false;
+  }
 }; 
