@@ -2,7 +2,7 @@
 import { staticTrendData } from '../data/staticTrendData'
 
 // This function gets the API key from environment variables for security
-const getApiKey = (): string => {
+export const getApiKey = (): string => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   if (!apiKey) {
     console.error('OpenAI API key not found. Please set VITE_OPENAI_API_KEY in your environment variables.');

@@ -3,9 +3,64 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   getChallengeData, 
-  saveChallengeData 
+  saveChallengeData,
+  useUserProgress,
+  markChallengeAsCompleted
 } from '../../../utils/userDataManager';
 import { Tooltip } from 'react-tooltip';
+import { getOpenAIKey, shouldUseMockData } from '../../../utils/envConfig';
+import ChallengeHeader from '../../shared/ChallengeHeader';
+import { Globe, Mic } from 'lucide-react';
+
+// Add these type declarations at the top of the file or near other interface declarations
+declare global {
+  interface Window {
+    webkitSpeechRecognition?: new () => SpeechRecognition;
+    SpeechRecognition?: new () => SpeechRecognition;
+    recognitionInstance?: SpeechRecognition;
+    recordingInterval?: ReturnType<typeof setInterval>;
+  }
+}
+
+// SpeechRecognition interface for TypeScript
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (event: Event) => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: (event: Event) => void;
+  start: () => void;
+  stop: () => void;
+}
+
+// For the speech recognition result event
+interface SpeechRecognitionEvent {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message: string;
+}
 
 // Main component for the AI Global Communicator challenge
 const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode = 'create' }) => {
@@ -13,16 +68,19 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
   const { id } = useParams<{ id?: string }>();
   
   // State for user progress
-  const [userProgress, setUserProgress] = useState<any>({
-    completedChallenges: []
-  });
+  const [userProgress, setUserProgress] = useUserProgress();
+  const [isCompleted, setIsCompleted] = useState<boolean>(
+    userProgress.completedChallenges.includes('challenge-5')
+  );
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
   
   // Status message for user feedback
   const [status, setStatus] = useState('');
   
   // Step state management
-  const [currentStep, setCurrentStep] = useState<number>(1);
-  const steps = ['Message Creation', 'Target Language', 'Translation', 'Refinement', 'Completion'];
+  const [currentStep, setCurrentStep] = useState<string>('language');
+  const steps = ['language', 'input', 'translation', 'refinement', 'completion'];
+  const stepTitles = ['Target Language', 'Message Creation', 'Translation', 'Refinement', 'Completion'];
   
   // Input method options
   const [inputMethod, setInputMethod] = useState<'text' | 'voice' | 'file'>('text');
@@ -152,33 +210,98 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
     
     if (!isRecording) {
       setRecordingTime(0);
-      // In a real implementation, this would connect to DeepGram API
-      // For mock purposes, we'll simulate a recording and transcription
-      setTimeout(() => {
-        setIsTranscribing(true);
+      setTranscribedText('');
+      
+      // Use the browser's Speech Recognition API
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+        const recognition = new SpeechRecognition();
         
-        // Simulate real-time transcription with progressive updates
-        const sampleText = "We would like to schedule a meeting next week to discuss the new project timeline. Please let me know your availability as soon as possible.";
-        const words = sampleText.split(' ');
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US'; // Default to English, this could be configurable
         
-        // Show words appearing one by one to simulate real-time transcription
-        let wordIndex = 0;
-        const transcriptionInterval = setInterval(() => {
-          if (wordIndex < words.length) {
-            setTranscribedText(prev => prev + (prev ? ' ' : '') + words[wordIndex]);
-            wordIndex++;
-          } else {
-            clearInterval(transcriptionInterval);
-            setIsTranscribing(false);
-            setIsRecording(false);
-            setMessage(sampleText);
+        recognition.onstart = () => {
+          setIsRecording(true);
+          // Start recording time counter
+          const interval = setInterval(() => {
+            setRecordingTime(prev => prev + 1);
+          }, 1000);
+          
+          // Store interval ID for cleanup
+          window.recordingInterval = interval;
+        };
+        
+        recognition.onresult = (event) => {
+          let interimTranscript = '';
+          let finalTranscript = '';
+          
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript + ' ';
+            } else {
+              interimTranscript += transcript;
+            }
           }
-        }, 300);
-      }, 1500);
+          
+          // Update with both final and interim results
+          setTranscribedText(finalTranscript + interimTranscript);
+          
+          // Also update the main message state with the final transcript
+          if (finalTranscript) {
+            setMessage(finalTranscript);
+          }
+        };
+        
+        recognition.onerror = (event) => {
+          console.error('Speech recognition error:', event.error);
+          setError(`Speech recognition failed: ${event.error}`);
+          stopRecording(recognition);
+        };
+        
+        recognition.onend = () => {
+          stopRecording(recognition);
+        };
+        
+        // Start recognition
+        try {
+          if (recognition) {
+            recognition.start();
+            // Store the recognition instance for stopping later
+            window.recognitionInstance = recognition;
+          }
+        } catch (err) {
+          console.error('Failed to start speech recognition:', err);
+          setError('Failed to start speech recognition. Please try again or use text input.');
+          setIsRecording(false);
+        }
+      } else {
+        // Fallback for browsers without speech recognition support
+        setError('Speech recognition is not supported in your browser. Please use text input instead.');
+        setIsRecording(false);
+      }
     } else {
-      // Stop recording logic would go here
-      setIsTranscribing(false);
+      // Stop recording if it's already active
+      if (window.recognitionInstance) {
+        stopRecording(window.recognitionInstance);
+      }
     }
+  };
+  
+  // Helper function to stop recording
+  const stopRecording = (recognition: SpeechRecognition | undefined) => {
+    if (recognition) {
+      recognition.stop();
+    }
+    
+    // Clear the interval tracking recording time
+    if (window.recordingInterval) {
+      clearInterval(window.recordingInterval);
+    }
+    
+    setIsRecording(false);
+    setIsTranscribing(false);
   };
   
   // Handle file import for translation
@@ -205,39 +328,119 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
     setError(null);
     
     try {
-      // In a real implementation, this would call OpenAI's GPT-4o API
-      // For mock purposes, we'll simulate the API call and response
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       // Reset animation state
       setAnimateTranslation(false);
       
-      // Mock translation responses based on selected language
-      if (targetLanguage === 'Japanese') {
-        setTranslation('新プロジェクトのスケジュールについて話し合うため、来週会議を設定したいと思います。できるだけ早くご都合を教えていただければ幸いです。');
-        setAdaptations([
-          'Changed "as soon as possible" to a more polite Japanese expression',
-          'Added honorific language appropriate for business context',
-          'Removed direct request and used a more indirect approach',
-          'Used formal grammatical structures common in Japanese business communication'
-        ]);
-      } else if (targetLanguage === 'French') {
-        setTranslation('Nous aimerions organiser une réunion la semaine prochaine pour discuter du nouveau calendrier du projet. Je vous prie de bien vouloir me faire part de vos disponibilités dans les meilleurs délais.');
-        setAdaptations([
-          'Used more formal "vous" form instead of "tu"',
-          'Added politeness phrases typical in French business context',
-          'Adjusted tone to be more formal',
-          'Changed direct request to a more elegant expression'
-        ]);
+      // Check if we should use mock data
+      if (shouldUseMockData()) {
+        // Mock translation responses based on selected language
+        if (targetLanguage === 'Japanese') {
+          setTranslation('新プロジェクトのスケジュールについて話し合うため、来週会議を設定したいと思います。できるだけ早くご都合を教えていただければ幸いです。');
+          setAdaptations([
+            'Changed "as soon as possible" to a more polite Japanese expression',
+            'Added honorific language appropriate for business context',
+            'Removed direct request and used a more indirect approach',
+            'Used formal grammatical structures common in Japanese business communication'
+          ]);
+        } else if (targetLanguage === 'French') {
+          setTranslation('Nous aimerions organiser une réunion la semaine prochaine pour discuter du nouveau calendrier du projet. Je vous prie de bien vouloir me faire part de vos disponibilités dans les meilleurs délais.');
+          setAdaptations([
+            'Used more formal "vous" form instead of "tu"',
+            'Added politeness phrases typical in French business context',
+            'Adjusted tone to be more formal',
+            'Changed direct request to a more elegant expression'
+          ]);
+        } else {
+          // Default mock translation
+          setTranslation(`This is a mock translation to ${targetLanguage} with cultural adaptations applied.`);
+          setAdaptations([
+            'Adjusted formality level to match target culture',
+            'Modified direct speech patterns to suit cultural expectations',
+            'Adapted time-sensitivity language to cultural norms',
+            'Incorporated appropriate business etiquette phrases'
+          ]);
+        }
       } else {
-        // Default mock translation
-        setTranslation(`This is a mock translation to ${targetLanguage} with cultural adaptations applied.`);
-        setAdaptations([
-          'Adjusted formality level to match target culture',
-          'Modified direct speech patterns to suit cultural expectations',
-          'Adapted time-sensitivity language to cultural norms',
-          'Incorporated appropriate business etiquette phrases'
-        ]);
+        // Use real OpenAI API
+        const apiKey = getOpenAIKey();
+        
+        if (!apiKey) {
+          throw new Error('OpenAI API key not found. Please check your environment settings.');
+        }
+        
+        // Prepare the prompt
+        const prompt = `
+Please translate the following ${context} from English to ${targetLanguage}.
+Business region: ${businessRegion}
+Formality level: ${formalityLevel}
+Preserve idioms: ${preserveIdioms ? 'Yes' : 'No'}
+Cultural notes: ${culturalNotes || 'None provided'}
+
+Original text:
+"${message}"
+
+Please provide the translation and a list of cultural adaptations made.
+`;
+
+        // Call OpenAI API
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-2024-08-06',
+            messages: [
+              {
+                role: 'system',
+                content: `You are an expert translator specializing in business communications. You understand the cultural nuances and business etiquette of different regions.`
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 1000
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`API error: ${errorData.error?.message || response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const content = data.choices[0]?.message?.content;
+        
+        if (!content) {
+          throw new Error('No content returned from API');
+        }
+        
+        // Parse the response to extract translation and adaptations
+        const translationMatch = content.match(/(?:Translation|Translated text):(.*?)(?:\n\n|\n[A-Z]|$)/si);
+        const adaptationsMatch = content.match(/(?:Cultural adaptations|Adaptations):(.*?)(?:$)/si);
+        
+        if (translationMatch && translationMatch[1]) {
+          setTranslation(translationMatch[1].trim());
+        } else {
+          // Fallback - use the whole response
+          setTranslation(content.trim());
+        }
+        
+        // Extract adaptations as array
+        if (adaptationsMatch && adaptationsMatch[1]) {
+          const adaptationText = adaptationsMatch[1].trim();
+          const adaptationItems = adaptationText
+            .split(/\n-|\n•|\n\d+\.|\n\*/)
+            .map(item => item.trim())
+            .filter(item => item.length > 0);
+          
+          setAdaptations(adaptationItems.length > 0 ? adaptationItems : [adaptationText]);
+        } else {
+          setAdaptations(['Translation completed successfully']);
+        }
       }
       
       // Trigger animation for the translation appearing
@@ -246,9 +449,10 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
       }, 300);
       
       // Move to next step
-      setCurrentStep(3);
+      setCurrentStep('translation');
     } catch (err) {
-      setError('Error processing translation. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(`Error processing translation: ${errorMessage}`);
       console.error(err);
     } finally {
       setLoading(false);
@@ -256,58 +460,214 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
   };
   
   // Handle refinement request
-  const handleRefinement = (refinementType: string) => {
+  const handleRefinement = async (refinementType: string) => {
     setLoading(true);
     
-    // In a real implementation, this would call the OpenAI API again with refinement instructions
-    // For mock purposes, we'll simulate the refinement
-    setTimeout(() => {
-      if (refinementType === 'more-formal') {
-        if (targetLanguage === 'Japanese') {
-          setTranslation('新プロジェクトのスケジュールに関しまして協議させていただくため、来週会議の設定をご検討いただけますでしょうか。ご多忙中誠に恐縮ではございますが、ご都合をお知らせいただけますと大変ありがたく存じます。');
-          setAdaptations([...adaptations, 'Increased level of formality with more honorific expressions']);
-        } else {
-          setTranslation(`[Refined for formality] ${translation}`);
-          setAdaptations([...adaptations, 'Increased level of formality']);
+    try {
+      // Check if we should use mock data
+      if (shouldUseMockData()) {
+        // Mock refinement logic
+        if (refinementType === 'more-formal') {
+          if (targetLanguage === 'Japanese') {
+            setTranslation('新プロジェクトのスケジュールに関しまして協議させていただくため、来週会議の設定をご検討いただけますでしょうか。ご多忙中誠に恐縮ではございますが、ご都合をお知らせいただけますと大変ありがたく存じます。');
+            setAdaptations([...adaptations, 'Increased level of formality with more honorific expressions']);
+          } else {
+            setTranslation(`[Refined for formality] ${translation}`);
+            setAdaptations([...adaptations, 'Increased level of formality']);
+          }
+        } else if (refinementType === 'more-direct') {
+          if (targetLanguage === 'Japanese') {
+            setTranslation('来週、新プロジェクトスケジュールの会議を行います。できるだけ早く、あなたの都合の良い時間を教えてください。');
+            setAdaptations([...adaptations, 'Made communication more direct with fewer honorific expressions']);
+          } else {
+            setTranslation(`[Refined for directness] ${translation}`);
+            setAdaptations([...adaptations, 'Made communication more direct']);
+          }
+        } else if (refinementType === 'simpler') {
+          if (targetLanguage === 'Japanese') {
+            setTranslation('来週、プロジェクトについて話し合いたいです。いつが良いですか？');
+            setAdaptations([...adaptations, 'Simplified language for easier understanding']);
+          } else {
+            setTranslation(`[Refined for simplicity] ${translation}`);
+            setAdaptations([...adaptations, 'Simplified language for easier understanding']);
+          }
         }
-      } else if (refinementType === 'more-direct') {
-        if (targetLanguage === 'Japanese') {
-          setTranslation('来週、新プロジェクトスケジュールの会議を行います。できるだけ早く、あなたの都合の良い時間を教えてください。');
-          setAdaptations([...adaptations, 'Made communication more direct with fewer honorific expressions']);
-        } else {
-          setTranslation(`[Refined for directness] ${translation}`);
-          setAdaptations([...adaptations, 'Made communication more direct']);
+      } else {
+        // Use real OpenAI API for refinement
+        const apiKey = getOpenAIKey();
+        
+        if (!apiKey) {
+          throw new Error('OpenAI API key not found. Please check your environment settings.');
         }
-      } else if (refinementType === 'simpler') {
-        if (targetLanguage === 'Japanese') {
-          setTranslation('来週、プロジェクトについて話し合いたいです。いつが良いですか？');
-          setAdaptations([...adaptations, 'Simplified language for easier understanding']);
+        
+        // Determine refinement instruction based on type
+        let refinementInstruction = '';
+        
+        switch (refinementType) {
+          case 'more-formal':
+            refinementInstruction = 'Make the translation more formal and polite, appropriate for high-level business communication.';
+            break;
+          case 'more-direct':
+            refinementInstruction = 'Make the translation more direct and straightforward, while maintaining cultural appropriateness.';
+            break;
+          case 'simpler':
+            refinementInstruction = 'Simplify the language used in the translation to make it easier to understand, while preserving the core message.';
+            break;
+          default:
+            refinementInstruction = 'Refine the translation to improve quality and cultural appropriateness.';
+        }
+        
+        // Prepare the prompt
+        const prompt = `
+Original message in English:
+"${message}"
+
+Current translation in ${targetLanguage}:
+"${translation}"
+
+Refinement needed: ${refinementInstruction}
+
+Business region: ${businessRegion}
+Formality level: ${refinementType === 'more-formal' ? 'very formal' : 
+                  refinementType === 'more-direct' ? 'direct' : 
+                  refinementType === 'simpler' ? 'simple' : formalityLevel}
+Cultural notes: ${culturalNotes || 'None provided'}
+
+Please provide the refined translation and explain what changes were made.
+`;
+
+        // Call OpenAI API
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-2024-08-06',
+            messages: [
+              {
+                role: 'system',
+                content: `You are an expert translator specializing in business communications and cultural adaptations. Your task is to refine the provided translation according to specific requirements.`
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 1000
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`API error: ${errorData.error?.message || response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const content = data.choices[0]?.message?.content;
+        
+        if (!content) {
+          throw new Error('No content returned from API');
+        }
+        
+        // Parse the response to extract refined translation and changes
+        const translationMatch = content.match(/(?:Refined translation|Translation):(.*?)(?:\n\n|\n[A-Z]|$)/si);
+        const changesMatch = content.match(/(?:Changes made|Explanation|What changed):(.*?)(?:$)/si);
+        
+        if (translationMatch && translationMatch[1]) {
+          setTranslation(translationMatch[1].trim());
         } else {
-          setTranslation(`[Refined for simplicity] ${translation}`);
-          setAdaptations([...adaptations, 'Simplified language for easier understanding']);
+          // Fallback - use the whole response
+          setTranslation(content.trim());
+        }
+        
+        // Extract explanation as adaptation
+        if (changesMatch && changesMatch[1]) {
+          const changesText = changesMatch[1].trim();
+          setAdaptations([...adaptations, changesText]);
+        } else {
+          setAdaptations([...adaptations, `Refined for ${refinementType.replace('-', ' ')}`]);
         }
       }
-      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(`Error refining translation: ${errorMessage}`);
+      console.error(err);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
   
   // Play translated audio
   const handlePlayAudio = () => {
-    // In a real implementation, this would use text-to-speech API
-    // For mock purposes, we'll simulate audio playback
-    console.log('Playing audio of translation');
-    
-    // Show visual feedback when "playing" audio
-    const audioFeedback = document.getElementById('audio-feedback');
-    if (audioFeedback) {
-      audioFeedback.classList.add('playing');
-      setTimeout(() => {
-        audioFeedback.classList.remove('playing');
-      }, 3000);
+    if (!translation.trim()) {
+      setError('No translation to play');
+      return;
     }
     
-    alert(`🎧 Now playing: "${targetLanguage}" translation\n\nIn a real implementation, this would use an advanced text-to-speech API to generate natural-sounding speech.`);
+    // Use the browser's Speech Synthesis API
+    if ('speechSynthesis' in window) {
+      // Show visual feedback
+      const audioFeedback = document.getElementById('audio-feedback');
+      if (audioFeedback) {
+        audioFeedback.classList.add('playing');
+      }
+      
+      const utterance = new SpeechSynthesisUtterance(translation);
+      
+      // Set language based on target language
+      switch (targetLanguage) {
+        case 'Japanese':
+          utterance.lang = 'ja-JP';
+          break;
+        case 'French':
+          utterance.lang = 'fr-FR';
+          break;
+        case 'Spanish':
+          utterance.lang = 'es-ES';
+          break;
+        case 'German':
+          utterance.lang = 'de-DE';
+          break;
+        case 'Chinese':
+          utterance.lang = 'zh-CN';
+          break;
+        default:
+          utterance.lang = 'en-US';
+      }
+      
+      // Set voice if available (this is more advanced and may need adjustment)
+      window.speechSynthesis.onvoiceschanged = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const voice = voices.find(v => v.lang.startsWith(utterance.lang));
+        if (voice) {
+          utterance.voice = voice;
+        }
+      };
+      
+      // Handle events
+      utterance.onend = () => {
+        if (audioFeedback) {
+          audioFeedback.classList.remove('playing');
+        }
+      };
+      
+      utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        setError('Failed to play audio. Please try again.');
+        if (audioFeedback) {
+          audioFeedback.classList.remove('playing');
+        }
+      };
+      
+      // Speak the translation
+      window.speechSynthesis.speak(utterance);
+    } else {
+      // Fallback for browsers without speech synthesis
+      setError('Text-to-speech is not supported in your browser.');
+    }
   };
   
   // Function to save translation to local storage
@@ -365,7 +725,7 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
           setContext(translation.context);
           setFormalityLevel(translation.formality);
           setAdaptations(translation.adaptations);
-          setCurrentStep(5); // Jump to the completion screen
+          setCurrentStep('completion'); // Jump to the completion screen
         } else {
           setError('Translation not found.');
           navigate('/challenge/global-communicator/library');
@@ -392,7 +752,7 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
   // Modify handleCompletionStep to save translation
   const handleCompletionStep = () => {
     saveTranslation();
-    setCurrentStep(5);
+    setCurrentStep('completion');
   };
   
   // Modify handleLanguageSelected to save the state
@@ -402,7 +762,7 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
       return;
     }
     setError('');
-    setCurrentStep(3);
+    setCurrentStep('language');
     handleTranslation();
   };
   
@@ -628,7 +988,7 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
           className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-colors flex items-center space-x-2"
           onClick={() => {
             if (message.trim()) {
-              setCurrentStep(2);
+              setCurrentStep('language');
             } else {
               setError('Please enter a message to translate');
             }
@@ -814,7 +1174,7 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
       <div className="flex justify-between">
         <button
           className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors flex items-center"
-          onClick={() => setCurrentStep(1)}
+          onClick={() => setCurrentStep('input')}
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -963,7 +1323,7 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
       <div className="flex justify-between">
         <button
           className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors flex items-center"
-          onClick={() => setCurrentStep(2)}
+          onClick={() => setCurrentStep('input')}
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -972,7 +1332,7 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
         </button>
         <button
           className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-colors flex items-center"
-          onClick={() => setCurrentStep(4)}
+          onClick={() => setCurrentStep('refinement')}
         >
           <span>Refine Translation</span>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 ml-2">
@@ -1067,7 +1427,7 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
       <div className="flex justify-between mt-8">
         <button
           className="px-6 py-2 border border-gray-300 rounded-md text-gray-700"
-          onClick={() => setCurrentStep(3)}
+          onClick={() => setCurrentStep('translation')}
         >
           Back
         </button>
@@ -1258,20 +1618,20 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
         {steps.map((step, index) => (
           <div 
             key={index} 
-            className={`flex flex-col items-center ${index + 1 <= currentStep ? 'text-blue-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center ${index + 1 <= steps.indexOf(currentStep) ? 'text-blue-600' : 'text-gray-400'}`}
           >
             <div 
               className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                index + 1 === currentStep 
+                index + 1 === steps.indexOf(currentStep) 
                   ? 'bg-blue-600 text-white' 
-                  : index + 1 < currentStep 
+                  : index + 1 < steps.indexOf(currentStep) 
                     ? 'bg-blue-100 text-blue-600' 
                     : 'bg-gray-200 text-gray-400'
               }`}
             >
-              {index + 1 < currentStep ? '✓' : index + 1}
+              {index + 1 < steps.indexOf(currentStep) ? '✓' : index + 1}
             </div>
-            <span className="text-sm hidden md:block">{step}</span>
+            <span className="text-sm hidden md:block">{stepTitles[index]}</span>
           </div>
         ))}
       </div>
@@ -1279,37 +1639,71 @@ const GlobalCommunicatorMain: React.FC<{ mode?: 'create' | 'view' }> = ({ mode =
         <div className="absolute top-0 left-4 right-4 h-1 bg-gray-200"></div>
         <div 
           className="absolute top-0 left-4 h-1 bg-blue-600" 
-          style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+          style={{ width: `${((steps.indexOf(currentStep) - 1) / (steps.length - 1)) * 100}%` }}
         ></div>
       </div>
     </div>
   );
   
+  // Check if challenge is already completed on mount
+  useEffect(() => {
+    if (userProgress.completedChallenges.includes('challenge-5')) {
+      setIsCompleted(true);
+    }
+  }, [userProgress]);
+  
+  // Handle completing the challenge
+  const handleCompleteChallenge = () => {
+    if (!translatedText || translatedText.length < 10) {
+      alert('Please complete a translation before finishing the challenge.');
+      return;
+    }
+    
+    markChallengeAsCompleted('challenge-5');
+    setIsCompleted(true);
+    
+    // Show confetti
+    setShowConfetti(true);
+    
+    // Hide confetti after 5 seconds
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
+    
+    // Save translation if not saved already
+    if (!savedState) {
+      saveTranslation();
+    }
+  };
+  
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">AI Global Communicator</h1>
-        <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-          Challenge 14
-        </div>
+    <div className="container mx-auto px-4 pb-16 max-w-5xl">
+      <ChallengeHeader
+        title="Global Communicator Challenge"
+        icon={<Globe className="h-6 w-6 text-blue-600" />}
+        challengeId="challenge-5"
+        isCompleted={isCompleted}
+        setIsCompleted={setIsCompleted}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
+        onCompleteChallenge={handleCompleteChallenge}
+        isHPChallenge={true}
+      />
+      
+      {/* Main content */}
+      <div className="bg-white shadow-md rounded-lg p-6">
+        {currentStep === 'language' && renderLanguageSelection()}
+        {currentStep === 'input' && renderMessageInput()}
+        {currentStep === 'translation' && renderTranslationResults()}
+        {currentStep === 'refinement' && renderRefinementOptions()}
+        {currentStep === 'completion' && renderCompletionScreen()}
+        
+        {/* Step Navigation */}
+        {renderStepNavigation()}
       </div>
       
-      {renderStepNavigation()}
-      
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-md">
-          {error}
-        </div>
-      )}
-      
-      {currentStep === 1 && renderMessageInput()}
-      {currentStep === 2 && renderLanguageSelection()}
-      {currentStep === 3 && renderTranslationResults()}
-      {currentStep === 4 && renderRefinementOptions()}
-      {currentStep === 5 && renderCompletionScreen()}
-      
-      {/* Audio element for text-to-speech playback */}
-      <audio ref={audioRef} className="hidden" />
+      {/* Tooltips */}
+      <Tooltip id="global-tooltip" className="z-50" />
     </div>
   );
 };

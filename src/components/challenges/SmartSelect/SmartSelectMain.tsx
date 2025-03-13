@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScenarioSelection } from './components/ScenarioSelection';
 import { ModelComparison } from './components/ModelComparison';
 import { ComparisonAnalysis } from './components/ComparisonAnalysis';
 import { FollowupQuestions } from './components/FollowupQuestions';
+import ChallengeHeader from '../../shared/ChallengeHeader';
+import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
+import { Check, FileCheck } from 'lucide-react';
 
 // Define the steps in the AI Smart Select challenge
 enum STEPS {
@@ -53,6 +56,14 @@ export interface SmartSelectState {
   followupResponses: Record<ModelType, string | null>;
   isLoading: boolean;
   error: string | null;
+}
+
+// Near the top of the file, add these types for learning objectives
+export interface LearningObjective {
+  id: string;
+  title: string;
+  description: string;
+  completed: boolean;
 }
 
 // Sample business scenarios
@@ -144,8 +155,47 @@ export const MODEL_DESCRIPTIONS = {
 
 // Main component
 const SmartSelectMain: React.FC = () => {
-  // State management
   const [state, setState] = useState<SmartSelectState>(createInitialState());
+  const [learningObjectives, setLearningObjectives] = useState<LearningObjective[]>([
+    {
+      id: 'model-differences',
+      title: 'Identify Model Differences',
+      description: 'Recognize how AI models with different capabilities approach the same business problem',
+      completed: false
+    },
+    {
+      id: 'business-value',
+      title: 'Assess Business Value',
+      description: 'Evaluate which model provides more actionable insights for specific business contexts',
+      completed: false
+    },
+    {
+      id: 'ai-selection',
+      title: 'Develop Selection Criteria',
+      description: 'Create a framework for choosing the right AI model based on business requirements',
+      completed: false
+    },
+    {
+      id: 'ethical-considerations',
+      title: 'Consider Ethical Implications',
+      description: 'Understand potential risks and ethical concerns in AI-assisted decision making',
+      completed: false
+    }
+  ]);
+  
+  // Add state for challenge completion and confetti
+  const [userProgress, setUserProgress] = useUserProgress();
+  const [isCompleted, setIsCompleted] = useState<boolean>(
+    userProgress.completedChallenges.includes('challenge-2')
+  );
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
+  
+  // Check if challenge is already completed on mount
+  useEffect(() => {
+    if (userProgress.completedChallenges.includes('challenge-2')) {
+      setIsCompleted(true);
+    }
+  }, [userProgress]);
   
   // Update state helper
   const updateState = (newState: Partial<SmartSelectState>) => {
@@ -225,6 +275,8 @@ const SmartSelectMain: React.FC = () => {
   // Submit user analysis
   const submitAnalysis = (analysis: UserAnalysis) => {
     updateState({ userAnalysis: analysis });
+    updateLearningObjective('model-differences', true);
+    updateLearningObjective('business-value', true);
     goToNextStep();
   };
   
@@ -615,6 +667,13 @@ Best practices include implementing a human-in-the-loop approach, regular algori
     }
   };
   
+  // Add a function to update learning objectives
+  const updateLearningObjective = (id: string, completed: boolean) => {
+    setLearningObjectives(prev => 
+      prev.map(obj => obj.id === id ? {...obj, completed} : obj)
+    );
+  };
+  
   // Render the current step based on state
   const renderCurrentStep = () => {
     switch (state.currentStep) {
@@ -664,69 +723,95 @@ Best practices include implementing a human-in-the-loop approach, regular algori
     }
   };
   
-  // Render progress navigation
-  const renderProgressSteps = () => {
+  // Add this component to render the learning dashboard
+  const renderLearningDashboard = () => {
     return (
-      <div className="flex items-center justify-center mb-8">
-        {Object.values(STEPS).filter(step => typeof step === 'number').map((step: number) => (
-          <React.Fragment key={step}>
-            {/* Step button */}
-            <button
-              className={`
-                w-8 h-8 rounded-full flex items-center justify-center
-                ${state.currentStep === step
-                  ? 'bg-blue-600 text-white'
-                  : state.currentStep > step
-                    ? 'bg-blue-100 text-blue-600'
-                    : 'bg-gray-200 text-gray-600'
+      <div className="bg-white rounded-lg shadow-lg border border-gray-100 p-6 mb-8">
+        <div className="flex items-center mb-4">
+          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center mr-3 shadow-sm">
+            <svg className="h-6 w-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Learning Objectives</h2>
+            <p className="text-gray-600">
+              Track your progress through this AI Model Selection challenge
+            </p>
+          </div>
+        </div>
+        
+        <div className="space-y-4 mt-4">
+          {learningObjectives.map(objective => (
+            <div key={objective.id} className="flex items-start">
+              <div className={`flex-shrink-0 h-5 w-5 rounded-full border flex items-center justify-center mt-0.5
+                ${objective.completed 
+                  ? 'bg-green-500 border-green-500' 
+                  : 'border-gray-300'}`
                 }
-                ${state.currentStep > step ? 'cursor-pointer' : 'cursor-not-allowed'}
-              `}
-              onClick={() => {
-                if (state.currentStep > step) {
-                  goToStep(step as STEPS);
-                }
-              }}
-              disabled={state.currentStep <= step}
-            >
-              {step + 1}
-            </button>
-            
-            {/* Step label */}
-            <div className="hidden sm:block ml-2 mr-8 text-sm">
-              <div className={state.currentStep >= step ? 'text-blue-600 font-medium' : 'text-gray-500'}>
-                {Object.keys(STEPS).find(key => STEPS[key as keyof typeof STEPS] === step)?.split('_').join(' ')}
+              >
+                {objective.completed && (
+                  <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <div className="ml-3">
+                <h3 className={`text-base font-medium ${objective.completed ? 'text-green-700' : 'text-gray-900'}`}>
+                  {objective.title}
+                </h3>
+                <p className="text-sm text-gray-500">{objective.description}</p>
               </div>
             </div>
-            
-            {/* Connector line */}
-            {step < STEPS.FOLLOWUP && (
-              <div className={`flex-grow h-1 mx-2 ${state.currentStep > step ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
-            )}
-          </React.Fragment>
-        ))}
+          ))}
+        </div>
       </div>
     );
   };
   
+  // Handle completing the challenge
+  const handleCompleteChallenge = () => {
+    // Check if user has completed enough objectives to mark as complete
+    const completedObjectives = learningObjectives.filter(obj => obj.completed).length;
+    const totalObjectives = learningObjectives.length;
+    
+    if (completedObjectives < 2) {
+      alert('Complete at least 2 learning objectives before finishing the challenge.');
+      return;
+    }
+    
+    markChallengeAsCompleted('challenge-2');
+    setIsCompleted(true);
+    
+    // Show confetti
+    setShowConfetti(true);
+    
+    // Hide confetti after 5 seconds
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
+  };
+  
   // Main component render
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">AI Smart Select Challenge</h1>
-        <p className="text-gray-600 mb-6">
-          Compare how different AI models analyze and respond to the same business scenario. 
-          Discover which model provides more valuable insights for your business needs.
-        </p>
-        
-        {/* Progress steps */}
-        {renderProgressSteps()}
-        
-        {/* Current step content */}
-        <div className="mt-6">
-          {renderCurrentStep()}
-        </div>
+    <div className="max-w-6xl mx-auto p-4">
+      <ChallengeHeader
+        title="AI Smart Select Challenge"
+        icon={<FileCheck className="h-6 w-6 text-blue-600" />}
+        challengeId="challenge-2"
+        isCompleted={isCompleted}
+        setIsCompleted={setIsCompleted}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
+        onCompleteChallenge={handleCompleteChallenge}
+      />
+      
+      <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+        {renderCurrentStep()}
       </div>
+      
+      {/* Learning Dashboard */}
+      {renderLearningDashboard()}
     </div>
   );
 };

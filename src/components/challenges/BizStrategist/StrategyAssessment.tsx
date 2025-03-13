@@ -1,253 +1,144 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BizStrategyState } from './BizStrategistMain';
+import { getApiKey } from '../../../services/openai';
 
 interface StrategyAssessmentProps {
   state: BizStrategyState;
-  updateState: (newState: Partial<BizStrategyState>) => void;
-  onNext: () => void;
   onBack: () => void;
 }
 
-// Mock AI analysis types
-interface StrengthWeakness {
-  point: string;
-  explanation: string;
-}
-
-interface StrategyAlternative {
-  title: string;
-  description: string;
-  pros: string[];
-  cons: string[];
-}
-
-interface RiskOpportunity {
-  title: string;
-  description: string;
-  impact: 'low' | 'medium' | 'high';
-  probability: 'low' | 'medium' | 'high';
-}
-
-interface AIStrategyAnalysis {
-  overallScore: number;
-  cohesionScore: number;
-  feasibilityScore: number;
-  innovationScore: number;
-  summary: string;
-  strengths: StrengthWeakness[];
-  weaknesses: StrengthWeakness[];
-  risks: RiskOpportunity[];
-  opportunities: RiskOpportunity[];
-  alternatives: StrategyAlternative[];
-  executionTips: string[];
-}
-
-// Mock function to generate AI analysis
-const generateStrategyAnalysis = (state: BizStrategyState): Promise<AIStrategyAnalysis> => {
-  // In a real implementation, this would call an AI API
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Generate a score between 65-95
-      const overallScore = Math.floor(Math.random() * 31) + 65;
-      const cohesionScore = Math.floor(Math.random() * 31) + 65;
-      const feasibilityScore = Math.floor(Math.random() * 31) + 65;
-      const innovationScore = Math.floor(Math.random() * 31) + 65;
-      
-      // Basic analysis based on selected elements
-      const selectedCount = state.strategyElements.length;
-      let summary = '';
-      
-      if (selectedCount <= 3) {
-        summary = `Your strategy for ${state.businessGoal} in the ${state.industryContext} industry is focused but may benefit from considering additional strategic elements. The ${selectedCount} elements you've selected form a solid foundation, but a more comprehensive approach could help address potential blind spots.`;
-      } else if (selectedCount <= 5) {
-        summary = `You've developed a well-balanced strategy for ${state.businessGoal} in the ${state.industryContext} industry. With ${selectedCount} strategic elements, you've created a focused yet comprehensive approach that addresses key aspects of your business goals while maintaining feasibility.`;
-      } else {
-        summary = `Your strategy for ${state.businessGoal} in the ${state.industryContext} industry is comprehensive, covering ${selectedCount} strategic elements. While this provides broad coverage, consider prioritizing these elements to ensure focus and avoid spreading resources too thin during implementation.`;
-      }
-      
-      // Example strengths and weaknesses
-      const strengths: StrengthWeakness[] = [
-        {
-          point: "Strategic Alignment",
-          explanation: `Your selected elements align well with your goal to ${state.businessGoal.toLowerCase()} in the ${state.industryContext} industry.`
-        },
-        {
-          point: "Balance of Short and Long-term Thinking",
-          explanation: "Your strategy balances immediate business needs with longer-term strategic positioning."
-        }
-      ];
-      
-      const weaknesses: StrengthWeakness[] = [
-        {
-          point: "Resource Intensity",
-          explanation: "Implementing all selected elements simultaneously may strain resources. Consider a phased approach."
-        }
-      ];
-      
-      if (state.strategyElements.includes("Value Proposition Refinement")) {
-        strengths.push({
-          point: "Strong Customer Focus",
-          explanation: "Your emphasis on value proposition refinement puts customer needs at the center of your strategy."
-        });
-      } else {
-        weaknesses.push({
-          point: "Limited Customer Perspective",
-          explanation: "Consider adding elements that strengthen your value proposition from the customer's perspective."
-        });
-      }
-      
-      if (state.strategyElements.includes("Technology Integration Plan") || 
-          state.strategyElements.includes("Digital Transformation Roadmap")) {
-        strengths.push({
-          point: "Tech-Forward Approach",
-          explanation: "Your strategy appropriately recognizes the importance of technology in modern business success."
-        });
-      } else if (state.industryContext.toLowerCase().includes('tech')) {
-        weaknesses.push({
-          point: "Insufficient Tech Focus",
-          explanation: "Given your industry, your strategy would benefit from stronger technology integration elements."
-        });
-      }
-      
-      // Risks and opportunities
-      const risks: RiskOpportunity[] = [
-        {
-          title: "Execution Complexity",
-          description: "The breadth of your strategy may create implementation challenges that could delay results.",
-          impact: "medium",
-          probability: "medium"
-        },
-        {
-          title: "Market Shifts",
-          description: "Rapid changes in the market may require strategy adjustments during implementation.",
-          impact: "high",
-          probability: "medium"
-        }
-      ];
-      
-      const opportunities: RiskOpportunity[] = [
-        {
-          title: "Competitive Differentiation",
-          description: "Successfully executing this strategy could create meaningful differentiation from competitors.",
-          impact: "high",
-          probability: "medium"
-        },
-        {
-          title: "Organizational Learning",
-          description: "This strategic approach will build capabilities that can be leveraged for future initiatives.",
-          impact: "medium",
-          probability: "high"
-        }
-      ];
-      
-      // Strategic alternatives
-      const alternatives: StrategyAlternative[] = [
-        {
-          title: "Phased Implementation Approach",
-          description: "Rather than pursuing all strategic elements simultaneously, consider a phased approach that prioritizes elements with the highest impact-to-effort ratio first.",
-          pros: ["Reduces resource strain", "Allows for learning and adjustment", "Delivers quicker wins"],
-          cons: ["May delay full strategy benefits", "Requires more complex planning"]
-        },
-        {
-          title: "Partnership-Focused Execution",
-          description: "Consider leveraging strategic partnerships to execute elements that aren't core to your business strengths.",
-          pros: ["Reduces internal resource requirements", "Brings in specialized expertise", "Can accelerate implementation"],
-          cons: ["Introduces dependency on external parties", "Requires strong partnership management"]
-        }
-      ];
-      
-      // Execution tips
-      const executionTips = [
-        "Develop clear metrics for each strategic element to track progress and impact.",
-        "Create a communication plan to ensure all stakeholders understand the strategy and their role in execution.",
-        "Schedule regular strategy review sessions to assess progress and make necessary adjustments.",
-        "Identify potential barriers to implementation early and develop mitigation plans."
-      ];
-      
-      const analysis: AIStrategyAnalysis = {
-        overallScore,
-        cohesionScore,
-        feasibilityScore,
-        innovationScore,
-        summary,
-        strengths,
-        weaknesses,
-        risks,
-        opportunities,
-        alternatives,
-        executionTips
-      };
-      
-      resolve(analysis);
-    }, 2000);
-  });
-};
-
-const StrategyAssessment: React.FC<StrategyAssessmentProps> = ({ state, updateState, onNext, onBack }) => {
-  const [analysis, setAnalysis] = useState<AIStrategyAnalysis | null>(null);
+const StrategyAssessment: React.FC<StrategyAssessmentProps> = ({ state, onBack }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'strengths' | 'risks' | 'alternatives' | 'execution'>('overview');
-  const [userNotes, setUserNotes] = useState<string>(state.assessmentNotes || '');
-  const [saveStatus, setSaveStatus] = useState<string>('');
-  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const [strengths, setStrengths] = useState<string[]>(state.strengths || []);
+  const [weaknesses, setWeaknesses] = useState<string[]>(state.weaknesses || []);
+  const [opportunities, setOpportunities] = useState<string[]>(state.opportunities || []);
+  const [threats, setThreats] = useState<string[]>(state.threats || []);
+  const [scenarioResults, setScenarioResults] = useState<any>(state.scenarioResults);
 
-  // Generate AI analysis on component mount
+  // Generate SWOT analysis when component mounts
   useEffect(() => {
-    if (state.analysis) {
-      setAnalysis(state.analysis);
-      setIsLoading(false);
+    if (!strengths.length && !weaknesses.length && state.selectedStrategies.length > 0) {
+      generateSWOTAnalysis();
     } else {
-      generateStrategyAnalysis(state)
-        .then(result => {
-          setAnalysis(result);
-          updateState({ analysis: result });
-          setIsLoading(false);
-        });
+      setIsLoading(false);
     }
   }, []);
 
-  // Save notes periodically
-  useEffect(() => {
-    const saveNotes = () => {
-      if (userNotes !== state.assessmentNotes) {
-        updateState({ assessmentNotes: userNotes });
-        setSaveStatus('Notes saved');
-        setTimeout(() => setSaveStatus(''), 2000);
+  const generateSWOTAnalysis = async () => {
+    setIsLoading(true);
+    
+    try {
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        throw new Error('OpenAI API key not found');
       }
-    };
+      
+      // Build a comprehensive prompt based on all state information
+      let contextPrompt = `As a strategic business consultant, provide a SWOT analysis for a ${state.businessType} in the ${state.industry} industry with a primary goal of ${state.businessGoal}.`;
+      
+      // Add financial insights
+      if (state.financialInsights && state.financialInsights.length > 0) {
+        contextPrompt += `\n\nFinancial insights:\n`;
+        state.financialInsights.forEach(insight => {
+          contextPrompt += `- ${insight}\n`;
+        });
+      }
+      
+      // Add market insights
+      if (state.marketInsights && state.marketInsights.length > 0) {
+        contextPrompt += `\n\nMarket insights:\n`;
+        state.marketInsights.forEach(insight => {
+          contextPrompt += `- ${insight}\n`;
+        });
+      }
+      
+      // Add user's financial recommendation
+      if (state.userRecommendation) {
+        contextPrompt += `\n\nThe business leader's financial recommendation:\n"${state.userRecommendation}"\n`;
+      }
+      
+      // Add selected strategies
+      contextPrompt += `\n\nSelected strategy elements:\n`;
+      state.selectedStrategies.forEach(strategy => {
+        contextPrompt += `- ${strategy}\n`;
+      });
+      
+      const prompt = `${contextPrompt}
 
-    const interval = setInterval(saveNotes, 5000);
-    return () => clearInterval(interval);
-  }, [userNotes, state.assessmentNotes, updateState]);
+Based on this information, provide a comprehensive SWOT analysis with:
+1. 3-4 key Strengths of the strategy
+2. 3-4 key Weaknesses of the strategy
+3. 3-4 key Opportunities the strategy can capitalize on
+4. 3-4 key Threats that might impact the strategy
 
-  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setUserNotes(e.target.value);
-    setSaveStatus('');
-  };
+Additionally, provide a brief scenario analysis for one best-case and one worst-case scenario related to the strategy implementation.
 
-  const handleSaveNotes = () => {
-    updateState({ assessmentNotes: userNotes });
-    setSaveStatus('Notes saved');
-    setTimeout(() => setSaveStatus(''), 2000);
-  };
+Format your response in JSON with the following structure:
+{
+  "strengths": ["strength1", "strength2", ...],
+  "weaknesses": ["weakness1", "weakness2", ...],
+  "opportunities": ["opportunity1", "opportunity2", ...],
+  "threats": ["threat1", "threat2", ...],
+  "scenarios": {
+    "bestCase": {
+      "description": "description of best case scenario",
+      "impact": "potential business impact",
+      "probability": "low/medium/high"
+    },
+    "worstCase": {
+      "description": "description of worst case scenario",
+      "impact": "potential business impact",
+      "probability": "low/medium/high"
+    }
+  }
+}`;
 
-  const handleComplete = () => {
-    updateState({ assessmentNotes: userNotes });
-    onNext();
-  };
-
-  const getScoreColor = (score: number): string => {
-    if (score >= 85) return 'text-green-600';
-    if (score >= 75) return 'text-blue-600';
-    if (score >= 65) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getImpactProbabilityColor = (level: 'low' | 'medium' | 'high'): string => {
-    switch (level) {
-      case 'low': return 'bg-green-100 text-green-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'high': return 'bg-red-100 text-red-800';
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a strategic business consultant specializing in strategy assessment. You provide clear, data-driven SWOT analyses and scenario evaluations.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          response_format: { type: "json_object" }
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+      }
+      
+      const data = await response.json();
+      const analysisText = data.choices[0].message.content;
+      const analysis = JSON.parse(analysisText);
+      
+      setStrengths(analysis.strengths || []);
+      setWeaknesses(analysis.weaknesses || []);
+      setOpportunities(analysis.opportunities || []);
+      setThreats(analysis.threats || []);
+      setScenarioResults(analysis.scenarios || null);
+      
+    } catch (error) {
+      console.error('Error generating SWOT analysis:', error);
+      setStrengths(['Failed to generate strengths']);
+      setWeaknesses(['Failed to generate weaknesses']);
+      setOpportunities(['Failed to generate opportunities']);
+      setThreats(['Failed to generate threats']);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -255,322 +146,277 @@ const StrategyAssessment: React.FC<StrategyAssessmentProps> = ({ state, updateSt
     <div className="p-6">
       <div className="bg-gradient-to-r from-[#E0F7FA] to-[#E0F2F1] p-6 rounded-lg mb-8">
         <h2 className="text-xl font-semibold text-[#0097A7]">
-          AI Strategy Assessment
+          Strategy Assessment
         </h2>
         <p className="text-gray-700 mt-2">
-          Our AI has analyzed your strategy for {state.businessGoal} in the {state.industryContext} industry.
-          Review the assessment, consider alternatives, and prepare for implementation.
+          Review the AI-generated assessment of your business strategy, including a SWOT analysis 
+          and scenario testing to evaluate potential outcomes.
         </p>
       </div>
       
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-16 h-16 border-4 border-[#0097A7] border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600">Our AI is analyzing your strategy...</p>
+        <div className="bg-white rounded-lg shadow-sm p-6 flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#0097A7] border-t-transparent mr-3"></div>
+          <p className="text-gray-600">Analyzing your strategy...</p>
         </div>
-      ) : analysis ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            {/* Tabs */}
-            <div className="flex overflow-x-auto space-x-1 mb-6 border-b">
-              <button
-                className={`px-4 py-2 whitespace-nowrap ${
-                  activeTab === 'overview' 
-                    ? 'border-b-2 border-[#0097A7] text-[#0097A7] font-medium' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-                onClick={() => setActiveTab('overview')}
-              >
-                Overview
-              </button>
-              <button
-                className={`px-4 py-2 whitespace-nowrap ${
-                  activeTab === 'strengths' 
-                    ? 'border-b-2 border-[#0097A7] text-[#0097A7] font-medium' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-                onClick={() => setActiveTab('strengths')}
-              >
-                Strengths & Weaknesses
-              </button>
-              <button
-                className={`px-4 py-2 whitespace-nowrap ${
-                  activeTab === 'risks' 
-                    ? 'border-b-2 border-[#0097A7] text-[#0097A7] font-medium' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-                onClick={() => setActiveTab('risks')}
-              >
-                Risks & Opportunities
-              </button>
-              <button
-                className={`px-4 py-2 whitespace-nowrap ${
-                  activeTab === 'alternatives' 
-                    ? 'border-b-2 border-[#0097A7] text-[#0097A7] font-medium' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-                onClick={() => setActiveTab('alternatives')}
-              >
-                Alternatives
-              </button>
-              <button
-                className={`px-4 py-2 whitespace-nowrap ${
-                  activeTab === 'execution' 
-                    ? 'border-b-2 border-[#0097A7] text-[#0097A7] font-medium' 
-                    : 'text-gray-600 hover:text-gray-800'
-                }`}
-                onClick={() => setActiveTab('execution')}
-              >
-                Execution Tips
-              </button>
-            </div>
+      ) : (
+        <div className="space-y-8">
+          {/* Selected Strategy Summary */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-lg font-medium text-gray-800 mb-4">Your Strategy</h3>
             
-            {/* Tab content */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-              {activeTab === 'overview' && (
+            <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">Strategy Assessment</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-gray-50 p-3 rounded-lg text-center">
-                      <div className={`text-2xl font-bold ${getScoreColor(analysis.overallScore)}`}>
-                        {analysis.overallScore}/100
+                <h4 className="font-medium text-gray-700 mb-2">Business Goal</h4>
+                <p className="text-gray-800 bg-gray-50 p-3 rounded-lg">{state.businessGoal}</p>
                       </div>
-                      <div className="text-sm text-gray-600">Overall Score</div>
+              
+              <div>
+                <h4 className="font-medium text-gray-700 mb-2">Selected Strategy Elements</h4>
+                <div className="space-y-2">
+                  {state.selectedStrategies.map((strategy, index) => (
+                    <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                      <div className="flex items-start">
+                        <span className="text-[#0097A7] font-bold mr-2">{index + 1}.</span>
+                        <span className="text-gray-800">{strategy}</span>
+                      </div>
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-lg text-center">
-                      <div className={`text-2xl font-bold ${getScoreColor(analysis.cohesionScore)}`}>
-                        {analysis.cohesionScore}/100
-                      </div>
-                      <div className="text-sm text-gray-600">Cohesion</div>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg text-center">
-                      <div className={`text-2xl font-bold ${getScoreColor(analysis.feasibilityScore)}`}>
-                        {analysis.feasibilityScore}/100
-                      </div>
-                      <div className="text-sm text-gray-600">Feasibility</div>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg text-center">
-                      <div className={`text-2xl font-bold ${getScoreColor(analysis.innovationScore)}`}>
-                        {analysis.innovationScore}/100
-                      </div>
-                      <div className="text-sm text-gray-600">Innovation</div>
+                  ))}
                     </div>
                   </div>
-                  <div className="mb-6">
-                    <h4 className="font-medium text-gray-800 mb-2">Summary</h4>
-                    <p className="text-gray-700">{analysis.summary}</p>
-                  </div>
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="flex items-start">
-                      <div className="text-blue-500 text-xl mr-3">💡</div>
+              
+              {state.userRecommendation && (
                       <div>
-                        <h4 className="font-medium text-blue-700 mb-1">AI Insight</h4>
-                        <p className="text-blue-800 text-sm">
-                          The most successful business strategies balance ambition with realism. Your strategy shows good 
-                          potential, but remember that execution is where many strategies fail. Focus on clear ownership, 
-                          measurable milestones, and regular progress reviews to maximize your chances of success.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === 'strengths' && (
-                <div>
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">Strengths & Weaknesses</h3>
-                  <div className="mb-6">
-                    <h4 className="font-medium text-green-600 flex items-center mb-3">
-                      <span className="mr-2">💪</span> Strengths
-                    </h4>
-                    <div className="space-y-4">
-                      {analysis.strengths.map((strength, index) => (
-                        <div key={index} className="bg-green-50 p-4 rounded-lg">
-                          <h5 className="font-medium text-green-800 mb-1">{strength.point}</h5>
-                          <p className="text-green-700 text-sm">{strength.explanation}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-orange-600 flex items-center mb-3">
-                      <span className="mr-2">⚠️</span> Weaknesses
-                    </h4>
-                    <div className="space-y-4">
-                      {analysis.weaknesses.map((weakness, index) => (
-                        <div key={index} className="bg-orange-50 p-4 rounded-lg">
-                          <h5 className="font-medium text-orange-800 mb-1">{weakness.point}</h5>
-                          <p className="text-orange-700 text-sm">{weakness.explanation}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === 'risks' && (
-                <div>
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">Risks & Opportunities</h3>
-                  <div className="mb-6">
-                    <h4 className="font-medium text-red-600 flex items-center mb-3">
-                      <span className="mr-2">🚨</span> Risks
-                    </h4>
-                    <div className="space-y-4">
-                      {analysis.risks.map((risk, index) => (
-                        <div key={index} className="bg-red-50 p-4 rounded-lg">
-                          <div className="flex justify-between mb-2">
-                            <h5 className="font-medium text-red-800">{risk.title}</h5>
-                            <div className="flex space-x-2">
-                              <span className={`text-xs px-2 py-1 rounded-full ${getImpactProbabilityColor(risk.impact)}`}>
-                                Impact: {risk.impact}
-                              </span>
-                              <span className={`text-xs px-2 py-1 rounded-full ${getImpactProbabilityColor(risk.probability)}`}>
-                                Probability: {risk.probability}
-                              </span>
-                            </div>
-                          </div>
-                          <p className="text-red-700 text-sm">{risk.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-indigo-600 flex items-center mb-3">
-                      <span className="mr-2">✨</span> Opportunities
-                    </h4>
-                    <div className="space-y-4">
-                      {analysis.opportunities.map((opportunity, index) => (
-                        <div key={index} className="bg-indigo-50 p-4 rounded-lg">
-                          <div className="flex justify-between mb-2">
-                            <h5 className="font-medium text-indigo-800">{opportunity.title}</h5>
-                            <div className="flex space-x-2">
-                              <span className={`text-xs px-2 py-1 rounded-full ${getImpactProbabilityColor(opportunity.impact)}`}>
-                                Impact: {opportunity.impact}
-                              </span>
-                              <span className={`text-xs px-2 py-1 rounded-full ${getImpactProbabilityColor(opportunity.probability)}`}>
-                                Probability: {opportunity.probability}
-                              </span>
-                            </div>
-                          </div>
-                          <p className="text-indigo-700 text-sm">{opportunity.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === 'alternatives' && (
-                <div>
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">Strategic Alternatives</h3>
-                  <p className="text-gray-600 mb-4">
-                    Consider these alternative approaches that might complement or enhance your strategy.
-                  </p>
-                  <div className="space-y-6">
-                    {analysis.alternatives.map((alternative, index) => (
-                      <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-800 mb-2">{alternative.title}</h4>
-                        <p className="text-gray-700 mb-3">{alternative.description}</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <h5 className="text-sm font-medium text-green-600 mb-2">Pros</h5>
-                            <ul className="list-disc pl-5 space-y-1">
-                              {alternative.pros.map((pro, proIndex) => (
-                                <li key={proIndex} className="text-sm text-gray-600">{pro}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div>
-                            <h5 className="text-sm font-medium text-red-600 mb-2">Cons</h5>
-                            <ul className="list-disc pl-5 space-y-1">
-                              {alternative.cons.map((con, conIndex) => (
-                                <li key={conIndex} className="text-sm text-gray-600">{con}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === 'execution' && (
-                <div>
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">Execution Tips</h3>
-                  <p className="text-gray-600 mb-4">
-                    Use these tips to improve your chances of successful strategy implementation.
-                  </p>
-                  <div className="bg-yellow-50 p-5 rounded-lg mb-6">
-                    <div className="flex">
-                      <div className="text-yellow-600 text-xl mr-3">⚡</div>
-                      <div>
-                        <h4 className="font-medium text-yellow-800 mb-2">Pro Tip</h4>
-                        <p className="text-yellow-700 text-sm">
-                          Only 30% of strategies are successfully executed. The difference between success and failure 
-                          often comes down to clarity of goals, ownership of action items, and consistent follow-through.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <ul className="space-y-4">
-                    {analysis.executionTips.map((tip, index) => (
-                      <li key={index} className="flex items-start">
-                        <div className="text-[#0097A7] mr-3">✓</div>
-                        <p className="text-gray-700">{tip}</p>
-                      </li>
-                    ))}
-                  </ul>
+                  <h4 className="font-medium text-gray-700 mb-2">Your Financial Recommendation</h4>
+                  <p className="text-gray-800 bg-gray-50 p-3 rounded-lg italic">"{state.userRecommendation}"</p>
                 </div>
               )}
             </div>
           </div>
           
-          <div>
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-6">
-              <h3 className="text-lg font-medium text-gray-800 mb-4">Your Strategy Notes</h3>
-              <p className="text-gray-600 text-sm mb-4">
-                Use this space to record your thoughts on the assessment and how you plan to implement your strategy.
-              </p>
-              <textarea
-                ref={notesRef}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0097A7] min-h-[250px]"
-                placeholder="Record your thoughts here..."
-                value={userNotes}
-                onChange={handleNotesChange}
-              ></textarea>
-              <div className="flex justify-between items-center mt-3">
-                <span className="text-sm text-green-600">{saveStatus}</span>
-                <button
-                  className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                  onClick={handleSaveNotes}
-                >
-                  Save Notes
-                </button>
+          {/* SWOT Analysis */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-lg font-medium text-gray-800 mb-6">SWOT Analysis</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Strengths */}
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="font-medium text-green-800 mb-3 flex items-center">
+                  <span className="text-xl mr-2">💪</span> Strengths
+                </h4>
+                <ul className="space-y-2">
+                  {strengths.map((strength, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-green-600 mr-2">•</span>
+                      <span className="text-gray-800">{strength}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              {/* Weaknesses */}
+              <div className="bg-red-50 p-4 rounded-lg">
+                <h4 className="font-medium text-red-800 mb-3 flex items-center">
+                  <span className="text-xl mr-2">⚠️</span> Weaknesses
+                </h4>
+                <ul className="space-y-2">
+                  {weaknesses.map((weakness, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-red-600 mr-2">•</span>
+                      <span className="text-gray-800">{weakness}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              
+              {/* Opportunities */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-800 mb-3 flex items-center">
+                  <span className="text-xl mr-2">🚀</span> Opportunities
+                    </h4>
+                <ul className="space-y-2">
+                  {opportunities.map((opportunity, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-blue-600 mr-2">•</span>
+                      <span className="text-gray-800">{opportunity}</span>
+                    </li>
+                  ))}
+                </ul>
+                        </div>
+              
+              {/* Threats */}
+              <div className="bg-amber-50 p-4 rounded-lg">
+                <h4 className="font-medium text-amber-800 mb-3 flex items-center">
+                  <span className="text-xl mr-2">🛡️</span> Threats
+                </h4>
+                <ul className="space-y-2">
+                  {threats.map((threat, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-amber-600 mr-2">•</span>
+                      <span className="text-gray-800">{threat}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="text-center py-8 text-gray-500">
-          Unable to generate analysis. Please try again.
+          
+          {/* Scenario Analysis */}
+          {scenarioResults && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h3 className="text-lg font-medium text-gray-800 mb-6">Scenario Analysis</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Best Case Scenario */}
+                <div className="bg-emerald-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-emerald-800 mb-2 flex items-center">
+                    <span className="text-xl mr-2">📈</span> Best Case Scenario
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-700">Description:</h5>
+                      <p className="text-gray-800">{scenarioResults.bestCase.description}</p>
+                    </div>
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-700">Potential Impact:</h5>
+                      <p className="text-gray-800">{scenarioResults.bestCase.impact}</p>
+                  </div>
+                  <div>
+                      <h5 className="text-sm font-medium text-gray-700">Probability:</h5>
+                      <div className="flex items-center">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          scenarioResults.bestCase.probability === 'high' 
+                            ? 'bg-green-200 text-green-800' 
+                            : scenarioResults.bestCase.probability === 'medium'
+                            ? 'bg-yellow-200 text-yellow-800'
+                            : 'bg-red-200 text-red-800'
+                        }`}>
+                          {scenarioResults.bestCase.probability.toUpperCase()}
+                        </span>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Worst Case Scenario */}
+                <div className="bg-rose-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-rose-800 mb-2 flex items-center">
+                    <span className="text-xl mr-2">📉</span> Worst Case Scenario
+                  </h4>
+                  <div className="space-y-3">
+                <div>
+                      <h5 className="text-sm font-medium text-gray-700">Description:</h5>
+                      <p className="text-gray-800">{scenarioResults.worstCase.description}</p>
+                    </div>
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-700">Potential Impact:</h5>
+                      <p className="text-gray-800">{scenarioResults.worstCase.impact}</p>
+                  </div>
+                  <div>
+                      <h5 className="text-sm font-medium text-gray-700">Probability:</h5>
+                      <div className="flex items-center">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          scenarioResults.worstCase.probability === 'high' 
+                            ? 'bg-red-200 text-red-800' 
+                            : scenarioResults.worstCase.probability === 'medium'
+                            ? 'bg-yellow-200 text-yellow-800'
+                            : 'bg-green-200 text-green-800'
+                        }`}>
+                          {scenarioResults.worstCase.probability.toUpperCase()}
+                              </span>
+                            </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <div className="flex items-start">
+                  <div className="text-blue-600 text-xl mr-3">💡</div>
+                <div>
+                    <h4 className="font-medium text-blue-800 mb-1">Strategic Flexibility</h4>
+                    <p className="text-blue-700 text-sm">
+                      The best strategies maintain flexibility to adapt as conditions change. 
+                      Consider how your strategy might need to evolve in response to different scenarios, 
+                      and what early warning indicators you might monitor.
+                    </p>
+                  </div>
+                </div>
+                  </div>
+                </div>
+              )}
+          
+          {/* Next Steps */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-lg font-medium text-gray-800 mb-4">Implementation Recommendations</h3>
+            
+            <div className="space-y-4">
+              <p className="text-gray-700">
+                Based on your strategy and the SWOT analysis, consider these implementation steps:
+              </p>
+              
+              <ol className="space-y-3 ml-6 list-decimal">
+                <li className="text-gray-800">
+                  <span className="font-medium">Prioritize key initiatives</span> - Focus on the strategies that address your most critical financial needs first
+                </li>
+                <li className="text-gray-800">
+                  <span className="font-medium">Create an implementation timeline</span> - Establish clear milestones and deadlines for each strategic element
+                </li>
+                <li className="text-gray-800">
+                  <span className="font-medium">Allocate resources appropriately</span> - Ensure each strategy has the necessary budget, staff, and tools
+                </li>
+                <li className="text-gray-800">
+                  <span className="font-medium">Develop KPIs for measurement</span> - Establish clear metrics to track progress and success
+                </li>
+                <li className="text-gray-800">
+                  <span className="font-medium">Plan for contingencies</span> - Prepare response plans for the identified threats and worst-case scenarios
+                </li>
+              </ol>
+              
+              <div className="mt-6 bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-start">
+                  <div className="text-yellow-600 text-xl mr-3">⚠️</div>
+                <div>
+                    <h4 className="font-medium text-yellow-800 mb-1">Common Implementation Pitfalls</h4>
+                    <ul className="space-y-1 text-sm text-yellow-700">
+                      <li>• Trying to implement too many strategies simultaneously</li>
+                      <li>• Failing to communicate the strategy effectively to stakeholders</li>
+                      <li>• Not adjusting course when early indicators suggest issues</li>
+                      <li>• Underestimating resource requirements</li>
+                      <li>• Lack of clear ownership and accountability</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Challenge Complete */}
+          <div className="bg-gradient-to-r from-[#E0F7FA] to-[#B2EBF2] p-6 rounded-lg text-center">
+            <div className="text-4xl mb-4">🎉</div>
+            <h3 className="text-xl font-semibold text-[#0097A7] mb-2">
+              Challenge Complete!
+            </h3>
+            <p className="text-gray-700 mb-6">
+              You've successfully developed a comprehensive business strategy using AI-powered financial analysis and market insights.
+            </p>
+            <div className="flex flex-col md:flex-row justify-center items-center space-y-3 md:space-y-0 md:space-x-4">
+              <button
+                className="w-full md:w-auto px-6 py-2 border border-[#0097A7] text-[#0097A7] rounded-md hover:bg-[#E0F7FA] transition-colors"
+                onClick={onBack}
+              >
+                Revise Strategy
+              </button>
+                <button
+                className="w-full md:w-auto px-6 py-2 bg-[#0097A7] text-white rounded-md font-medium hover:bg-[#00838F] transition-colors"
+                onClick={() => window.location.href = '/challenges'}
+                >
+                Complete Task
+                </button>
+            </div>
+          </div>
         </div>
       )}
-      
-      <div className="flex justify-between mt-8">
-        <button
-          className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-          onClick={onBack}
-        >
-          Back
-        </button>
-        <button
-          className="px-6 py-2 bg-[#0097A7] text-white rounded-md font-medium hover:bg-[#00838F] transition-colors"
-          onClick={handleComplete}
-        >
-          Complete Challenge
-        </button>
-      </div>
     </div>
   );
 };

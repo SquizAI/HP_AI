@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MediaUpload from './components/MediaUpload';
 import EmotionAnalysisComponent from './components/EmotionAnalysis';
 import Reflection from './components/Reflection';
 import BusinessApplication from './components/BusinessApplication';
+import ChallengeHeader from '../../shared/ChallengeHeader';
+import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
+import { Heart, Smile } from 'lucide-react';
 
 // Define steps for the challenge
 enum STEPS {
@@ -68,6 +71,20 @@ const createInitialState = (): EmotionalInsightState => {
 
 const EmotionalInsightMain: React.FC = () => {
   const [state, setState] = useState<EmotionalInsightState>(createInitialState());
+  
+  // Add state for challenge completion and confetti
+  const [userProgress, setUserProgress] = useUserProgress();
+  const [isCompleted, setIsCompleted] = useState<boolean>(
+    userProgress.completedChallenges.includes('challenge-8')
+  );
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
+  
+  // Check if challenge is already completed on mount
+  useEffect(() => {
+    if (userProgress.completedChallenges.includes('challenge-8')) {
+      setIsCompleted(true);
+    }
+  }, [userProgress]);
   
   // Update state helper function
   const updateState = (newState: Partial<EmotionalInsightState>) => {
@@ -164,6 +181,26 @@ const EmotionalInsightMain: React.FC = () => {
   // Handle restart
   const handleRestart = () => {
     setState(createInitialState());
+  };
+  
+  // Handle completing the challenge
+  const handleCompleteChallenge = () => {
+    // Check if user has completed enough of the challenge to mark as complete
+    if (!state.analysis || !state.userReflection.businessApplication) {
+      alert('Please complete the emotion analysis and apply it to a business context before completing the challenge.');
+      return;
+    }
+    
+    markChallengeAsCompleted('challenge-8');
+    setIsCompleted(true);
+    
+    // Show confetti
+    setShowConfetti(true);
+    
+    // Hide confetti after 5 seconds
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
   };
   
   // Render the current step
@@ -274,26 +311,23 @@ const EmotionalInsightMain: React.FC = () => {
   
   // Main render
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
-        AI Emotional Insight Challenge
-      </h1>
-      <p className="text-center text-gray-600 mb-10">
-        Analyze emotions in media to understand how AI can enhance customer experiences and team well-being
-      </p>
+    <div className="max-w-5xl mx-auto p-4">
+      <ChallengeHeader
+        title="Emotional Insight Challenge"
+        icon={<Smile className="h-6 w-6 text-pink-600" />}
+        challengeId="challenge-8"
+        isCompleted={isCompleted}
+        setIsCompleted={setIsCompleted}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
+        onCompleteChallenge={handleCompleteChallenge}
+      />
       
-      {/* Progress steps */}
-      {renderProgressSteps()}
-      
-      {/* Error message */}
-      {state.error && (
-        <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-red-600">{state.error}</p>
-        </div>
-      )}
-      
-      {/* Current step content */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-8">
+      <div className="bg-white shadow-md rounded-lg p-6">
+        {/* Progress Steps */}
+        {renderProgressSteps()}
+        
+        {/* Current Step */}
         {renderCurrentStep()}
       </div>
     </div>

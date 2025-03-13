@@ -168,10 +168,25 @@ const BusinessGoalSelection: React.FC<BusinessGoalSelectionProps> = ({ state, up
   
   return (
     <div className="p-6">
+      <div className="bg-gradient-to-r from-[#E0F7FA] to-[#E0F2F1] p-6 rounded-lg mb-8">
+        <h2 className="text-xl font-semibold text-[#0097A7]">
+          Define Your Business Strategy Focus
+        </h2>
+        <p className="text-gray-700 mt-2">
+          To develop an effective AI-driven business strategy, we'll start by understanding your business context.
+          Select your primary business goal, the type of business, and the industry you're operating in.
+        </p>
+      </div>
+      
       <div className="space-y-8">
         {/* Business Goal Selection */}
         <div>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">What's your primary business goal?</h3>
+          <p className="text-gray-600 mb-4">
+            Choose the main objective you want your business strategy to accomplish. This will help AI generate 
+            the most relevant recommendations for your specific needs.
+          </p>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             {BUSINESS_GOALS.map(goal => (
               <div
@@ -251,6 +266,10 @@ const BusinessGoalSelection: React.FC<BusinessGoalSelectionProps> = ({ state, up
         {/* Business Type Selection */}
         <div>
           <h3 className="text-lg font-semibold text-gray-800 mb-4">What type of business are you strategizing for?</h3>
+          <p className="text-gray-600 mb-4">
+            Different types of businesses face unique challenges and opportunities. 
+            AI will tailor its strategic recommendations based on your business type.
+          </p>
           <div className="flex flex-wrap gap-3 mb-2">
             {BUSINESS_TYPES.map(type => (
               <button
@@ -271,8 +290,12 @@ const BusinessGoalSelection: React.FC<BusinessGoalSelectionProps> = ({ state, up
         
         {/* Industry Selection */}
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">What industry are you in?</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Which industry are you operating in?</h3>
+          <p className="text-gray-600 mb-4">
+            Industry context is crucial for effective strategy development. The AI will incorporate 
+            industry-specific trends, challenges, and opportunities into your strategy recommendations.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-3">
             {INDUSTRIES.map(industry => (
               <button
                 key={industry.id}
@@ -328,18 +351,31 @@ const BusinessGoalSelection: React.FC<BusinessGoalSelectionProps> = ({ state, up
         </div>
       </div>
       
-      <div className="mt-8 flex justify-end">
-        <button
-          className={`px-6 py-2 rounded-md font-medium ${
-            isFormComplete()
-              ? 'bg-[#0097A7] text-white hover:bg-[#00838F]'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          } transition-colors`}
-          onClick={handleContinue}
-          disabled={!isFormComplete()}
-        >
-          Continue to Market Analysis
-        </button>
+      {/* Bottom section with explanation and continue button */}
+      <div className="mt-10">
+        <div className="bg-blue-50 p-4 rounded-lg mb-6">
+          <div className="flex items-start">
+            <div className="text-blue-500 text-xl mr-3">💡</div>
+            <div>
+              <h4 className="font-medium text-blue-700 mb-1">What Happens Next</h4>
+              <p className="text-blue-800 text-sm">
+                After defining your business context, you'll explore AI-generated market analysis relevant to your industry 
+                and business goals. Then you'll select strategic elements to achieve your objectives, and finally receive 
+                an AI assessment of your strategy's strengths, weaknesses, risks, and opportunities.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-end">
+          <button
+            className="px-6 py-2 bg-[#0097A7] text-white rounded-md font-medium hover:bg-[#00838F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleContinue}
+            disabled={!isFormComplete()}
+          >
+            Continue to Market Analysis
+          </button>
+        </div>
       </div>
     </div>
   );

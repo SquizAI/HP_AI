@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { SlideMasterState, Slide, Theme } from './SlidesMasterMain';
 
+// Add an improved loading indicator for image generation
+const LoadingSpinner = () => (
+  <div className="flex flex-col items-center justify-center h-full w-full bg-white bg-opacity-80 rounded-md p-4">
+    <div className="w-12 h-12 border-4 border-t-indigo-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin mb-3"></div>
+    <p className="text-gray-700 font-medium text-sm">Generating AI image...</p>
+    <p className="text-gray-500 text-xs mt-1">This may take a moment</p>
+  </div>
+);
+
 interface PresentationPreviewProps {
   state: SlideMasterState;
   updateState: (newState: Partial<SlideMasterState>) => void;
@@ -119,8 +128,12 @@ const PresentationPreview: React.FC<PresentationPreviewProps> = ({
                 )}
               </div>
             ) : (
-              <div className="flex-grow flex items-center justify-center">
-                <p className="text-gray-400">No image content</p>
+              <div className="flex-grow flex items-center justify-center relative">
+                {state.isGeneratingImages ? (
+                  <LoadingSpinner />
+                ) : (
+                  <p className="text-gray-400">No image content</p>
+                )}
               </div>
             )}
           </div>
@@ -312,6 +325,16 @@ const PresentationPreview: React.FC<PresentationPreviewProps> = ({
           border: (state.visualElements || []).includes('borders') ? `1px solid ${currentTheme.accentColor}` : '1px solid #e5e7eb',
         }}
       >
+        {/* Add a loading overlay when generating images */}
+        {state.isGeneratingImages && !slide.generatedImageUrl && slide.type !== 'title' && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white bg-opacity-70 rounded">
+            <div className="text-center">
+              <div className="w-8 h-8 mx-auto border-3 border-t-indigo-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin mb-2"></div>
+              <p className="text-xs font-medium text-gray-600">Generating...</p>
+            </div>
+          </div>
+        )}
+        
         {/* Slide header */}
         <div 
           className="px-4 py-2 flex justify-between items-center"

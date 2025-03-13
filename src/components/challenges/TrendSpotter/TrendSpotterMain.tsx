@@ -5,7 +5,9 @@ import BusinessOpportunities from './steps/BusinessOpportunities'
 import TrendAnalysis from './TrendAnalysis'
 import CompletionScreen from './steps/CompletionScreen'
 import { ApiResponse } from '../../../services/openai'
-import { useUserProgress, saveChallengeTrend, calculateUserScore, updateLeaderboard } from '../../../utils/userDataManager'
+import { useUserProgress, saveChallengeTrend, calculateUserScore, updateLeaderboard, markChallengeAsCompleted } from '../../../utils/userDataManager'
+import ChallengeHeader from '../../shared/ChallengeHeader'
+import { LineChart } from 'lucide-react'
 
 // Define challenge steps - now we skip the Discover Trends step in the UI
 // We'll handle it automatically after industry selection
@@ -39,12 +41,13 @@ const TrendSpotterChallenge: React.FC = () => {
   
   // State management
   const [currentStep, setCurrentStep] = useState<number>(0)
-  const [isCompleted, setIsCompleted] = useState<boolean>(userProgress.completedChallenges.includes('challenge-1'))
+  const [isCompleted, setIsCompleted] = useState<boolean>(userProgress.completedChallenges.includes('challenge-2'))
+  const [showConfetti, setShowConfetti] = useState<boolean>(false)
   
   // State for all challenge data
   const [state, setState] = useState<ChallengeState>(() => {
     // Retrieve saved challenge data if it exists
-    const savedData = userProgress.challengeData['challenge-1']?.trendSpotter;
+    const savedData = userProgress.challengeData['challenge-2']?.trendSpotter;
     
     if (savedData && isCompleted) {
       return {
@@ -93,20 +96,23 @@ const TrendSpotterChallenge: React.FC = () => {
     
     // Save challenge data
     saveChallengeTrend(
-      'challenge-1',
+      'challenge-2',
       state.selectedIndustryName,
       state.selectedTrend,
       state.justification
     );
     
     // Add to completed challenges if not already there
-    if (!userProgress.completedChallenges.includes('challenge-1')) {
-      const updatedChallenges = [...userProgress.completedChallenges, 'challenge-1'];
-      setUserProgress({
-        ...userProgress,
-        completedChallenges: updatedChallenges,
-        lastActive: new Date().toISOString()
-      });
+    if (!userProgress.completedChallenges.includes('challenge-2')) {
+      markChallengeAsCompleted('challenge-2')
+      
+      // Show confetti
+      setShowConfetti(true)
+      
+      // Hide confetti after 5 seconds
+      setTimeout(() => {
+        setShowConfetti(false)
+      }, 5000)
       
       // Update leaderboard with new score
       const score = calculateUserScore();
@@ -173,29 +179,16 @@ const TrendSpotterChallenge: React.FC = () => {
   
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-        <div>
-          <div className="flex items-center">
-            <div className="bg-[#FF7F50] text-white font-bold rounded-full w-10 h-10 flex items-center justify-center mr-3 text-xl">
-              1
-            </div>
-            <h1 className="text-2xl font-bold text-black">AI Trend Spotter</h1>
-          </div>
-          <p className="mt-2 text-[#5CB2CC]">
-            See into the future (no crystal ball required)
-          </p>
-        </div>
-        <div className="flex items-center space-x-3">
-          {isCompleted && (
-            <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
-              <span className="mr-1">🏆</span> Conquered
-            </div>
-          )}
-          <div className="bg-[#E0F7FA] text-[#0097A7] px-3 py-1 rounded-full text-sm font-medium">
-            Challenge #1
-          </div>
-        </div>
-      </div>
+      <ChallengeHeader
+        title="AI Trend Spotter"
+        icon={<LineChart className="h-6 w-6 text-orange-500" />}
+        challengeId="challenge-2"
+        isCompleted={isCompleted}
+        setIsCompleted={setIsCompleted}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
+        onCompleteChallenge={completeChallenge}
+      />
       
       {!isCompleted && renderStepIndicator()}
       

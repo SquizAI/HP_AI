@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface MediaUploadProps {
   onUpload: (type: 'video' | 'audio' | 'text', url: string | null, content: string | null) => void;
@@ -6,6 +6,274 @@ interface MediaUploadProps {
   apiKey: string;
   isLoading: boolean;
 }
+
+// Map of emotions to emojis
+const EMOTION_EMOJIS: Record<string, { emoji: string, color: string }> = {
+  'neutral': { emoji: '😐', color: '#A0AEC0' },
+  'happy': { emoji: '😀', color: '#48BB78' },
+  'sad': { emoji: '😥', color: '#4299E1' },
+  'angry': { emoji: '😠', color: '#F56565' },
+  'fearful': { emoji: '😨', color: '#ED8936' },
+  'disgusted': { emoji: '🤢', color: '#9AE6B4' },
+  'surprised': { emoji: '😲', color: '#9F7AEA' }
+};
+
+// Face Emotion Detector Component
+const FaceEmotionDetector: React.FC = () => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isActive, setIsActive] = useState(false);
+  const [currentEmotion, setCurrentEmotion] = useState<string>('neutral');
+  const [faceApiLoaded, setFaceApiLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Load face-api.js models
+  useEffect(() => {
+    // Check if Face-API script already exists
+    const scriptExists = document.getElementById('face-api-script');
+    
+    if (!scriptExists) {
+      const script = document.createElement('script');
+      script.id = 'face-api-script';
+      script.src = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
+      script.async = true;
+      
+      script.onload = async () => {
+        // Wait for the window.faceapi to be defined
+        const checkFaceApi = setInterval(() => {
+          if (window.faceapi) {
+            clearInterval(checkFaceApi);
+            loadModels();
+          }
+        }, 100);
+      };
+      
+      script.onerror = () => {
+        setError('Failed to load face-api.js library');
+      };
+      
+      document.body.appendChild(script);
+    } else if (window.faceapi) {
+      loadModels();
+    }
+    
+    return () => {
+      // Cleanup video stream when component unmounts
+      stopVideo();
+    };
+  }, []);
+  
+  const loadModels = async () => {
+    try {
+      // Try different model sources in order of preference
+      const modelSources = [
+        '/models', // Use local models in public/models folder
+        'https://vladmandic.github.io/face-api/model', // Alternate CDN
+        'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights' // GitHub directly
+      ];
+      
+      let modelsLoaded = false;
+      
+      for (const modelPath of modelSources) {
+        try {
+          console.log(`Trying to load models from ${modelPath}...`);
+          
+          await Promise.all([
+            window.faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+            window.faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+            window.faceapi.nets.faceRecognitionNet.loadFromUri(modelPath),
+            window.faceapi.nets.faceExpressionNet.loadFromUri(modelPath)
+          ]);
+          
+          modelsLoaded = true;
+          console.log(`Face detection models loaded successfully from ${modelPath}`);
+          break; // Exit the loop if models are successfully loaded
+        } catch (err) {
+          console.error(`Failed to load models from ${modelPath}:`, err);
+          // Continue to the next source
+        }
+      }
+      
+      if (modelsLoaded) {
+        setFaceApiLoaded(true);
+      } else {
+        setError('Failed to load face detection models. Please try again later.');
+      }
+    } catch (err) {
+      setError('Failed to load face detection models');
+      console.error('Error loading models:', err);
+    }
+  };
+  
+  const startVideo = async () => {
+    setError(null);
+    
+    try {
+      if (videoRef.current) {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+          } 
+        });
+        
+        videoRef.current.srcObject = stream;
+        setIsActive(true);
+      }
+    } catch (err) {
+      setError('Unable to access camera. Please grant camera permissions.');
+      console.error('Error accessing camera:', err);
+    }
+  };
+  
+  const stopVideo = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      const tracks = stream.getTracks();
+      
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+      setIsActive(false);
+    }
+  };
+  
+  const detectExpressions = async () => {
+    if (!isActive || !videoRef.current || !canvasRef.current || !window.faceapi) return;
+    
+    try {
+      const detections = await window.faceapi.detectAllFaces(
+        videoRef.current, 
+        new window.faceapi.TinyFaceDetectorOptions()
+      )
+        .withFaceLandmarks()
+        .withFaceExpressions();
+      
+      if (detections && detections.length > 0) {
+        // Get the detection with highest confidence
+        const detection = detections[0];
+        const expressions = detection.expressions;
+        
+        // Find the emotion with highest confidence
+        let highestEmotion = 'neutral';
+        let highestConfidence = 0;
+        
+        for (const [emotion, confidence] of Object.entries(expressions)) {
+          if ((confidence as number) > highestConfidence) {
+            highestConfidence = confidence as number;
+            highestEmotion = emotion;
+          }
+        }
+        
+        setCurrentEmotion(highestEmotion);
+        
+        // Draw the results on canvas
+        const canvas = canvasRef.current;
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        
+        const displaySize = {
+          width: videoRef.current.videoWidth,
+          height: videoRef.current.videoHeight
+        };
+        
+        window.faceapi.matchDimensions(canvas, displaySize);
+        
+        const resizedDetections = window.faceapi.resizeResults(detections, displaySize);
+        const ctx = canvas.getContext('2d');
+        
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          window.faceapi.draw.drawDetections(canvas, resizedDetections);
+          window.faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+        }
+      }
+    } catch (err) {
+      console.error('Error in face detection:', err);
+    }
+    
+    // Continue detecting
+    requestAnimationFrame(detectExpressions);
+  };
+  
+  // Start detection when video loads
+  const handleVideoPlay = () => {
+    if (faceApiLoaded) {
+      detectExpressions();
+    }
+  };
+  
+  return (
+    <div className="mt-4 relative">
+      {error && (
+        <div className="mb-3 p-2 bg-red-50 text-red-700 rounded text-sm">
+          {error}
+        </div>
+      )}
+      
+      <div className="flex flex-col items-center">
+        <div className="relative bg-black rounded-lg overflow-hidden" style={{ width: '100%', maxWidth: '640px' }}>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            onPlay={handleVideoPlay}
+            className="w-full"
+          />
+          <canvas 
+            ref={canvasRef}
+            className="absolute top-0 left-0 w-full h-full z-10"
+          />
+          
+          {/* Emotion display */}
+          {isActive && (
+            <div 
+              className="absolute bottom-4 right-4 rounded-full p-3 z-20 flex items-center justify-center"
+              style={{ 
+                backgroundColor: EMOTION_EMOJIS[currentEmotion]?.color || EMOTION_EMOJIS.neutral.color,
+                width: '80px',
+                height: '80px',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <span className="text-4xl" role="img" aria-label={currentEmotion}>
+                {EMOTION_EMOJIS[currentEmotion]?.emoji || EMOTION_EMOJIS.neutral.emoji}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-4 flex space-x-2">
+          {!isActive ? (
+            <button
+              onClick={startVideo}
+              disabled={!faceApiLoaded}
+              className={`px-4 py-2 rounded-md ${
+                faceApiLoaded 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                  : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+              }`}
+            >
+              {faceApiLoaded ? 'Start Camera' : 'Loading Models...'}
+            </button>
+          ) : (
+            <button
+              onClick={stopVideo}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md"
+            >
+              Stop Camera
+            </button>
+          )}
+        </div>
+        
+        <div className="mt-2 text-sm text-gray-600">
+          <p>The AI will detect your facial expressions in real-time and display the corresponding emoji.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const MediaUpload: React.FC<MediaUploadProps> = ({ 
   onUpload, 
@@ -18,6 +286,7 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
   const [videoUrl, setVideoUrl] = useState('');
   const [audioUrl, setAudioUrl] = useState('');
   const [showApiSettings, setShowApiSettings] = useState(false);
+  const [showFaceEmotionDetector, setShowFaceEmotionDetector] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -130,61 +399,76 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
       <div className="py-6">
         {activeTab === 'video' && (
           <div>
-            <div className="mb-4">
-              <label htmlFor="video-upload" className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="flex justify-between items-center mb-4">
+              <label htmlFor="video-upload" className="block text-sm font-medium text-gray-700">
                 Upload a video file showing facial expressions
               </label>
-              <div className="flex items-center">
-                <input
-                  type="file"
-                  id="video-upload"
-                  ref={fileInputRef}
-                  accept="video/*"
-                  className="sr-only"
-                  onChange={handleFileUpload}
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                  disabled={isLoading}
-                >
-                  <svg className="-ml-1 mr-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                  Browse files
-                </button>
-                <span className="ml-3 text-sm text-gray-500">
-                  {videoUrl ? 'Video selected' : 'No video selected'}
-                </span>
-              </div>
+              
+              <button
+                type="button"
+                onClick={() => setShowFaceEmotionDetector(!showFaceEmotionDetector)}
+                className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                {showFaceEmotionDetector ? 'Hide' : 'Try'} Real-time Analysis
+              </button>
             </div>
             
-            <div className="mb-4">
-              <label htmlFor="video-url" className="block text-sm font-medium text-gray-700 mb-2">
-                Or enter a video URL
-              </label>
-              <input
-                type="url"
-                id="video-url"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://example.com/video.mp4"
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                disabled={isLoading}
-              />
-            </div>
-            
-            {videoUrl && (
-              <div className="mt-4 border border-gray-200 rounded-md overflow-hidden">
-                <video
-                  src={videoUrl}
-                  controls
-                  className="w-full h-auto"
-                  style={{ maxHeight: '300px' }}
-                />
-              </div>
+            {showFaceEmotionDetector ? (
+              <FaceEmotionDetector />
+            ) : (
+              <>
+                <div className="flex items-center">
+                  <input
+                    type="file"
+                    id="video-upload"
+                    ref={fileInputRef}
+                    accept="video/*"
+                    className="sr-only"
+                    onChange={handleFileUpload}
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    disabled={isLoading}
+                  >
+                    <svg className="-ml-1 mr-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Browse files
+                  </button>
+                  <span className="ml-3 text-sm text-gray-500">
+                    {videoUrl ? 'Video selected' : 'No video selected'}
+                  </span>
+                </div>
+                
+                <div className="mb-4">
+                  <label htmlFor="video-url" className="block text-sm font-medium text-gray-700 mb-2 mt-4">
+                    Or enter a video URL
+                  </label>
+                  <input
+                    type="url"
+                    id="video-url"
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                    placeholder="https://example.com/video.mp4"
+                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    disabled={isLoading}
+                  />
+                </div>
+                
+                {videoUrl && (
+                  <div className="mt-4 border border-gray-200 rounded-md overflow-hidden">
+                    <video
+                      src={videoUrl}
+                      controls
+                      className="w-full h-auto"
+                      style={{ maxHeight: '300px' }}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -355,5 +639,12 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
     </div>
   );
 };
+
+// Add this TypeScript declaration
+declare global {
+  interface Window {
+    faceapi: any;
+  }
+}
 
 export default MediaUpload; 

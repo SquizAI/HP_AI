@@ -47,11 +47,11 @@ export function getConfig(): EnvConfig {
   // or proxied through your backend service
   
   const defaultConfig: EnvConfig = {
-    OPENAI_API_KEY: 'not-a-real-key',  // Default to true to use mock data
+    OPENAI_API_KEY: 'not-a-real-key',
     OPENAI_MODEL: 'gpt-4o-2024-08-06',
     DALLE_MODEL: 'dall-e-3',
     API_ENDPOINT: 'https://api.openai.com/v1',
-    USE_MOCK_DATA: true  // Default to true to use mock data
+    USE_MOCK_DATA: false  // Changed from true to false to use real data by default
   };
 
   // Check for window.ENV (runtime injection)
@@ -99,14 +99,36 @@ export function getOpenAIKey(): string {
 export function shouldUseMockData(): boolean {
   try {
     const config = getConfig();
-    // Always use mock data for development or without a valid key
-    if (config.USE_MOCK_DATA || !config.OPENAI_API_KEY || config.OPENAI_API_KEY === 'not-a-real-key' || config.OPENAI_API_KEY === '%REACT_APP_OPENAI_API_KEY%') {
+    
+    // Only use mock data if no valid API key is available
+    // Explicit setting of USE_MOCK_DATA is no longer the primary factor
+    if (!config.OPENAI_API_KEY || 
+        config.OPENAI_API_KEY === 'not-a-real-key' || 
+        config.OPENAI_API_KEY === '%REACT_APP_OPENAI_API_KEY%' || 
+        config.OPENAI_API_KEY === 'your-openai-api-key-here') {
+      console.warn('Using mock data due to missing/invalid API key');
       return true;
     }
-    return false;
+    
+    // Override any mock data settings with the window.ENV setting
+    // This allows runtime control (e.g., from the UI)
+    if (typeof window !== 'undefined' && window.ENV && window.ENV.USE_MOCK_DATA === false) {
+      console.log('Explicitly using real AI data for generation (set by runtime)');
+      return false;
+    }
+    
+    // Otherwise respect the config setting, but prefer real data
+    const useMock = config.USE_MOCK_DATA === true;
+    if (useMock) {
+      console.log('Using mock data (explicitly set in config)');
+    } else {
+      console.log('Using real AI data for generation');
+    }
+    
+    return useMock;
   } catch (error) {
     console.warn('Error checking mock data flag:', error);
-    return true; // Default to mock data on error
+    return false; // Default to real data on error, changed from true
   }
 }
 

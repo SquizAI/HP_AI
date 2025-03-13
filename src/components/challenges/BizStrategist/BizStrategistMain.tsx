@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { useUserProgress, saveChallengeBizStrategy, calculateUserScore, updateLeaderboard } from '../../../utils/userDataManager'
+import { useUserProgress, saveChallengeBizStrategy, calculateUserScore, updateLeaderboard, markChallengeAsCompleted } from '../../../utils/userDataManager'
 import { ApiResponse } from '../../../services/openai'
 import BusinessGoalSelection from './BusinessGoalSelection'
 import MarketAnalysis from './MarketAnalysis'
 import StrategyDevelopment from './StrategyDevelopment'
 import StrategyAssessment from './StrategyAssessment'
 import CompletionScreen from './CompletionScreen'
+import IntroScreen from './IntroScreen'
+import FinancialDataAnalysis from './FinancialDataAnalysis'
+import { motion } from 'framer-motion'
+import ChallengeHeader from '../../shared/ChallengeHeader'
+import { PieChart } from 'lucide-react'
 
 // Strategy Analysis types
 export interface StrengthWeakness {
@@ -46,34 +51,46 @@ export interface AIStrategyAnalysis {
 export interface BizStrategyState {
   businessGoal: string;
   businessType: string;
-  industryContext: string;
-  marketAnalysisReport: string;
-  marketKeyInsights: string[];
-  strategyElements: string[];
-  analysis: AIStrategyAnalysis | null;
-  assessmentNotes: string;
-  isComplete: boolean;
+  industry: string;
+  marketInsights: string[];
+  selectedStrategies: string[];
+  financialData: any;
+  financialInsights: string[];
+  aiRecommendation: string;
+  userRecommendation: string;
+  suggestedRecommendation: string;
+  scenarioResults: any;
+  strengths: string[];
+  weaknesses: string[];
+  opportunities: string[];
+  threats: string[];
 }
 
 const INITIAL_STATE: BizStrategyState = {
   businessGoal: '',
   businessType: '',
-  industryContext: '',
-  marketAnalysisReport: '',
-  marketKeyInsights: [],
-  strategyElements: [],
-  analysis: null,
-  assessmentNotes: '',
-  isComplete: false
+  industry: '',
+  marketInsights: [],
+  selectedStrategies: [],
+  financialData: null,
+  financialInsights: [],
+  aiRecommendation: '',
+  userRecommendation: '',
+  suggestedRecommendation: '',
+  scenarioResults: null,
+  strengths: [],
+  weaknesses: [],
+  opportunities: [],
+  threats: [],
 };
 
 // Challenge steps
-enum STEPS {
-  GOAL_SELECTION = 0,
-  MARKET_ANALYSIS = 1,
-  STRATEGY_DEVELOPMENT = 2,
-  STRATEGY_ASSESSMENT = 3,
-  COMPLETION = 4
+export enum STEPS {
+  INTRO = 'INTRO',
+  FINANCIAL_ANALYSIS = 'FINANCIAL_ANALYSIS',
+  MARKET_ANALYSIS = 'MARKET_ANALYSIS',
+  STRATEGY_DEVELOPMENT = 'STRATEGY_DEVELOPMENT',
+  STRATEGY_ASSESSMENT = 'STRATEGY_ASSESSMENT',
 }
 
 // Fun business strategy facts to display
@@ -91,17 +108,50 @@ const STRATEGY_FACTS = [
 ];
 
 const BizStrategistMain: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState<STEPS>(STEPS.GOAL_SELECTION);
   const [state, setState] = useState<BizStrategyState>(INITIAL_STATE);
+  const [currentStep, setCurrentStep] = useState<STEPS>(STEPS.INTRO);
   const [funFact, setFunFact] = useState<string>('');
+  const [userProgress, setUserProgress] = useUserProgress();
   
+  // Add state for challenge completion and confetti
+  const [isCompleted, setIsCompleted] = useState<boolean>(
+    userProgress.completedChallenges.includes('challenge-3')
+  );
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
+  
+  // Check if challenge is already completed on mount
+  useEffect(() => {
+    if (userProgress.completedChallenges.includes('challenge-3')) {
+      setIsCompleted(true);
+    }
+  }, [userProgress]);
+  
+  // Handle completing the challenge
+  const handleCompleteChallenge = () => {
+    // Check if user has completed the strategy assessment to mark as complete
+    if (currentStep !== STEPS.STRATEGY_ASSESSMENT && !isCompleted) {
+      alert('Please complete your strategy assessment before finishing the challenge.');
+      return;
+    }
+    
+    markChallengeAsCompleted('challenge-3');
+    setIsCompleted(true);
+    
+    // Show confetti
+    setShowConfetti(true);
+    
+    // Hide confetti after 5 seconds
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
+  };
+
   // Set a random fun fact on initial load
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * STRATEGY_FACTS.length);
     setFunFact(STRATEGY_FACTS[randomIndex]);
   }, []);
 
-  // Update state and save
   const updateState = (newState: Partial<BizStrategyState>) => {
     setState(prevState => {
       const updatedState = { ...prevState, ...newState };
@@ -110,160 +160,165 @@ const BizStrategistMain: React.FC = () => {
         'challenge-3',
         updatedState.businessGoal,
         updatedState.businessType,
-        updatedState.industryContext,
-        updatedState.strategyElements,
-        updatedState.assessmentNotes
+        updatedState.industry,
+        updatedState.selectedStrategies,
+        updatedState.scenarioResults
       );
       return updatedState;
     });
   };
 
-  // Navigate to next step
-  const handleNext = () => {
-    const nextStep = currentStep + 1;
-    if (nextStep <= STEPS.COMPLETION) {
-      setCurrentStep(nextStep as STEPS);
-      
-      // If moving to completion, mark challenge as complete
-      if (nextStep === STEPS.COMPLETION) {
-        updateState({ isComplete: true });
-      }
-
-      // Show a new fun fact when moving to the next step
-      const randomIndex = Math.floor(Math.random() * STRATEGY_FACTS.length);
-      setFunFact(STRATEGY_FACTS[randomIndex]);
-      
-      // Scroll to top
-      window.scrollTo(0, 0);
+  const nextStep = () => {
+    switch (currentStep) {
+      case STEPS.INTRO:
+        setCurrentStep(STEPS.FINANCIAL_ANALYSIS);
+        break;
+      case STEPS.FINANCIAL_ANALYSIS:
+        setCurrentStep(STEPS.MARKET_ANALYSIS);
+        break;
+      case STEPS.MARKET_ANALYSIS:
+        setCurrentStep(STEPS.STRATEGY_DEVELOPMENT);
+        break;
+      case STEPS.STRATEGY_DEVELOPMENT:
+        setCurrentStep(STEPS.STRATEGY_ASSESSMENT);
+        break;
+      default:
+        break;
     }
   };
 
-  // Navigate to previous step
-  const handleBack = () => {
-    const prevStep = currentStep - 1;
-    if (prevStep >= STEPS.GOAL_SELECTION) {
-      setCurrentStep(prevStep as STEPS);
-      window.scrollTo(0, 0);
+  const previousStep = () => {
+    switch (currentStep) {
+      case STEPS.FINANCIAL_ANALYSIS:
+        setCurrentStep(STEPS.INTRO);
+        break;
+      case STEPS.MARKET_ANALYSIS:
+        setCurrentStep(STEPS.FINANCIAL_ANALYSIS);
+        break;
+      case STEPS.STRATEGY_DEVELOPMENT:
+        setCurrentStep(STEPS.MARKET_ANALYSIS);
+        break;
+      case STEPS.STRATEGY_ASSESSMENT:
+        setCurrentStep(STEPS.STRATEGY_DEVELOPMENT);
+        break;
+      default:
+        break;
     }
   };
 
-  // Restart the challenge
-  const handleRestart = () => {
-    setState(INITIAL_STATE);
-    setCurrentStep(STEPS.GOAL_SELECTION);
-    const randomIndex = Math.floor(Math.random() * STRATEGY_FACTS.length);
-    setFunFact(STRATEGY_FACTS[randomIndex]);
-    window.scrollTo(0, 0);
-  };
-
-  // Get step label based on current step
   const getStepLabel = (step: STEPS): string => {
     switch (step) {
-      case STEPS.GOAL_SELECTION: return 'Define Business Goal';
-      case STEPS.MARKET_ANALYSIS: return 'Market Analysis';
-      case STEPS.STRATEGY_DEVELOPMENT: return 'Strategy Development';
-      case STEPS.STRATEGY_ASSESSMENT: return 'Strategy Assessment';
-      case STEPS.COMPLETION: return 'Challenge Complete';
+      case STEPS.INTRO:
+        return "Introduction";
+      case STEPS.FINANCIAL_ANALYSIS:
+        return "1. Analyze Financial Data";
+      case STEPS.MARKET_ANALYSIS:
+        return "2. Market Analysis";
+      case STEPS.STRATEGY_DEVELOPMENT:
+        return "3. Strategy Development";
+      case STEPS.STRATEGY_ASSESSMENT:
+        return "4. Strategy Assessment";
+      default:
+        return "";
+    }
+  };
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case STEPS.INTRO:
+        return <IntroScreen onNext={nextStep} />;
+      case STEPS.FINANCIAL_ANALYSIS:
+        return (
+          <FinancialDataAnalysis
+            state={state}
+            updateState={updateState}
+            onNext={nextStep}
+          />
+        );
+      case STEPS.MARKET_ANALYSIS:
+        return (
+          <MarketAnalysis
+            state={state}
+            updateState={updateState}
+            onNext={nextStep}
+            onBack={previousStep}
+          />
+        );
+      case STEPS.STRATEGY_DEVELOPMENT:
+        return (
+          <StrategyDevelopment
+            state={state}
+            updateState={updateState}
+            onNext={nextStep}
+            onBack={previousStep}
+          />
+        );
+      case STEPS.STRATEGY_ASSESSMENT:
+        return (
+          <StrategyAssessment
+            state={state}
+            onBack={previousStep}
+          />
+        );
+      default:
+        return null;
     }
   };
 
   return (
-    <div className="container mx-auto max-w-5xl">
-      {/* Progress steps */}
-      {currentStep < STEPS.COMPLETION && (
-        <div className="px-6 py-4">
-          <div className="mb-2 flex justify-between text-sm text-gray-500">
-            <span>Start</span>
-            <span>Complete</span>
-          </div>
-          <div className="flex mb-6">
-            {Object.values(STEPS).filter(step => typeof step === 'number' && step < STEPS.COMPLETION).map((step) => (
-              <div key={step} className="flex-1 relative">
-                <div 
-                  className={`h-2 ${
-                    Number(step) < currentStep 
-                      ? 'bg-[#0097A7]' 
-                      : Number(step) === currentStep 
-                        ? 'bg-[#B2EBF2]' 
-                        : 'bg-gray-200'
-                  }`}
-                />
-                <div 
-                  className={`w-6 h-6 rounded-full absolute top-[-8px] ${
-                    Number(step) <= currentStep ? 'bg-[#0097A7] text-white' : 'bg-gray-200 text-gray-500'
-                  } flex items-center justify-center text-xs font-medium`}
-                  style={{ left: step === 0 ? 0 : '50%', transform: step === 0 ? 'none' : 'translateX(-50%)' }}
-                >
-                  {Number(step) + 1}
-                </div>
+    <div className="w-full max-w-7xl mx-auto p-4">
+      <ChallengeHeader
+        title="Business Strategist Challenge"
+        icon={<PieChart className="h-6 w-6 text-cyan-600" />}
+        challengeId="challenge-3"
+        isCompleted={isCompleted}
+        setIsCompleted={setIsCompleted}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
+        onCompleteChallenge={handleCompleteChallenge}
+      />
+      
+      {/* Progress indicator only shown after intro */}
+      {currentStep !== STEPS.INTRO && (
+        <div className="mb-6">
+          <div className="flex justify-between mb-2">
+            {Object.values(STEPS).filter(step => step !== STEPS.INTRO).map((step) => (
+              <div 
+                key={step}
+                className={`text-sm ${
+                  step === currentStep 
+                    ? 'text-[#0097A7] font-medium' 
+                    : 'text-gray-500'
+                }`}
+              >
+                {getStepLabel(step as STEPS)}
               </div>
             ))}
           </div>
-          <div className="text-center mb-8">
-            <h2 className="text-lg font-medium text-gray-800">{getStepLabel(currentStep)}</h2>
-            <p className="text-sm text-gray-500">Step {currentStep + 1} of {STEPS.COMPLETION}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Fun fact box */}
-      {currentStep < STEPS.COMPLETION && (
-        <div className="px-6 mb-8">
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <div className="flex items-start">
-              <div className="text-yellow-600 text-xl mr-3">💡</div>
-              <div>
-                <h3 className="font-medium text-yellow-800 mb-1">Business Strategy Fact</h3>
-                <p className="text-yellow-700 text-sm">{funFact}</p>
-              </div>
-            </div>
+          <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-[#0097A7]"
+              initial={{ width: '0%' }}
+              animate={{ 
+                width: currentStep === STEPS.FINANCIAL_ANALYSIS
+                  ? '25%'
+                  : currentStep === STEPS.MARKET_ANALYSIS
+                  ? '50%'
+                  : currentStep === STEPS.STRATEGY_DEVELOPMENT
+                  ? '75%'
+                  : currentStep === STEPS.STRATEGY_ASSESSMENT
+                  ? '100%'
+                  : '0%'
+              }}
+              transition={{ duration: 0.5 }}
+            />
           </div>
         </div>
       )}
       
-      {/* Step content */}
-      <div>
-        {currentStep === STEPS.GOAL_SELECTION && (
-          <BusinessGoalSelection 
-            state={state} 
-            updateState={updateState} 
-            onNext={handleNext} 
-          />
-        )}
-        
-        {currentStep === STEPS.MARKET_ANALYSIS && (
-          <MarketAnalysis 
-            state={state} 
-            updateState={updateState} 
-            onNext={handleNext} 
-            onBack={handleBack} 
-          />
-        )}
-        
-        {currentStep === STEPS.STRATEGY_DEVELOPMENT && (
-          <StrategyDevelopment 
-            state={state} 
-            updateState={updateState} 
-            onNext={handleNext} 
-            onBack={handleBack} 
-          />
-        )}
-        
-        {currentStep === STEPS.STRATEGY_ASSESSMENT && (
-          <StrategyAssessment 
-            state={state} 
-            updateState={updateState} 
-            onNext={handleNext} 
-            onBack={handleBack} 
-          />
-        )}
-        
-        {currentStep === STEPS.COMPLETION && (
-          <CompletionScreen 
-            state={state} 
-            restartChallenge={handleRestart} 
-          />
-        )}
+      {/* Current step component */}
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        {renderStep()}
       </div>
     </div>
   );

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { saveChallengeBizStrategy } from '../../../utils/userDataManager';
+import { saveChallengeBizStrategy, useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
 import DatasetSelection from './DatasetSelection';
 import DataExploration from './DataExploration';
 import DataVisualization from './DataVisualization';
 import InsightGeneration from './InsightGeneration';
 import CompletionScreen from './CompletionScreen';
+import ChallengeHeader from '../../shared/ChallengeHeader';
+import { LineChart, BarChart, PieChart } from 'lucide-react';
 
 // Data Analysis types
 export interface DataInsight {
@@ -78,6 +80,13 @@ const DataAnalystMain: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<STEPS>(STEPS.DATASET_SELECTION);
   const [state, setState] = useState<DataAnalystState>(INITIAL_STATE);
   const [funFact, setFunFact] = useState<string>('');
+  
+  // User progress tracking for completion
+  const [userProgress, setUserProgress] = useUserProgress();
+  const [isCompleted, setIsCompleted] = useState<boolean>(
+    userProgress.completedChallenges.includes('challenge-4')
+  );
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
   
   // Set a random fun fact on initial load
   useEffect(() => {
@@ -182,103 +191,139 @@ const DataAnalystMain: React.FC = () => {
     }
   };
 
-  return (
-    <div className="container mx-auto max-w-5xl">
-      {/* Progress steps */}
-      {currentStep < STEPS.COMPLETION && (
-        <div className="px-6 py-4">
-          <div className="mb-2 flex justify-between text-sm text-gray-500">
-            <span>Start</span>
-            <span>Complete</span>
-          </div>
-          <div className="flex mb-6">
-            {Object.values(STEPS).filter(step => typeof step === 'number' && step < STEPS.COMPLETION).map((step) => (
-              <div key={step} className="flex-1 relative">
-                <div 
-                  className={`h-2 ${
-                    Number(step) < currentStep 
-                      ? 'bg-[#6200EA]' 
-                      : Number(step) === currentStep 
-                        ? 'bg-[#B388FF]' 
-                        : 'bg-gray-200'
-                  }`}
-                />
-                <div 
-                  className={`w-6 h-6 rounded-full absolute top-[-8px] ${
-                    Number(step) <= currentStep ? 'bg-[#6200EA] text-white' : 'bg-gray-200 text-gray-500'
-                  } flex items-center justify-center text-xs font-medium`}
-                  style={{ left: step === 0 ? 0 : '50%', transform: step === 0 ? 'none' : 'translateX(-50%)' }}
-                >
-                  {Number(step) + 1}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="text-center mb-8">
-            <h2 className="text-lg font-medium text-gray-800">{getStepLabel(currentStep)}</h2>
-            <p className="text-sm text-gray-500">Step {currentStep + 1} of {STEPS.COMPLETION}</p>
-          </div>
-        </div>
-      )}
+  // Handle completing the challenge
+  const handleCompleteChallenge = () => {
+    // Update state to mark as complete
+    updateState({ isComplete: true });
+    
+    // Mark in user progress
+    markChallengeAsCompleted('challenge-4');
+    setIsCompleted(true);
+    
+    // Show confetti
+    setShowConfetti(true);
+    
+    // Hide confetti after 5 seconds
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
+    
+    // Move to completion step
+    setCurrentStep(STEPS.COMPLETION);
+    window.scrollTo(0, 0);
+  };
 
-      {/* Fun fact box */}
-      {currentStep < STEPS.COMPLETION && (
-        <div className="px-6 mb-8">
-          <div className="bg-purple-50 p-4 rounded-lg">
-            <div className="flex items-start">
-              <div className="text-purple-600 text-xl mr-3">💡</div>
-              <div>
-                <h3 className="font-medium text-purple-800 mb-1">Data Insight</h3>
-                <p className="text-purple-700 text-sm">{funFact}</p>
+  return (
+    <div className="max-w-4xl mx-auto p-4">
+      <ChallengeHeader
+        title="Data Analyst Challenge"
+        icon={<BarChart className="h-6 w-6 text-purple-600" />}
+        challengeId="challenge-4"
+        isCompleted={isCompleted}
+        setIsCompleted={setIsCompleted}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
+        onCompleteChallenge={handleCompleteChallenge}
+      />
+      
+      {/* Main content area */}
+      <div className="mt-4">
+        {/* Progress steps */}
+        {currentStep < STEPS.COMPLETION && (
+          <div className="px-6 py-4">
+            <div className="mb-2 flex justify-between text-sm text-gray-500">
+              <span>Start</span>
+              <span>Complete</span>
+            </div>
+            <div className="flex mb-6">
+              {Object.values(STEPS).filter(step => typeof step === 'number' && step < STEPS.COMPLETION).map((step) => (
+                <div key={step} className="flex-1 relative">
+                  <div 
+                    className={`h-2 ${
+                      Number(step) < currentStep 
+                        ? 'bg-[#6200EA]' 
+                        : Number(step) === currentStep 
+                          ? 'bg-[#B388FF]' 
+                          : 'bg-gray-200'
+                    }`}
+                  />
+                  <div 
+                    className={`w-6 h-6 rounded-full absolute top-[-8px] ${
+                      Number(step) <= currentStep ? 'bg-[#6200EA] text-white' : 'bg-gray-200 text-gray-500'
+                    } flex items-center justify-center text-xs font-medium`}
+                    style={{ left: step === 0 ? 0 : '50%', transform: step === 0 ? 'none' : 'translateX(-50%)' }}
+                  >
+                    {Number(step) + 1}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="text-center mb-8">
+              <h2 className="text-lg font-medium text-gray-800">{getStepLabel(currentStep)}</h2>
+              <p className="text-sm text-gray-500">Step {currentStep + 1} of {STEPS.COMPLETION}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Fun fact box */}
+        {currentStep < STEPS.COMPLETION && (
+          <div className="px-6 mb-8">
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <div className="flex items-start">
+                <div className="text-purple-600 text-xl mr-3">💡</div>
+                <div>
+                  <h3 className="font-medium text-purple-800 mb-1">Data Insight</h3>
+                  <p className="text-purple-700 text-sm">{funFact}</p>
+                </div>
               </div>
             </div>
           </div>
+        )}
+        
+        {/* Step content */}
+        <div>
+          {currentStep === STEPS.DATASET_SELECTION && (
+            <DatasetSelection 
+              state={state} 
+              updateState={updateState} 
+              onNext={handleNext} 
+            />
+          )}
+          
+          {currentStep === STEPS.DATA_EXPLORATION && (
+            <DataExploration 
+              state={state} 
+              updateState={updateState} 
+              onNext={handleNext} 
+              onBack={handleBack} 
+            />
+          )}
+          
+          {currentStep === STEPS.DATA_VISUALIZATION && (
+            <DataVisualization 
+              state={state} 
+              updateState={updateState} 
+              onNext={handleNext} 
+              onBack={handleBack} 
+            />
+          )}
+          
+          {currentStep === STEPS.INSIGHT_GENERATION && (
+            <InsightGeneration 
+              state={state} 
+              updateState={updateState} 
+              onNext={handleNext} 
+              onBack={handleBack} 
+            />
+          )}
+          
+          {currentStep === STEPS.COMPLETION && (
+            <CompletionScreen 
+              state={state} 
+              restartChallenge={handleRestart} 
+            />
+          )}
         </div>
-      )}
-      
-      {/* Step content */}
-      <div>
-        {currentStep === STEPS.DATASET_SELECTION && (
-          <DatasetSelection 
-            state={state} 
-            updateState={updateState} 
-            onNext={handleNext} 
-          />
-        )}
-        
-        {currentStep === STEPS.DATA_EXPLORATION && (
-          <DataExploration 
-            state={state} 
-            updateState={updateState} 
-            onNext={handleNext} 
-            onBack={handleBack} 
-          />
-        )}
-        
-        {currentStep === STEPS.DATA_VISUALIZATION && (
-          <DataVisualization 
-            state={state} 
-            updateState={updateState} 
-            onNext={handleNext} 
-            onBack={handleBack} 
-          />
-        )}
-        
-        {currentStep === STEPS.INSIGHT_GENERATION && (
-          <InsightGeneration 
-            state={state} 
-            updateState={updateState} 
-            onNext={handleNext} 
-            onBack={handleBack} 
-          />
-        )}
-        
-        {currentStep === STEPS.COMPLETION && (
-          <CompletionScreen 
-            state={state} 
-            restartChallenge={handleRestart} 
-          />
-        )}
       </div>
     </div>
   );

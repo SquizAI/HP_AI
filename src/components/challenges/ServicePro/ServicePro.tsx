@@ -1,10 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { TicketType } from '../../../types'
 import { initialTickets, calculateTicketPriority } from './TicketData'
 import TicketCard from './TicketCard'
 import AIToolInterface from './AIToolInterface'
 import PerformanceMetrics from './PerformanceMetrics'
+import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager'
+import Confetti from '../../shared/Confetti'
+import ChallengeHeader from '../../shared/ChallengeHeader'
+import { Ticket, CheckCircle } from 'lucide-react'
 
 const ServiceProChallenge: React.FC = () => {
   // Challenge state
@@ -15,6 +19,18 @@ const ServiceProChallenge: React.FC = () => {
   const [aiToolsApplied, setAiToolsApplied] = useState<string[]>([])
   const [performanceScore, setPerformanceScore] = useState<number>(0)
   const [showReward, setShowReward] = useState<boolean>(false)
+  
+  // User progress tracking for completion
+  const [userProgress, setUserProgress] = useUserProgress();
+  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
+  
+  // Check if challenge is already completed
+  useEffect(() => {
+    if (userProgress.completedChallenges.includes('challenge-1')) {
+      setIsCompleted(true);
+    }
+  }, [userProgress]);
   
   // Handle ticket selection
   const handleTicketSelect = (ticket: TicketType) => {
@@ -90,9 +106,19 @@ const ServiceProChallenge: React.FC = () => {
     return Math.round(totalScore / resolvedTickets.length)
   }
   
-  // Handle challenge completion
+  // Handle challenge completion with our standardized approach
   const handleChallengeComplete = () => {
-    setShowReward(true)
+    markChallengeAsCompleted('challenge-1');
+    setIsCompleted(true);
+    setShowReward(true);
+    
+    // Show confetti
+    setShowConfetti(true);
+    
+    // Reset confetti after 5 seconds
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
   }
   
   // Cancel ticket selection
@@ -245,6 +271,18 @@ const ServiceProChallenge: React.FC = () => {
   
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Add our standardized header */}
+      <ChallengeHeader
+        title="ServicePro Challenge"
+        icon={<Ticket className="h-6 w-6 text-blue-600" />}
+        challengeId="challenge-1"
+        isCompleted={isCompleted}
+        setIsCompleted={setIsCompleted}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
+        onCompleteChallenge={handleChallengeComplete}
+      />
+      
       {renderStep()}
     </div>
   )

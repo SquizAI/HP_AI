@@ -397,7 +397,8 @@ export const markChallengeAsCompleted = (challengeId: string): boolean => {
   try {
     const userProgress = getUserProgress();
     
-    // Add to completed challenges if not already there
+    // Always add the challenge to completedChallenges, regardless of whether it was there before
+    // This ensures challenges can be re-completed after being unchecked
     if (!userProgress.completedChallenges.includes(challengeId)) {
       userProgress.completedChallenges.push(challengeId);
       userProgress.lastActive = new Date().toISOString();

@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import BrandProfiling from './BrandProfiling';
 import AudienceResearch from './AudienceResearch';
 import PlatformSelection from './PlatformSelection';
 import ContentPlanning from './ContentPlanning';
 import CompletionScreen from './CompletionScreen';
-import { saveChallengeSocialMedia } from '../../../utils/userDataManager';
+import { saveChallengeSocialMedia, useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
+import ChallengeHeader from '../../shared/ChallengeHeader';
+import { Share2 } from 'lucide-react';
 
 // Interfaces for state management
 export interface SocialMediaStrategy {
@@ -105,6 +107,20 @@ const SocialMediaStrategistMain: React.FC = () => {
     return SOCIAL_MEDIA_FACTS[randomIndex];
   });
   
+  // Add state for challenge completion and confetti
+  const [userProgress, setUserProgress] = useUserProgress();
+  const [isCompleted, setIsCompleted] = useState<boolean>(
+    userProgress.completedChallenges.includes('challenge-4')
+  );
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
+  
+  // Check if challenge is already completed on mount
+  useEffect(() => {
+    if (userProgress.completedChallenges.includes('challenge-4')) {
+      setIsCompleted(true);
+    }
+  }, [userProgress]);
+  
   // Update strategy state with new values
   const updateStrategy = (newValues: Partial<SocialMediaStrategy>) => {
     const updatedStrategy = { ...strategy, ...newValues };
@@ -141,6 +157,29 @@ const SocialMediaStrategistMain: React.FC = () => {
     // Show a new random fact
     const randomIndex = Math.floor(Math.random() * SOCIAL_MEDIA_FACTS.length);
     setRandomFact(SOCIAL_MEDIA_FACTS[randomIndex]);
+  };
+  
+  // Handle completing the challenge
+  const handleCompleteChallenge = () => {
+    // Make sure we have enough content to complete
+    if (!strategy.brandName || strategy.contentCalendar.length < 2) {
+      alert('Please complete your brand profile and add at least 2 content items to your calendar before completing the challenge.');
+      return;
+    }
+    
+    markChallengeAsCompleted('challenge-4');
+    setIsCompleted(true);
+    
+    // Set strategy as complete and update in state
+    updateStrategy({ isComplete: true });
+    
+    // Show confetti
+    setShowConfetti(true);
+    
+    // Hide confetti after 5 seconds
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
   };
   
   // Render the current step component
@@ -194,54 +233,21 @@ const SocialMediaStrategistMain: React.FC = () => {
   };
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-indigo-800 mb-2">
-          AI Social Media Strategist
-        </h1>
-        <p className="text-gray-600 max-w-2xl mx-auto">
-          Create a comprehensive social media strategy tailored to your brand, audience, and business goals.
-        </p>
-      </div>
+    <div className="max-w-6xl mx-auto p-4">
+      <ChallengeHeader
+        title="Social Media Strategist Challenge"
+        icon={<Share2 className="h-6 w-6 text-purple-600" />}
+        challengeId="challenge-4"
+        isCompleted={isCompleted}
+        setIsCompleted={setIsCompleted}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
+        onCompleteChallenge={handleCompleteChallenge}
+      />
       
-      {/* Progress bar - Don't show on the completion step */}
-      {strategy.currentStep < STEPS.length - 1 && (
-        <div className="max-w-3xl mx-auto mb-10">
-          <div className="flex justify-between mb-2">
-            {STEPS.slice(0, -1).map((step, index) => (
-              <div 
-                key={index} 
-                className={`text-xs font-medium ${
-                  index <= strategy.currentStep ? 'text-indigo-600' : 'text-gray-500'
-                }`}
-              >
-                {step}
-              </div>
-            ))}
-          </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-indigo-600 rounded-full transition-all duration-300"
-              style={{ width: `${(strategy.currentStep / (STEPS.length - 2)) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-      )}
-      
-      {/* Current step content */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+      <div className="bg-white shadow-md rounded-lg p-6">
         {renderCurrentStep()}
       </div>
-      
-      {/* Fun fact - only show on non-completion steps */}
-      {strategy.currentStep < STEPS.length - 1 && (
-        <div className="max-w-2xl mx-auto bg-indigo-50 p-4 rounded-lg text-center">
-          <p className="text-indigo-800 text-sm font-medium">
-            <span className="font-bold">Social Media Fact:</span> {randomFact}
-          </p>
-        </div>
-      )}
     </div>
   );
 };

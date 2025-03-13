@@ -1,9 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ProblemDefinition from './ProblemDefinition';
 import IdeaGeneration from './IdeaGeneration';
 import ImplementationPlan from './ImplementationPlan';
 import CompletionScreen from './CompletionScreen';
-import { saveChallengeBrainstorm } from '../../../utils/userDataManager';
+import { saveChallengeBrainstorm, useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
+import { useLocalStorage } from '../../../hooks/useLocalStorage';
+import styles from './BrainstormBuddy.module.css';
+import ChallengeHeader from '../../shared/ChallengeHeader';
+import { Lightbulb } from 'lucide-react';
+
+// Define the BRAINSTORMING_FACTS array here
+const BRAINSTORMING_FACTS = [
+  "Brainstorming sessions that start with individual idea generation before group discussion produce 20% more ideas.",
+  "The human brain can generate approximately 70,000 thoughts per day.",
+  "The term 'brainstorming' was coined in 1953 by advertising executive Alex Osborn.",
+  "Studies show that taking a walk can increase creative output by an average of 60%.",
+  "The most productive brainstorming sessions last between 15-45 minutes, not hours.",
+  "According to NASA, your creative potential is highest within 30 minutes of waking up.",
+  "Dimming the lights can help remove inhibitions and improve creative thinking in groups.",
+  "The average person has 6 innovative ideas per day, but most are forgotten within minutes.",
+  "Blue environments have been shown to enhance creative performance in brainstorming."
+];
 
 // Interface for managing the challenge state
 export interface BrainstormState {
@@ -481,453 +498,226 @@ const BrainstormBuddyMain: React.FC = () => {
   const [funFact, setFunFact] = useState<string>('');
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
   
-  // Enhanced brainstorming facts
-  const BRAINSTORMING_FACTS = [
-    "Studies show that 'brainwriting' (where ideas are written down before discussion) produces 42% more ideas than traditional brainstorming.",
-    "The term 'brainstorming' was coined in 1953 by advertising executive Alex Osborn in his book 'Applied Imagination'.",
-    "Research shows that taking breaks actually improves creative thinking. The 'incubation period' allows your brain to form new connections.",
-    "The most innovative companies generate 6-10 ideas for every one they implement, recognizing that quantity often leads to quality.",
-    "Studies from Stanford show that walking can increase creative output by up to 60% compared to sitting.",
-    "The 'first-to-mind penalty' means our initial ideas are usually the most obvious and least innovative.",
-    "Groups that encourage 'building on ideas' generate 25% more practical innovations than those focused on individual ideation.",
-    "The brain's 'default mode network' activates during relaxation and is linked to creative insights and 'Aha!' moments.",
-    "MIT research shows diverse teams produce more innovative solutions than homogeneous ones, even when individual expertise is equivalent.",
-    "Companies using structured innovation processes are 30% more likely to disrupt their industries than those relying on spontaneous innovation."
-  ];
+  // For challenge completion
+  const [userProgress, setUserProgress] = useUserProgress();
+  const [isCompleted, setIsCompleted] = useState<boolean>(false);
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
   
-  // Load a random brainstorming fact when the component mounts
+  // Check if challenge is already completed
+  useEffect(() => {
+    if (userProgress.completedChallenges.includes('challenge-5')) {
+      setIsCompleted(true);
+    }
+  }, [userProgress]);
+  
+  // Enhanced brainstorming facts
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * BRAINSTORMING_FACTS.length);
     setFunFact(BRAINSTORMING_FACTS[randomIndex]);
+  }, []);
+  
+  // Check for saved work
+  useEffect(() => {
+    const userProgress = JSON.parse(localStorage.getItem('ai_hub_user_progress') || '{}');
+    const savedState = userProgress?.challengeData?.['challenge-5']?.brainstorm;
     
-    // Check for saved work in progress
-    const savedData = localStorage.getItem('brainstorm_backup_data');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        // Only restore if work was saved less than 24 hours ago
-        const lastUpdated = new Date(parsedData.lastUpdated || Date.now());
-        const timeElapsed = Date.now() - lastUpdated.getTime();
-        if (timeElapsed < 24 * 60 * 60 * 1000) {
-          setState(parsedData);
-          // Set the appropriate step based on saved data
-          if (parsedData.isComplete) {
-            setCurrentStep(STEPS.COMPLETION);
-          } else if (parsedData.implementation) {
-            setCurrentStep(STEPS.IMPLEMENTATION_PLAN);
-          } else if (parsedData.selectedIdea) {
-            setCurrentStep(STEPS.IDEA_SELECTION);
-          } else if (parsedData.ideas && parsedData.ideas.length > 0) {
-            setCurrentStep(STEPS.IDEA_GENERATION);
-          } else if (parsedData.problemStatement) {
-            setCurrentStep(STEPS.PROBLEM_DEFINITION);
-          }
-        }
-      } catch (error) {
-        console.error('Error restoring saved brainstorm session:', error);
+    if (savedState) {
+      setState(prevState => ({
+        ...prevState,
+        ...savedState
+      }));
+      
+      // If there's a selected idea and implementation, move to the appropriate step
+      if (savedState.implementation) {
+        setCurrentStep(STEPS.IMPLEMENTATION_PLAN);
+      } else if (savedState.selectedIdea) {
+        setCurrentStep(STEPS.IDEA_SELECTION);
+      } else if (savedState.ideas && savedState.ideas.length > 0) {
+        setCurrentStep(STEPS.IDEA_GENERATION);
+      } else if (savedState.problemStatement) {
+        setCurrentStep(STEPS.PROBLEM_DEFINITION);
       }
     }
   }, []);
   
-  // Update state and save
-  const updateState = (newState: Partial<BrainstormState>) => {
-    setState(prevState => {
-      const updatedState = { ...prevState, ...newState };
-      saveBrainstormData(updatedState);
-      return updatedState;
+  // Update the state
+  const updateState = (updates: Partial<BrainstormState>) => {
+    setState(prev => {
+      const newState = {
+        ...prev,
+        ...updates,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      // Save to user progress
+      saveChallengeBrainstorm('challenge-5', newState);
+      
+      return newState;
     });
   };
   
-  // Handle problem statement changes
-  const handleProblemChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    updateState({ problemStatement: e.target.value });
-  };
-  
-  // Handle category selection
-  const handleCategorySelect = (categoryId: string) => {
-    updateState({ 
-      ideaCategory: categoryId,
-      // Reset ideas if category changes
-      ideas: categoryId !== state.ideaCategory ? [] : state.ideas
-    });
-  };
-  
-  // Handle AI personality selection
-  const handlePersonalitySelect = (personality: AIPersonality) => {
-    updateState({ aiPersonality: personality });
-  };
-  
-  // Enhanced idea generation with AI personality
-  const handleGenerateIdeas = async () => {
-    if (!state.problemStatement || !state.ideaCategory) {
-      setError('Please define your problem and select a category first.');
-      return;
-    }
-    
-    setIsGenerating(true);
-    setError('');
-    
-    try {
-      const ideas = await generateIdeas(state.problemStatement, state.ideaCategory, state.aiPersonality);
-      updateState({ ideas });
-      
-      // Show a new fact when generating ideas
-      const randomIndex = Math.floor(Math.random() * BRAINSTORMING_FACTS.length);
-      setFunFact(BRAINSTORMING_FACTS[randomIndex]);
-      
-      setCurrentStep(STEPS.IDEA_GENERATION);
-    } catch (error) {
-      console.error('Error generating ideas:', error);
-      setError('Failed to generate ideas. Please try again.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-  
-  // Handle idea selection
-  const handleSelectIdea = (idea: Idea) => {
-    // First reset all ideas to not selected
-    const updatedIdeas = state.ideas.map(i => ({
-      ...i,
-      isSelected: i.id === idea.id
-    }));
-    
-    // Then update state with the selected idea
+  // Handle problem change
+  const handleProblemChange = (problemStatement: string, category: string) => {
     updateState({
-      ideas: updatedIdeas,
+      problemStatement,
+      ideaCategory: category
+    });
+  };
+  
+  // Set the selected idea
+  const handleIdeaSelection = (idea: Idea) => {
+    updateState({
       selectedIdea: idea
     });
-    
-    setCurrentStep(STEPS.IDEA_SELECTION);
   };
   
-  // Enhanced implementation plan generation with AI personality
-  const handleGenerateImplementation = async () => {
-    if (!state.selectedIdea) {
-      setError('Please select an idea first.');
-      return;
-    }
-    
-    setIsGenerating(true);
-    setError('');
-    
-    try {
-      const implementation = await generateImplementation(
-        state.selectedIdea, 
-        state.problemStatement,
-        state.aiPersonality
-      );
-      
-      updateState({ implementation });
-      
-      // Show a new fact when generating implementation
-      const randomIndex = Math.floor(Math.random() * BRAINSTORMING_FACTS.length);
-      setFunFact(BRAINSTORMING_FACTS[randomIndex]);
-      
-      setCurrentStep(STEPS.IMPLEMENTATION_PLAN);
-    } catch (error) {
-      console.error('Error generating implementation plan:', error);
-      setError('Failed to generate implementation plan. Please try again.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-  
-  // Handle custom notes update
-  const handleNotesChange = (notes: string) => {
-    updateState({ customNotes: notes });
-  };
-  
-  // Complete the challenge
-  const handleComplete = () => {
-    updateState({ 
-      isComplete: true,
-      lastUpdated: new Date().toISOString()
+  // Set the AI personality
+  const handlePersonalityChange = (personality: AIPersonality) => {
+    updateState({
+      aiPersonality: personality
     });
-    
-    setCurrentStep(STEPS.COMPLETION);
   };
   
-  // Navigate to the next step
+  // Add a new idea
+  const handleAddIdea = (idea: Idea) => {
+    updateState({
+      ideas: [...state.ideas, idea]
+    });
+  };
+  
+  // Set the implementation plan
+  const handleImplementationChange = (implementation: string) => {
+    updateState({
+      implementation
+    });
+  };
+  
+  // Update custom notes
+  const handleNotesChange = (notes: string) => {
+    updateState({
+      customNotes: notes
+    });
+  };
+  
+  // Move to the next step
   const handleNext = () => {
     if (currentStep < STEPS.COMPLETION) {
       setCurrentStep(currentStep + 1 as STEPS);
     }
   };
   
-  // Navigate to the previous step
+  // Go back a step
   const handleBack = () => {
     if (currentStep > STEPS.PROBLEM_DEFINITION) {
       setCurrentStep(currentStep - 1 as STEPS);
     }
   };
   
+  // Navigate directly to a specific step
+  const goToStep = (step: STEPS) => {
+    setCurrentStep(step);
+  };
+  
   // Restart the challenge
   const handleRestart = () => {
     setState(INITIAL_STATE);
     setCurrentStep(STEPS.PROBLEM_DEFINITION);
-    setError('');
-    
-    // Show a new fact on restart
-    const randomIndex = Math.floor(Math.random() * BRAINSTORMING_FACTS.length);
-    setFunFact(BRAINSTORMING_FACTS[randomIndex]);
   };
-  
-  // Get step label based on current step
-  const getStepLabel = (step: STEPS): string => {
-    switch (step) {
-      case STEPS.PROBLEM_DEFINITION: return 'Problem Definition';
-      case STEPS.IDEA_GENERATION: return 'Idea Generation';
-      case STEPS.IDEA_SELECTION: return 'Idea Selection';
-      case STEPS.IMPLEMENTATION_PLAN: return 'Implementation Plan';
-      case STEPS.COMPLETION: return 'Challenge Complete';
-    }
-  };
-  
-  // Render the current step
-  const renderCurrentStep = () => {
-    switch (currentStep) {
-      case STEPS.PROBLEM_DEFINITION:
-        return (
-          <ProblemDefinition
-            problemStatement={state.problemStatement}
-            selectedCategory={state.ideaCategory}
-            onProblemChange={handleProblemChange}
-            onCategorySelect={handleCategorySelect}
-            onPersonalitySelect={handlePersonalitySelect}
-            selectedPersonality={state.aiPersonality}
-            onGenerateIdeas={handleGenerateIdeas}
-            isGenerating={isGenerating}
-            categories={PROBLEM_CATEGORIES}
-            error={error}
-          />
-        );
-      case STEPS.IDEA_GENERATION:
-      case STEPS.IDEA_SELECTION:
-        return (
-          <IdeaGeneration
-            ideas={state.ideas}
-            problemStatement={state.problemStatement}
-            selectedCategory={state.ideaCategory}
-            onSelectIdea={handleSelectIdea}
-            onGenerateImplementation={handleGenerateImplementation}
-            onBack={handleBack}
-            selectedIdea={state.selectedIdea}
-            isGenerating={isGenerating}
-            creativityTechniques={CREATIVITY_TECHNIQUES}
-            error={error}
-          />
-        );
-      case STEPS.IMPLEMENTATION_PLAN:
-        return (
-          <ImplementationPlan
-            selectedIdea={state.selectedIdea?.title || ''}
-            implementationPlan={state.implementation}
-            problemStatement={state.problemStatement}
-            onComplete={handleComplete}
-            onBack={handleBack}
-            onUpdateNotes={handleNotesChange}
-            customNotes={state.customNotes}
-          />
-        );
-      case STEPS.COMPLETION:
-        return (
-          <CompletionScreen
-            problemStatement={state.problemStatement}
-            selectedCategory={
-              PROBLEM_CATEGORIES.find(cat => cat.id === state.ideaCategory) || 
-              { label: '', icon: '', description: '' }
-            }
-            selectedIdea={state.selectedIdea || 
-              { title: '', description: '', pros: [], cons: [], tags: [] }
-            }
-            implementationPlan={state.implementation}
-            customNotes={state.customNotes}
-            selectedPersonality={state.aiPersonality}
-            lastUpdated={state.lastUpdated ? new Date(state.lastUpdated) : null}
-            onRestart={handleRestart}
-          />
-        );
-      default:
-        return <div>Unknown step</div>;
-    }
-  };
-  
-  // Add useEffect to hide the feedback form elements
-  useEffect(() => {
-    if (currentStep === STEPS.COMPLETION) {
-      // Hide the feedback elements after a small delay to ensure they're rendered
-      const timeoutId = setTimeout(() => {
-        // Targeting by text content
-        const hideElementsByText = (text: string) => {
-          const elements = Array.from(document.querySelectorAll('h3, h2, div, p, span'));
-          elements.forEach(el => {
-            if (el.textContent && el.textContent.includes(text)) {
-              // Hide the element and its parent
-              (el as HTMLElement).style.display = 'none';
-              if (el.parentElement) (el.parentElement as HTMLElement).style.display = 'none';
-              
-              // If it's a header, hide the next elements too (likely the form fields)
-              if (el.tagName === 'H2' || el.tagName === 'H3') {
-                let nextSibling = el.nextElementSibling;
-                while (nextSibling && (nextSibling.tagName === 'INPUT' || nextSibling.tagName === 'TEXTAREA' || nextSibling.tagName === 'BUTTON' || nextSibling.classList.contains('flex'))) {
-                  (nextSibling as HTMLElement).style.display = 'none';
-                  nextSibling = nextSibling.nextElementSibling;
-                }
-              }
-            }
-          });
-        };
-        
-        // Hide elements containing these texts
-        hideElementsByText('Share your achievement');
-        hideElementsByText('Rate your experience');
-        hideElementsByText('Submit feedback');
-        
-        // Hide star rating elements
-        const starElements = document.querySelectorAll('button, span');
-        starElements.forEach(el => {
-          if (el.textContent && (el.textContent.includes('★') || el.textContent.includes('☆'))) {
-            if (el.parentElement) (el.parentElement as HTMLElement).style.display = 'none';
-          }
-        });
-        
-        // Hide textareas with specific placeholders
-        const textareas = document.querySelectorAll('textarea');
-        textareas.forEach(el => {
-          const textarea = el as HTMLTextAreaElement;
-          if (textarea.placeholder && (
-              textarea.placeholder.includes('challenge') || 
-              textarea.placeholder.includes('achievement') ||
-              textarea.placeholder.includes('experience') ||
-              textarea.placeholder.includes('feedback')
-          )) {
-            textarea.style.display = 'none';
-            if (textarea.parentElement) (textarea.parentElement as HTMLElement).style.display = 'none';
-          }
-        });
-      }, 500);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [currentStep]);
-  
-  // Simplified CSS to hide elements that can be targeted with standard selectors
-  const hideStyles = `
-    /* Hide elements by common class names and IDs */
-    [id*="share"], [class*="share"], 
-    [id*="feedback"], [class*="feedback"], 
-    [id*="rating"], [class*="rating"], 
-    [id*="experience"], [class*="experience"] {
-      display: none !important;
-    }
-  `;
-  
+
   return (
     <div className="container mx-auto max-w-5xl">
-      {/* Hide feedback forms */}
-      <style dangerouslySetInnerHTML={{ __html: hideStyles }} />
-      {/* Tutorial overlay */}
-      {showTutorial && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg max-w-2xl mx-4">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">How to Use the Brainstorm Buddy</h2>
-            <ol className="list-decimal pl-6 space-y-3 text-gray-700 mb-6">
-              <li><strong>Define Your Problem:</strong> Start by clearly stating the problem or challenge you're trying to solve. Select a category that best fits your problem.</li>
-              <li><strong>Choose an AI Personality:</strong> Different AI personalities will generate different types of ideas. Choose one that matches your needs.</li>
-              <li><strong>Generate Ideas:</strong> Let the AI generate creative ideas based on your problem statement.</li>
-              <li><strong>Select the Best Idea:</strong> Review the generated ideas and select the one you want to pursue.</li>
-              <li><strong>Create an Implementation Plan:</strong> Get a detailed implementation plan for your chosen idea.</li>
-              <li><strong>Add Your Notes:</strong> Customize the plan with your own insights and modifications.</li>
-              <li><strong>Complete the Challenge:</strong> Review your solution and save your work.</li>
-            </ol>
-            <div className="flex justify-end">
-              <button 
-                onClick={() => setShowTutorial(false)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+      <ChallengeHeader
+        title="BrainstormBuddy Challenge"
+        icon={<Lightbulb className="h-6 w-6 text-yellow-500" />}
+        challengeId="challenge-5"
+        isCompleted={isCompleted}
+        setIsCompleted={setIsCompleted}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
+        onCompleteChallenge={handleCompleteChallenge}
+      />
+      
+      {/* Main content */}
+      <div className="p-4">
+        {currentStep === STEPS.PROBLEM_DEFINITION && (
+          <ProblemDefinition
+            state={state}
+            problemCategories={PROBLEM_CATEGORIES}
+            onProblemChange={handleProblemChange}
+            onNext={handleNext}
+          />
+        )}
+        
+        {currentStep === STEPS.IDEA_GENERATION && (
+          <IdeaGeneration
+            state={state}
+            onAddIdea={handleAddIdea}
+            onNext={handleNext}
+            onBack={handleBack}
+            onPersonalityChange={handlePersonalityChange}
+          />
+        )}
+        
+        {currentStep === STEPS.IDEA_SELECTION && (
+          <div className="p-6 bg-white rounded-lg shadow-sm">
+            <h2 className="text-xl font-semibold mb-4">Select Your Best Idea</h2>
+            <p className="mb-4 text-gray-600">
+              Review the ideas you've generated and select the one you'd like to develop further.
+            </p>
+            
+            <div className="space-y-3 mb-6">
+              {state.ideas.map((idea, index) => (
+                <div
+                  key={index}
+                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                    state.selectedIdea === idea
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300'
+                  }`}
+                  onClick={() => handleIdeaSelection(idea)}
+                >
+                  {idea.title}
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex justify-between mt-8">
+              <button
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                onClick={handleBack}
               >
-                Got it!
+                Back
+              </button>
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                onClick={handleNext}
+                disabled={!state.selectedIdea}
+              >
+                Continue
               </button>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Header with tutorial button */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-blue-600">AI Brainstorm Buddy</h1>
-        <button
-          onClick={() => setShowTutorial(true)}
-          className="px-4 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
-        >
-          How it works
-        </button>
-      </div>
-      
-      {/* Progress steps */}
-      {currentStep < STEPS.COMPLETION && (
-        <div className="mb-8">
-          <div className="flex mb-2">
-            {Object.values(STEPS).filter(step => typeof step === 'number' && step < STEPS.COMPLETION).map((step) => (
-              <div key={step} className="flex-1 relative">
-                <div 
-                  className={`h-2 ${
-                    Number(step) < currentStep 
-                      ? 'bg-blue-500' 
-                      : Number(step) === currentStep 
-                        ? 'bg-blue-300' 
-                        : 'bg-gray-200'
-                  }`}
-                />
-                <div 
-                  className={`w-8 h-8 rounded-full absolute top-[-12px] ${
-                    Number(step) <= currentStep ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'
-                  } flex items-center justify-center text-sm font-medium`}
-                  style={{ left: step === 0 ? 0 : '50%', transform: step === 0 ? 'none' : 'translateX(-50%)' }}
-                >
-                  {Number(step) + 1}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between text-sm text-gray-600 px-4">
-            <span>Define</span>
-            <span>Generate</span>
-            <span>Select</span>
-            <span>Implement</span>
-          </div>
-        </div>
-      )}
-      
-      {/* Current step title */}
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">{getStepLabel(currentStep)}</h2>
-        <p className="text-sm text-gray-500">Step {currentStep + 1} of {STEPS.COMPLETION}</p>
-      </div>
-      
-      {/* Fun fact box */}
-      {currentStep < STEPS.COMPLETION && (
-        <div className="bg-blue-50 p-4 rounded-lg mb-6">
-          <div className="flex items-start">
-            <div className="text-blue-500 text-xl mr-3">💡</div>
-            <div>
-              <h3 className="font-medium text-blue-800 mb-1">Brainstorming Insight</h3>
-              <p className="text-blue-700 text-sm">{funFact}</p>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Error message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg mb-6">
-          <p>{error}</p>
-        </div>
-      )}
-      
-      {/* Current step content */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        {renderCurrentStep()}
+        )}
+        
+        {currentStep === STEPS.IMPLEMENTATION_PLAN && (
+          <ImplementationPlan
+            state={state}
+            onImplementationChange={handleImplementationChange}
+            onNext={handleCompleteChallenge}
+            onBack={handleBack}
+          />
+        )}
+        
+        {currentStep === STEPS.COMPLETION && (
+          <CompletionScreen
+            problemStatement={state.problemStatement}
+            selectedIdea={state.selectedIdea}
+            implementationPlan={state.implementation}
+            onComplete={handleCompleteChallenge}
+            onBack={handleBack}
+            onUpdateNotes={handleNotesChange}
+          />
+        )}
       </div>
     </div>
   );
