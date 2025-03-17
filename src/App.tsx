@@ -14,23 +14,28 @@ import ContentTransformerChallenge from './components/challenges/ContentTransfor
 import GlobalCommunicatorWrapper from './components/challenges/GlobalCommunicator/GlobalCommunicatorWrapper'
 import ImageGeneratorTest from './components/challenges/SlideMaster/ImageGeneratorTest'
 import AIModelComparison from './components/challenges/SmartSelect'
-import EmotionalInsightMain from './components/challenges/EmotionalInsight/EmotionalInsightMain'
+import MultiModalSentimentMain from './components/challenges/EmotionalInsight/MultiModalSentimentMain'
 import VoiceGeneratorMain from './components/challenges/VoiceGenerator/VoiceGeneratorMain'
 import DictationWizardMain from './components/challenges/DictationWizard'
 import ImageClassifierMain from './components/challenges/ImageClassifier'
 import ImageSearchMain from './components/challenges/ImageSearch/ImageSearchMain'
 import OCRAssistantMain from './components/challenges/OCRAssistant/OCRAssistantMain'
 import ObjectDetectionMain from './components/challenges/ObjectDetection'
-import ObjectTrackingMain from './components/challenges/ObjectTracking'
 import PrivacyGuardianMain from './components/challenges/PrivacyGuardian'
+import CreativeVisionMain from './components/challenges/CreativeVision'
 import DetectiveLeagueMain from './components/challenges/DetectiveLeague/DetectiveLeagueMain'
 import AgentMagicMain from './components/challenges/AgentMagic/AgentMagicMain'
 // Import HP Challenge Components
 import HPPowerBIMain from './components/challenges/HPPowerBI'
 import HPAICompanionMain from './components/challenges/HPAICompanion'
 import HPAmuzeMain from './components/challenges/HPAmuze'
-// Import for the Face ID Manager challenge
-import FaceIdManagerMain from './components/challenges/FaceIdManager/FaceIdManagerMain'
+// Import for the Face ID challenge
+import SimpleFaceId from './components/challenges/FaceIdManager/SimpleFaceId'
+import FaceDetectionTest from './components/challenges/EmotionalInsight/components/FaceDetectionTest'
+// Import for individual emotion analysis pages
+import FaceEmotionPage from './components/challenges/EmotionalInsight/pages/FaceEmotionPage'
+import TextSentimentPage from './components/challenges/EmotionalInsight/pages/TextSentimentPage'
+import VoiceSentimentPage from './components/challenges/EmotionalInsight/pages/VoiceSentimentPage'
 
 function App() {
   return (
@@ -56,22 +61,28 @@ function App() {
           <Route path="/challenge/content-transformer" element={<ContentTransformerChallenge />} />
           <Route path="/challenge/global-communicator/*" element={<GlobalCommunicatorWrapper />} />
           <Route path="/challenge/smartselect" element={<AIModelComparison />} />
-          <Route path="/challenge/emotional-insight" element={<EmotionalInsightMain />} />
+          <Route path="/challenge/emotional-insight" element={<MultiModalSentimentMain />} />
+          <Route path="/challenge/multi-modal-sentiment" element={<MultiModalSentimentMain />} />
           <Route path="/challenge/voice-generator" element={<VoiceGeneratorMain />} />
           <Route path="/challenge/dictation-wizard" element={<DictationWizardMain />} />
           <Route path="/challenge/image-classifier" element={<ImageClassifierMain />} />
           <Route path="/challenge/image-search" element={<ImageSearchMain />} />
           <Route path="/challenge/ocr-assistant" element={<OCRAssistantMain />} />
           <Route path="/challenge/object-detection" element={<ObjectDetectionMain />} />
-          <Route path="/challenge/object-tracking" element={<ObjectTrackingMain />} />
-          <Route path="/challenge/privacy-guardian" element={<PrivacyGuardianMain />} />
+          <Route path="/challenge/privacy-guardian" element={<PrivacyGuardianMain />} />          
+          <Route path="/challenge/creative-vision" element={<CreativeVisionMain />} />
           <Route path="/challenge/detective-league" element={<DetectiveLeagueMain />} />
           <Route path="/challenge/agent-magic" element={<AgentMagicMain />} />
-          <Route path="/challenge/face-id-manager" element={<FaceIdManagerMain />} />
+          <Route path="/challenge/face-id-manager" element={<SimpleFaceId />} />
           {/* HP Challenge Routes */}
           <Route path="/challenge/hp-powerbi" element={<HPPowerBIMain />} />
           <Route path="/challenge/hp-companion" element={<HPAICompanionMain />} />
           <Route path="/challenge/hp-amuze" element={<HPAmuzeMain />} />
+          {/* Individual Emotion Analysis Pages */}
+          <Route path="/face-detection-test" element={<FaceDetectionTest />} />
+          <Route path="/challenge/face-emotion" element={<FaceEmotionPage />} />
+          <Route path="/challenge/text-sentiment" element={<TextSentimentPage />} />
+          <Route path="/challenge/voice-sentiment" element={<VoiceSentimentPage />} />
           {/* Placeholder routes for challenges under development */}
           <Route 
             path="/challenge/*" 

@@ -23,7 +23,6 @@ const getFalApiKey = (): string => {
   return '';
 };
 
-// Keep only the secure implementation:
 // Create a proxy function that doesn't expose credentials directly
 const getFalClient = () => {
   // In production, this should be handled through a secure backend proxy
@@ -32,10 +31,17 @@ const getFalClient = () => {
     console.warn('For production use, FAL API calls should be proxied through a secure backend');
   }
   
+  // SECURITY FIX: Check if we have a proxy URL configured - if so, use that instead of direct credentials
+  if (import.meta.env.VITE_FAL_PROXY_URL) {
+    return createFalClient({
+      proxyUrl: import.meta.env.VITE_FAL_PROXY_URL,
+    });
+  }
+  
+  // Only for local development - in production, this should be handled by a secure proxy
+  console.log('Using direct FAL API access - not recommended for production.');
   return createFalClient({
     credentials: import.meta.env.VITE_FAL_API_KEY || '',
-    // Use a serverless function or proxy in production
-    proxyUrl: import.meta.env.VITE_FAL_PROXY_URL,
   });
 };
 

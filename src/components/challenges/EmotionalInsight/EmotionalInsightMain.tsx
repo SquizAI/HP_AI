@@ -330,6 +330,15 @@ const EmotionalInsightMain: React.FC = () => {
         {/* Current Step */}
         {renderCurrentStep()}
       </div>
+      
+      <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded">
+        <p className="text-sm">
+          Having issues with face detection? 
+          <a href="/face-detection-test" className="ml-2 text-blue-600 hover:text-blue-800 underline">
+            Try our test page →
+          </a>
+        </p>
+      </div>
     </div>
   );
 };

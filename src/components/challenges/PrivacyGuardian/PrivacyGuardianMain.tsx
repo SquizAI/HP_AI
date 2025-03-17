@@ -1,34 +1,35 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Shield, Image as ImageIcon, Upload, RefreshCw, Check, X, AlertTriangle, Info, Award } from 'lucide-react';
+import { Shield, Image as ImageIcon, Upload, RefreshCw, Check, X, AlertTriangle, Info, Award, Sliders } from 'lucide-react';
 import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
 import Confetti from '../../shared/Confetti';
 import ChallengeHeader from '../../shared/ChallengeHeader';
+import RealtimeFaceBlur from './components/RealtimeFaceBlur';
 
 // Sample images for demonstration
 const SAMPLE_IMAGES = [
   {
-    id: 'group-photo',
-    url: 'https://images.pexels.com/photos/3184398/pexels-photo-3184398.jpeg',
-    title: 'Office Team Meeting',
-    description: 'Group of business people in an office setting'
+    id: 'ernesto-lee',
+    url: '/ErnestoLee.jpeg',
+    title: 'Ernesto Lee',
+    description: 'Portrait of Ernesto Lee'
   },
   {
-    id: 'cafe-scene',
-    url: 'https://images.pexels.com/photos/8937579/pexels-photo-8937579.jpeg',
-    title: 'Cafe Scene',
-    description: 'People meeting at a busy cafe'
+    id: 'ai-generated-1',
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1974&auto=format&fit=crop',
+    title: 'AI Generated Face 1',
+    description: 'Simple front-facing portrait of a person'
   },
   {
-    id: 'street-photo',
-    url: 'https://images.pexels.com/photos/1209978/pexels-photo-1209978.jpeg',
-    title: 'Urban Street',
-    description: 'People walking along a busy street'
+    id: 'ai-generated-2',
+    url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1887&auto=format&fit=crop',
+    title: 'AI Generated Face 2',
+    description: 'Front-facing portrait with a neutral background'
   },
   {
-    id: 'conference',
-    url: 'https://images.pexels.com/photos/2833037/pexels-photo-2833037.jpeg',
-    title: 'Conference',
-    description: 'Group of people at a conference or event'
+    id: 'ai-generated-3',
+    url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1887&auto=format&fit=crop',
+    title: 'AI Generated Face 3',
+    description: 'Clear front-facing portrait for easy face detection'
   }
 ];
 
@@ -38,6 +39,17 @@ interface DetectedFace {
   width: number;
   height: number;
   blurred: boolean;
+}
+
+// Add type definition for face detection result
+interface FaceDetectionResult {
+  box: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  score?: number;
 }
 
 const PrivacyGuardianMain: React.FC = () => {
@@ -61,7 +73,12 @@ const PrivacyGuardianMain: React.FC = () => {
   const [detectedFaces, setDetectedFaces] = useState<DetectedFace[]>([]);
   const [showInstructions, setShowInstructions] = useState<boolean>(true);
   const [userScenario, setUserScenario] = useState<string>('');
-  const [useFallbackDetection, setUseFallbackDetection] = useState<boolean>(false);
+  
+  // Settings for the RealtimeFaceBlur component
+  const [blurIntensity, setBlurIntensity] = useState<number>(20);
+  const [showBoundingBoxes, setShowBoundingBoxes] = useState<boolean>(true);
+  const [isLiveMode, setIsLiveMode] = useState<boolean>(false);
+  const [isFaceApiLoaded, setIsFaceApiLoaded] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,73 +91,83 @@ const PrivacyGuardianMain: React.FC = () => {
     }
   }, [userProgress]);
   
-  // Load face-api.js for face detection
+  // Load face-api.js for facial recognition
   useEffect(() => {
-    // Check if Face-API script already exists
-    const scriptExists = document.getElementById('face-api-script');
+    const loadFaceApi = async () => {
+      try {
+        setIsLoading(true);
+        setDetectionProgress(10);
+        setDetectionMessage('Loading face detection...');
+        
+        // Check if Face-API script already exists
+        const scriptExists = document.getElementById('face-api-script');
+        
+        if (!scriptExists) {
+          const script = document.createElement('script');
+          script.id = 'face-api-script';
+          script.src = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.9/dist/face-api.js';
+          script.async = true;
+          
+          script.onload = async () => {
+            await loadFaceDetectionModels();
+          };
+          
+          document.body.appendChild(script);
+        } else if (window.faceapi) {
+          await loadFaceDetectionModels();
+        }
+      } catch (err) {
+        console.error('Error loading face-api.js:', err);
+        setError('Failed to load face detection library. Please try again later.');
+        setIsLoading(false);
+      }
+    };
     
-    if (!scriptExists) {
-      const script = document.createElement('script');
-      script.id = 'face-api-script';
-      script.src = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
-      script.async = true;
-      
-      script.onload = async () => {
-        await loadFaceDetectionModels();
-      };
-      
-      document.body.appendChild(script);
-    } else if (window.faceapi) {
-      loadFaceDetectionModels();
-    }
+    loadFaceApi();
   }, []);
   
   const loadFaceDetectionModels = async () => {
     try {
-      setIsLoading(true);
-      setProgressMessage('Loading face detection models...');
+      setDetectionProgress(30);
+      setDetectionMessage('Loading detection models...');
       
-      // Try multiple possible model sources
-      const modelSources = [
-        '/models', // Local path
-        '/HP_AI/models', // Another possible local path
-        'https://hp-ai-challenge.netlify.app/models', // Deployed site path
-        'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model' // Fallback to CDN
+      // @ts-ignore - faceapi is loaded from CDN
+      if (!window.faceapi) {
+        throw new Error('Face API not loaded');
+      }
+      
+      // Try different model paths
+      const modelPaths = [
+        '/models/face-api',
+        'https://justadudewhohacks.github.io/face-api.js/models',
+        'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights'
       ];
       
       let modelsLoaded = false;
       
-      for (const modelPath of modelSources) {
+      for (const modelPath of modelPaths) {
         try {
-          setProgressMessage(`Trying to load models from ${modelPath}...`);
-          
-          // Load the required models for face detection
-          await Promise.all([
-            window.faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
-            window.faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
-            window.faceapi.nets.faceRecognitionNet.loadFromUri(modelPath)
-          ]);
-          
+          // @ts-ignore - faceapi is loaded from CDN
+          await window.faceapi.nets.tinyFaceDetector.loadFromUri(modelPath);
+          console.log('Face detection models loaded successfully from', modelPath);
           modelsLoaded = true;
-          setProgressMessage(`Face detection models loaded successfully from ${modelPath}`);
-          break; // Exit the loop if models are successfully loaded
+          break;
         } catch (err) {
-          console.error(`Failed to load models from ${modelPath}:`, err);
-          // Continue to the next source
+          console.warn(`Failed to load models from ${modelPath}, trying next source...`);
         }
       }
       
       if (!modelsLoaded) {
-        console.warn('Using simplified face detection fallback');
-        setUseFallbackDetection(true);
-        setProgressMessage('Using simplified detection mode');
+        throw new Error('Could not load face detection models from any source');
       }
       
+      setIsFaceApiLoaded(true);
+      setDetectionProgress(100);
+      setDetectionMessage('Face detection ready!');
       setIsLoading(false);
     } catch (err) {
-      setError('Failed to load face detection models. Using simplified detection mode.');
-      console.error('Error loading models:', err);
-      setUseFallbackDetection(true);
+      console.error('Error loading face detection models:', err);
+      setError(`Failed to load face detection models: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setIsLoading(false);
     }
   };
@@ -170,6 +197,13 @@ const PrivacyGuardianMain: React.FC = () => {
         setProcessedImage(null);
         setDetectedFaces([]);
         setError(null);
+        // Turn off live mode when an image is uploaded
+        setIsLiveMode(false);
+        
+        // Automatically process the image after a short delay to allow the image to load
+        setTimeout(() => {
+          processStaticImage();
+        }, 100);
       }
     };
     
@@ -181,172 +215,26 @@ const PrivacyGuardianMain: React.FC = () => {
     setProcessedImage(null);
     setDetectedFaces([]);
     setError(null);
+    // Turn off live mode when a sample image is selected
+    setIsLiveMode(false);
+    
+    // Automatically process the image after a short delay to allow the image to load
+    setTimeout(() => {
+      processStaticImage();
+    }, 100);
   };
   
-  const detectFaces = async () => {
-    if (!imageRef.current) return;
-    
-    try {
-      setIsProcessing(true);
-      setDetectionProgress(10);
-      setDetectionMessage('Analyzing image...');
-      
-      // Clear any previous detections
+  const handleFacesDetected = (count: number) => {
+    setFaceCount(count);
+  };
+  
+  const toggleLiveMode = () => {
+    setIsLiveMode(!isLiveMode);
+    if (!isLiveMode) {
+      // Clear the static image processing when switching to live mode
+      setSelectedImage(null);
+      setProcessedImage(null);
       setDetectedFaces([]);
-      
-      const img = imageRef.current;
-      
-      if (useFallbackDetection) {
-        // Fallback detection method
-        await detectFacesFallback(img);
-      } else {
-        // Standard face-api detection
-        try {
-          setDetectionProgress(30);
-          setDetectionMessage('Detecting faces...');
-          
-          // Detect faces with face-api.js
-          const detections = await window.faceapi.detectAllFaces(
-            img,
-            new window.faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 })
-          ).withFaceLandmarks();
-          
-          if (!detections || detections.length === 0) {
-            setDetectionProgress(100);
-            setError('No faces detected in the image. Try another image with clearer faces.');
-            setIsProcessing(false);
-            return;
-          }
-          
-          setDetectionProgress(70);
-          setDetectionMessage(`Found ${detections.length} face(s). Analyzing privacy implications...`);
-          
-          // Process detections
-          const faces: DetectedFace[] = detections.map((detection: any) => {
-            const box = detection.detection.box;
-            return {
-              x: box.x,
-              y: box.y,
-              width: box.width,
-              height: box.height,
-              blurred: true // Blur all faces by default
-            };
-          });
-          
-          setDetectedFaces(faces);
-          setFaceCount(faces.length);
-          setDetectionMessage(`Face detection complete. Found ${faces.length} face(s).`);
-          
-          // Wait a moment for UI update
-          await new Promise(resolve => setTimeout(resolve, 300));
-          
-          // Render the processed image
-          updateProcessedImage();
-        } catch (err) {
-          console.error('Error with face-api detection, falling back to simplified method:', err);
-          setUseFallbackDetection(true);
-          await detectFacesFallback(img);
-        }
-      }
-      
-      setDetectionProgress(100);
-      
-    } catch (err) {
-      setError('Error processing the image. Please try again with a different image.');
-      console.error('Face detection error:', err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-  
-  const applyFaceBlur = (ctx: CanvasRenderingContext2D, face: DetectedFace) => {
-    // Save the current state of the canvas
-    ctx.save();
-    
-    // Apply blur if the face should be blurred
-    if (face.blurred) {
-      // Create a temporary canvas for the blurred region
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = face.width;
-      tempCanvas.height = face.height;
-      
-      const tempCtx = tempCanvas.getContext('2d');
-      if (!tempCtx) return;
-      
-      // Draw the face region to the temporary canvas
-      tempCtx.drawImage(
-        ctx.canvas,
-        face.x, face.y, face.width, face.height,
-        0, 0, face.width, face.height
-      );
-      
-      // Apply the blur filter
-      tempCtx.filter = 'blur(15px)';
-      tempCtx.drawImage(tempCanvas, 0, 0);
-      
-      // Draw the blurred face back to the main canvas
-      ctx.drawImage(tempCanvas, face.x, face.y);
-    }
-    
-    // Restore the canvas state
-    ctx.restore();
-  };
-  
-  const toggleFaceBlur = (index: number) => {
-    setDetectedFaces((prevFaces) => {
-      const updatedFaces = [...prevFaces];
-      updatedFaces[index] = {
-        ...updatedFaces[index],
-        blurred: !updatedFaces[index].blurred
-      };
-      
-      return updatedFaces;
-    });
-    
-    // Re-process the image with the updated face blur settings
-    updateProcessedImage();
-  };
-  
-  const updateProcessedImage = async () => {
-    if (!selectedImage) return;
-    
-    const img = new Image();
-    img.src = selectedImage;
-    
-    await new Promise<void>((resolve) => {
-      img.onload = () => resolve();
-    });
-    
-    const canvas = document.createElement('canvas');
-    canvas.width = img.width;
-    canvas.height = img.height;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    // Draw the original image
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    
-    // Apply blur to selected faces
-    detectedFaces.forEach((face) => {
-      applyFaceBlur(ctx, face);
-    });
-    
-    // Update the processed image
-    const processedImageUrl = canvas.toDataURL('image/jpeg', 0.8);
-    setProcessedImage(processedImageUrl);
-  };
-  
-  const resetImage = () => {
-    setSelectedImage(null);
-    setProcessedImage(null);
-    setDetectedFaces([]);
-    setError(null);
-    setProgressMessage('');
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   };
   
@@ -369,49 +257,172 @@ const PrivacyGuardianMain: React.FC = () => {
     }, 5000);
   };
   
-  // Add a fallback detection method
-  const detectFacesFallback = async (imageElement: HTMLImageElement) => {
-    setDetectionMessage('Using simplified detection mode...');
-    
-    // Simple fallback detection - divide image into grid and assume faces in center and thirds
-    const imgWidth = imageElement.width;
-    const imgHeight = imageElement.height;
-    
-    // Create a couple of simulated face regions based on image dimensions
-    const fallbackFaces: DetectedFace[] = [];
-    
-    // Center region (primary face)
-    const centerFaceSize = Math.min(imgWidth, imgHeight) * 0.3;
-    fallbackFaces.push({
-      x: (imgWidth / 2) - (centerFaceSize / 2),
-      y: (imgHeight / 3) - (centerFaceSize / 2),
-      width: centerFaceSize,
-      height: centerFaceSize,
-      blurred: true
-    });
-    
-    // If image is wide enough, add a second face
-    if (imgWidth > imgHeight * 1.5) {
-      const secondFaceSize = centerFaceSize * 0.8;
-      fallbackFaces.push({
-        x: (imgWidth * 0.75) - (secondFaceSize / 2),
-        y: (imgHeight / 3) - (secondFaceSize / 2),
-        width: secondFaceSize,
-        height: secondFaceSize,
-        blurred: true
-      });
+  // Process static image to detect and blur faces
+  const processStaticImage = async () => {
+    if (!selectedImage || !isFaceApiLoaded) {
+      setError(isFaceApiLoaded ? 'Please select an image first' : 'Face detection is not ready yet');
+      return;
     }
     
-    // Set the detected faces
-    setDetectedFaces(fallbackFaces);
-    setFaceCount(fallbackFaces.length);
-    setDetectionMessage(`Simplified detection complete. Estimated ${fallbackFaces.length} face(s).`);
+    setIsProcessing(true);
+    setError(null);
+    setProgressMessage('Processing image...');
     
-    // Wait a moment for UI update
-    await new Promise(resolve => setTimeout(resolve, 300));
+    try {
+      const img = new Image();
+      // Add crossOrigin attribute to handle CORS issues
+      img.crossOrigin = 'anonymous';
+      img.src = selectedImage;
+      
+      // Wait for the image to load
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error('Failed to load image'));
+      });
+      
+      // Create canvas with image dimensions
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      
+      // Draw original image to canvas
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+      
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      
+      // Detect faces in the image
+      setProgressMessage('Detecting faces...');
+      
+      try {
+        // Optimize detection parameters for faster processing
+        // @ts-ignore - faceapi is loaded from CDN
+        const options = new window.faceapi.TinyFaceDetectorOptions({ 
+          scoreThreshold: 0.3,
+          inputSize: 320  // Use smaller input size for faster detection
+        });
+        
+        // @ts-ignore - faceapi is loaded from CDN
+        const detections = await window.faceapi.detectAllFaces(img, options);
+        console.log('Detected faces:', detections.length, detections);
+        
+        // Apply blur to each detected face
+        setProgressMessage(`${detections.length} face(s) detected. Applying privacy protection...`);
+        const faces: DetectedFace[] = [];
+        
+        // Simple and fast pixelation algorithm
+        if (detections.length > 0) {
+          for (const detection of detections) {
+            const box = detection.box;
+            faces.push({
+              x: box.x,
+              y: box.y,
+              width: box.width,
+              height: box.height,
+              blurred: false
+            });
+            
+            // Apply padding around face for better privacy
+            const padding = Math.min(box.width, box.height) * 0.2;
+            const x = Math.max(0, box.x - padding);
+            const y = Math.max(0, box.y - padding);
+            const width = box.width + (padding * 2);
+            const height = box.height + (padding * 2);
+            
+            // Get the face region
+            const faceData = ctx.getImageData(x, y, width, height);
+            
+            // Calculate pixelation size - this is crucial for performance
+            // Larger blocks = faster processing and more obvious privacy protection
+            const pixelSize = Math.max(10, Math.floor(Math.min(width, height) / 10));
+            
+            // Simplified pixelation algorithm (much faster)
+            for (let blockY = 0; blockY < height; blockY += pixelSize) {
+              for (let blockX = 0; blockX < width; blockX += pixelSize) {
+                // Get the color of the first pixel in the block
+                const blockWidth = Math.min(pixelSize, width - blockX);
+                const blockHeight = Math.min(pixelSize, height - blockY);
+                
+                if (blockWidth <= 0 || blockHeight <= 0) continue;
+                
+                // Get the color of the first pixel in this block (faster than averaging)
+                const pixelIndex = (blockY * width + blockX) * 4;
+                const r = faceData.data[pixelIndex];
+                const g = faceData.data[pixelIndex + 1];
+                const b = faceData.data[pixelIndex + 2];
+                
+                // Fill the block with this color
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(x + blockX, y + blockY, blockWidth, blockHeight);
+              }
+            }
+            
+            // Draw bounding box if enabled
+            if (showBoundingBoxes) {
+              ctx.strokeStyle = 'rgba(46, 204, 113, 0.7)';
+              ctx.lineWidth = 3;
+              ctx.strokeRect(x, y, width, height);
+              
+              // Add privacy icon indicator
+              ctx.fillStyle = 'rgba(46, 204, 113, 0.7)';
+              ctx.fillRect(x, y - 25, 20, 20);
+              ctx.fillStyle = 'white';
+              ctx.font = '14px Arial';
+              ctx.fillText('🔒', x + 2, y - 10);
+            }
+          }
+        }
+        
+        // Update state with the processed image and face data
+        setDetectedFaces(faces);
+        setFaceCount(faces.length);
+        setProcessedImage(canvas.toDataURL('image/jpeg', 0.95));
+        setProgressMessage(`Privacy protection applied to ${faces.length} face(s).`);
+      } catch (detectErr) {
+        console.error('Face detection error:', detectErr);
+        setError(`Face detection failed. This may be due to CORS restrictions with the image source. Try using local images instead of external URLs.`);
+        setIsProcessing(false);
+        return;
+      }
+    } catch (err) {
+      console.error('Error processing image:', err);
+      setError(`Failed to process image: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  // Download the processed image
+  const handleDownloadImage = () => {
+    if (!processedImage) return;
     
-    // Render the processed image
-    updateProcessedImage();
+    const link = document.createElement('a');
+    link.href = processedImage;
+    link.download = 'privacy-protected.jpg';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  const handleReset = () => {
+    setSelectedImage(null);
+    setProcessedImage(null);
+    setError(null);
+    setDetectedFaces([]);
+    setProgressMessage('');
+    
+    // Clear the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
+  // Add a new function for handling failed sample image loading
+  const handleSampleImageError = (imageId: string) => {
+    console.warn(`Sample image ${imageId} failed to load`);
+    setError(`The sample image failed to load. This may be due to missing files in the /public/images/privacy/ directory. Please use the file upload option instead.`);
   };
   
   return (
@@ -419,7 +430,7 @@ const PrivacyGuardianMain: React.FC = () => {
       {/* Confetti animation when challenge is completed */}
       <Confetti active={showConfetti} />
       
-      {/* Replace the back button with our new header component */}
+      {/* Header with Challenge Information */}
       <ChallengeHeader
         title="AI Privacy Guardian"
         icon={<Shield className="h-6 w-6 text-emerald-600" />}
@@ -430,225 +441,363 @@ const PrivacyGuardianMain: React.FC = () => {
       />
       
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2 flex items-center">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2 flex items-center">
           <Shield className="mr-2 text-emerald-600" />
           AI Privacy Guardian
-        </h1>
-        <p className="text-gray-600">
-          Identify and blur faces in images to protect privacy and ensure compliance with data protection regulations.
-        </p>
-        {isCompleted && (
-          <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-            <Check size={16} className="mr-1" /> Challenge completed!
-          </div>
-        )}
-      </div>
-      
+          </h1>
+          <p className="text-gray-600">
+          Identify and blur faces in images and video to protect privacy and ensure compliance with data protection regulations.
+          </p>
+          {isCompleted && (
+            <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+              <Check size={16} className="mr-1" /> Challenge completed!
+            </div>
+          )}
+        </div>
+        
       {/* Main content area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Image Privacy Processor</h2>
-              
-              {/* Image selection area */}
-              {!selectedImage ? (
-                <div className="space-y-6">
-                  {/* Upload controls */}
-                  <div>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                      <div className="mt-4 flex flex-col items-center text-sm">
-                        <p className="text-gray-600">
-                          Drag and drop an image with faces, or
-                        </p>
-                        <label className="mt-2 cursor-pointer text-indigo-600 hover:text-indigo-800">
-                          <span>Browse files</span>
-                          <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handleFileUpload}
-                          />
-                        </label>
-                        <p className="mt-2 text-xs text-gray-500">
-                          PNG, JPG, JPEG up to 5MB
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Sample images */}
-                  <div>
-                    <h3 className="text-md font-medium text-gray-700 mb-3">Or select a sample image:</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      {SAMPLE_IMAGES.map((image) => (
-                        <div 
-                          key={image.id}
-                          className="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => handleSampleImageSelect(image.url)}
-                        >
-                          <div className="aspect-w-16 aspect-h-9 bg-gray-100">
-                            <img 
-                              src={image.url} 
-                              alt={image.title}
-                              className="object-cover w-full h-40"
-                            />
-                          </div>
-                          <div className="p-2">
-                            <h4 className="text-sm font-medium text-gray-800">{image.title}</h4>
-                            <p className="text-xs text-gray-500 truncate">{image.description}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">Privacy Protection</h2>
+                
+                {/* Toggle between static and live modes */}
+                <div className="flex items-center space-x-2">
+                  <span className={`text-sm ${!isLiveMode ? 'font-medium text-emerald-600' : 'text-gray-500'}`}>
+                    Image Mode
+                  </span>
+                  <button
+                    onClick={toggleLiveMode}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                      isLiveMode ? 'bg-emerald-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        isLiveMode ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                  <span className={`text-sm ${isLiveMode ? 'font-medium text-emerald-600' : 'text-gray-500'}`}>
+                    Live Camera
+                  </span>
                 </div>
-              ) : (
+                </div>
+                
+              {/* Live mode - real-time face blurring */}
+              {isLiveMode ? (
                 <div className="space-y-4">
-                  {/* Display selected image and tools */}
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-md font-medium text-gray-700">Selected Image</h3>
-                    <div className="space-x-2">
-                      <button
-                        onClick={resetImage}
-                        className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      >
-                        <RefreshCw size={14} className="mr-1" />
-                        Reset
-                      </button>
-                      
-                      <button
-                        onClick={detectFaces}
-                        disabled={isProcessing}
-                        className={`inline-flex items-center px-3 py-1 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white ${
-                          isProcessing ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
-                        }`}
-                      >
-                        {isProcessing ? (
-                          <>
-                            <RefreshCw size={14} className="mr-1 animate-spin" />
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            <Shield size={14} className="mr-1" />
-                            Detect & Blur Faces
-                          </>
-                        )}
-                      </button>
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="p-3 bg-gray-50 border-b flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">Live Privacy Protection</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-gray-500">Faces detected: {faceCount}</span>
+                      </div>
+                    </div>
+                    <div className="p-2 max-h-[500px] flex justify-center bg-black">
+                      <div className="relative w-full max-w-full">
+                        <RealtimeFaceBlur 
+                          blurIntensity={blurIntensity}
+                          showBoundingBoxes={showBoundingBoxes}
+                          onFacesDetected={handleFacesDetected}
+                        />
+                  </div>
                     </div>
                   </div>
                   
-                  {error && (
-                    <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
-                      <div className="flex items-center">
-                        <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-                        <p className="text-sm text-red-700">{error}</p>
-                      </div>
+                  {/* Settings for live mode */}
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="p-3 bg-gray-50 border-b">
+                      <span className="text-sm font-medium text-gray-700 flex items-center">
+                        <Sliders className="w-4 h-4 mr-1" /> 
+                        Privacy Settings
+                        </span>
                     </div>
-                  )}
-                  
-                  {progressMessage && !error && (
-                    <div className="bg-blue-50 border-l-4 border-blue-400 p-3 rounded">
-                      <p className="text-sm text-blue-700">{progressMessage}</p>
-                    </div>
-                  )}
-                  
-                  {/* Image display */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Original image */}
-                    <div className="border rounded-lg overflow-hidden">
-                      <div className="p-2 bg-gray-50 border-b">
-                        <span className="text-sm font-medium text-gray-700">Original Image</span>
-                      </div>
-                      <div className="p-2">
-                        <img 
-                          ref={imageRef}
-                          src={selectedImage} 
-                          alt="Original" 
-                          className="max-w-full h-auto max-h-80 mx-auto"
+                    <div className="p-4 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Protection Intensity: {blurIntensity}%
+                        </label>
+                        <input
+                          type="range"
+                          min="5"
+                          max="30"
+                          value={blurIntensity}
+                          onChange={(e) => setBlurIntensity(parseInt(e.target.value))}
+                          className="w-full"
                         />
                       </div>
+                      
+                      <div className="flex items-center">
+                        <input
+                          id="show-boxes"
+                          type="checkbox"
+                          checked={showBoundingBoxes}
+                          onChange={() => setShowBoundingBoxes(!showBoundingBoxes)}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <label htmlFor="show-boxes" className="ml-2 block text-sm text-gray-700">
+                          Show privacy protection areas
+                        </label>
+                      </div>
                     </div>
-                    
-                    {/* Processed image */}
-                    <div className="border rounded-lg overflow-hidden">
-                      <div className="p-2 bg-gray-50 border-b">
-                        <span className="text-sm font-medium text-gray-700">Processed Image</span>
-                      </div>
-                      <div className="p-2">
-                        {processedImage ? (
-                          <img 
-                            src={processedImage} 
-                            alt="Processed" 
-                            className="max-w-full h-auto max-h-80 mx-auto"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-60 bg-gray-100 text-gray-500 text-sm">
-                            {isProcessing ? (
-                              <div className="flex flex-col items-center">
-                                <RefreshCw size={24} className="animate-spin mb-2" />
-                                <span>Processing...</span>
-                              </div>
-                            ) : (
-                              <span>Click "Detect & Blur Faces" to process the image</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
-                  
-                  {/* Face controls (only show if faces are detected) */}
-                  {detectedFaces.length > 0 && (
-                    <div className="mt-4 border rounded-lg p-4">
-                      <h3 className="text-md font-medium text-gray-700 mb-2">
-                        Face Blurring Controls ({detectedFaces.length} {detectedFaces.length === 1 ? 'face' : 'faces'} detected)
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-3">
-                        Select which faces to blur or unblur:
-                      </p>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                        {detectedFaces.map((face, index) => (
-                          <button
-                            key={index}
-                            onClick={() => toggleFaceBlur(index)}
-                            className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                              face.blurred
-                                ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                                : 'bg-red-100 text-red-800 hover:bg-red-200'
-                            }`}
-                          >
-                            {face.blurred ? (
-                              <>
-                                <Check size={14} className="mr-1" />
-                                Face {index + 1} (Blurred)
-                              </>
-                            ) : (
-                              <>
-                                <X size={14} className="mr-1" />
-                                Face {index + 1} (Visible)
-                              </>
-                            )}
-                          </button>
-                        ))}
+                ) : (
+                /* Image mode - static image processing */
+                <div>
+                  {!selectedImage ? (
+                    <div className="space-y-6">
+                      {/* Upload controls */}
+                      <div>
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                          <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                          <div className="mt-4 flex flex-col items-center text-sm">
+                            <p className="text-gray-600">
+                              Drag and drop an image with faces, or
+                            </p>
+                            <label className="mt-2 cursor-pointer text-indigo-600 hover:text-indigo-800">
+                              <span>Browse files</span>
+                              <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept="image/*"
+                                onChange={handleFileUpload}
+                              />
+                            </label>
+                            <p className="mt-2 text-xs text-gray-500">
+                              PNG, JPG, JPEG up to 5MB
+                            </p>
+                  </div>
+              </div>
+            </div>
+            
+                      {/* Sample images */}
+                      <div>
+                        <h3 className="text-md font-medium text-gray-700 mb-3">Or select a sample image:</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          {SAMPLE_IMAGES.map((image) => (
+                            <div 
+                              key={image.id}
+                              className="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() => handleSampleImageSelect(image.url)}
+                            >
+                              <div className="aspect-w-16 aspect-h-9 bg-gray-100">
+                                <img 
+                                  src={image.url} 
+                                  alt={image.title}
+                                  className="object-cover w-full h-40"
+                                  onError={() => handleSampleImageError(image.id)}
+                                />
+                              </div>
+                              <div className="p-2">
+                                <h4 className="text-sm font-medium text-gray-800">{image.title}</h4>
+                                <p className="text-xs text-gray-500 truncate">{image.description}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Show the selected image with apply blur button */}
+                      <div className="border rounded-lg overflow-hidden">
+                        <div className="p-3 bg-gray-50 border-b flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">
+                            {processedImage ? 'Privacy Protected Results' : 'Selected Image'}
+                          </span>
+                          <button
+                            onClick={() => setSelectedImage(null)}
+                            className="text-sm text-gray-500 hover:text-gray-700"
+                          >
+                            Choose different image
+                          </button>
+                        </div>
+                        <div className="p-2">
+                          {processedImage ? (
+                            <div className="flex flex-col lg:flex-row gap-4">
+                              <div className="flex-1 border rounded overflow-hidden">
+                                <div className="p-2 bg-gray-50 border-b">
+                                  <span className="text-sm font-medium text-gray-700">Original</span>
+                                </div>
+                                <div className="p-2 flex justify-center">
+                                  <img
+                                    src={selectedImage}
+                                    alt="Original"
+                                    className="max-w-full h-auto max-h-[300px]"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex-1 border rounded overflow-hidden">
+                                <div className="p-2 bg-gray-50 border-b">
+                                  <span className="text-sm font-medium text-gray-700">Privacy Protected</span>
+                                </div>
+                                <div className="p-2 flex justify-center">
+                                  <img
+                                    src={processedImage}
+                                    alt="Privacy Protected"
+                                    className="max-w-full h-auto max-h-[300px]"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <img
+                              ref={imageRef}
+                              src={selectedImage}
+                              alt="Selected"
+                              className="max-w-full h-auto max-h-[400px] mx-auto"
+                            />
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Settings for static image mode */}
+                      {!processedImage && (
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="p-3 bg-gray-50 border-b">
+                            <span className="text-sm font-medium text-gray-700 flex items-center">
+                              <Sliders className="w-4 h-4 mr-1" /> 
+                              Privacy Settings
+                            </span>
+                          </div>
+                          <div className="p-4 space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Protection Intensity: {blurIntensity}%
+                              </label>
+                              <input
+                                type="range"
+                                min="5"
+                                max="30"
+                                value={blurIntensity}
+                                onChange={(e) => setBlurIntensity(parseInt(e.target.value))}
+                                className="w-full"
+                              />
+                            </div>
+                            
+                            <div className="flex items-center">
+                              <input
+                                id="show-boxes"
+                                type="checkbox"
+                                checked={showBoundingBoxes}
+                                onChange={() => setShowBoundingBoxes(!showBoundingBoxes)}
+                                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <label htmlFor="show-boxes" className="ml-2 block text-sm text-gray-700">
+                                Show privacy protection areas
+                              </label>
+                            </div>
+                            
+                            <div className="flex justify-between pt-2">
+                              <button
+                                onClick={processStaticImage}
+                                disabled={isProcessing || !isFaceApiLoaded}
+                                className={`px-4 py-2 rounded-md ${
+                                  isProcessing || !isFaceApiLoaded
+                                    ? 'bg-gray-300 cursor-not-allowed'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                }`}
+                              >
+                                {isProcessing ? (
+                                  <span className="flex items-center">
+                                    <RefreshCw className="animate-spin h-4 w-4 mr-2" />
+                                    Processing...
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center">
+                                    <Shield className="h-4 w-4 mr-2" />
+                                    Detect & Blur Faces
+                                  </span>
+                                )}
+                              </button>
+                              
+                              <button
+                                onClick={handleReset}
+                                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Processing status */}
+                      {isProcessing && (
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <div className="flex items-center mb-2">
+                            <RefreshCw className="animate-spin h-5 w-5 text-blue-500 mr-2" />
+                            <span className="text-blue-700 font-medium">{progressMessage || 'Processing image...'}</span>
+                          </div>
+                          <div className="h-2 w-full bg-blue-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Error message */}
+                      {error && (
+                        <div className="bg-red-50 p-3 rounded-lg flex items-start">
+                          <AlertTriangle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                          <span className="text-red-700">{error}</span>
+                        </div>
+                      )}
+                      
+                      {/* Results and download button */}
+                      {processedImage && (
+                        <div className="space-y-4">
+                          <div className="bg-green-50 p-3 rounded-lg">
+                            <div className="flex items-start">
+                              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-green-700 font-medium">Privacy protection applied successfully!</p>
+                                <p className="text-green-600 text-sm mt-1">
+                                  {faceCount > 0
+                                    ? `${faceCount} face${faceCount !== 1 ? 's' : ''} detected and blurred.`
+                                    : 'No faces were detected in this image.'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <button
+                              onClick={handleDownloadImage}
+                              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center"
+                            >
+                              <ImageIcon className="h-5 w-5 mr-2" />
+                              Download Protected Image
+                            </button>
+                            
+                            <button
+                              onClick={handleReset}
+                              className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center justify-center"
+                            >
+                              <RefreshCw className="h-5 w-5 mr-2" />
+                              Process Another Image
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               )}
             </div>
           </div>
-        </div>
-        
+          </div>
+          
         {/* Info panel */}
-        <div className="space-y-6">
+          <div className="space-y-6">
           {/* Challenge instructions */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-5">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-gray-800">Challenge Instructions</h3>
                 <button
@@ -662,15 +811,15 @@ const PrivacyGuardianMain: React.FC = () => {
               {showInstructions && (
                 <div className="space-y-3 text-sm">
                   <p className="text-gray-600">
-                    In this challenge, you'll learn how AI can automatically detect and blur faces in images to protect privacy.
+                    In this challenge, you'll learn how AI can automatically detect and blur faces in images and video to protect privacy.
                   </p>
                   
                   <div className="space-y-1">
                     <h4 className="font-medium text-gray-700">Steps:</h4>
                     <ol className="list-decimal pl-5 text-gray-600 space-y-1">
-                      <li>Upload or select an image with multiple faces.</li>
-                      <li>Click "Detect & Blur Faces" to process the image.</li>
-                      <li>Review the blurred image and adjust which faces to blur if needed.</li>
+                      <li>Toggle to "Live Camera" mode to see real-time privacy protection.</li>
+                      <li>Observe how faces are automatically detected and blurred.</li>
+                      <li>Adjust the blur intensity and other settings.</li>
                       <li>Describe a real-world scenario where this would be useful.</li>
                     </ol>
                   </div>
@@ -685,78 +834,72 @@ const PrivacyGuardianMain: React.FC = () => {
                   </div>
                 </div>
               )}
+              </div>
             </div>
-          </div>
-          
+            
           {/* Challenge completion */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-5">
-              <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
-                <Award size={18} className="mr-2 text-amber-500" />
-                Complete the Challenge
-              </h3>
-              
-              {processedImage ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-5">
+                <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                  <Award size={18} className="mr-2 text-amber-500" />
+                  Complete the Challenge
+                </h3>
+                
                 <div className="space-y-4">
-                  <div>
-                    <label htmlFor="business-scenario" className="block text-sm font-medium text-gray-700 mb-1">
-                      Describe a real scenario where this privacy feature would be valuable:
-                    </label>
-                    <textarea
-                      id="business-scenario"
-                      rows={3}
-                      value={userScenario}
-                      onChange={(e) => setUserScenario(e.target.value)}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                      placeholder="Example: For social media marketing where only employees with consent should be identifiable..."
-                      disabled={isCompleted}
-                    />
-                  </div>
-                  
-                  <button
-                    onClick={handleCompleteChallenge}
-                    disabled={isCompleted || !userScenario.trim()}
+                <div>
+                  <label htmlFor="business-scenario" className="block text-sm font-medium text-gray-700 mb-1">
+                    Describe a real scenario where this privacy feature would be valuable:
+                  </label>
+                  <textarea
+                    id="business-scenario"
+                    rows={3}
+                    value={userScenario}
+                    onChange={(e) => setUserScenario(e.target.value)}
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    placeholder="Example: For social media marketing where only employees with consent should be identifiable..."
+                    disabled={isCompleted}
+                  />
+                </div>
+                
+                <button
+                  onClick={handleCompleteChallenge}
+                  disabled={isCompleted || !userScenario.trim()}
                     className={`w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
                       isCompleted
                         ? 'bg-green-500 cursor-not-allowed'
-                        : !userScenario.trim()
-                          ? 'bg-gray-300 cursor-not-allowed'
-                          : 'bg-indigo-600 hover:bg-indigo-700'
+                      : !userScenario.trim()
+                        ? 'bg-gray-300 cursor-not-allowed'
+                        : 'bg-indigo-600 hover:bg-indigo-700'
                     }`}
                   >
                     {isCompleted ? 'Challenge Completed!' : 'Complete Challenge'}
                   </button>
-                </div>
-              ) : (
-                <div className="bg-gray-50 rounded-md p-4 text-sm text-gray-600">
-                  <p>Process an image first to complete the challenge.</p>
-                </div>
-              )}
+              </div>
+              </div>
             </div>
-          </div>
-          
-          {/* Business impact */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-5">
-              <h3 className="text-lg font-medium text-gray-800 mb-3">Business Impact</h3>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start">
-                  <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+            
+            {/* Business impact */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-5">
+                <h3 className="text-lg font-medium text-gray-800 mb-3">Business Impact</h3>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-start">
+                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
                   <span>Ensures GDPR compliance by protecting identifiable information</span>
-                </li>
-                <li className="flex items-start">
-                  <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                  </li>
+                  <li className="flex items-start">
+                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
                   <span>Saves hours of manual editing in marketing & social media content</span>
-                </li>
-                <li className="flex items-start">
-                  <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                  </li>
+                  <li className="flex items-start">
+                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
                   <span>Protects privacy in surveillance, research, and documentary footage</span>
-                </li>
-                <li className="flex items-start">
-                  <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                  </li>
+                  <li className="flex items-start">
+                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
                   <span>Can be applied to video streams for real-time privacy protection</span>
-                </li>
-              </ul>
+                  </li>
+                </ul>
             </div>
           </div>
         </div>
@@ -764,12 +907,5 @@ const PrivacyGuardianMain: React.FC = () => {
     </div>
   );
 };
-
-// Add this TypeScript declaration if not already present
-declare global {
-  interface Window {
-    faceapi: any;
-  }
-}
 
 export default PrivacyGuardianMain; 

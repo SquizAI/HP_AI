@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Award, CheckCircle, Info } from 'lucide-react';
 import { markChallengeAsCompleted } from '../../utils/userDataManager';
@@ -34,6 +34,37 @@ const ChallengeHeader: React.FC<ChallengeHeaderProps> = ({
   const navigate = useNavigate();
   const [showBackTooltip, setShowBackTooltip] = useState(false);
   const [showCompleteTooltip, setShowCompleteTooltip] = useState(false);
+  
+  // Listen for mobile navigation completion event
+  useEffect(() => {
+    const handleMobileComplete = (e: Event) => {
+      // Trigger the same completion logic as the desktop button
+      if (onCompleteChallenge) {
+        onCompleteChallenge();
+      } else {
+        markChallengeAsCompleted(challengeId);
+        setIsCompleted(true);
+        
+        if (setShowConfetti) {
+          setShowConfetti(true);
+          
+          setTimeout(() => {
+            if (setShowConfetti) {
+              setShowConfetti(false);
+            }
+          }, 5000);
+        }
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('challenge-complete-mobile', handleMobileComplete);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('challenge-complete-mobile', handleMobileComplete);
+    };
+  }, [challengeId, onCompleteChallenge, setIsCompleted, setShowConfetti]);
   
   // Colors for different challenge types
   const baseColors = isHPChallenge 
@@ -86,7 +117,7 @@ const ChallengeHeader: React.FC<ChallengeHeaderProps> = ({
       
       <div className={`bg-white shadow-md py-3 px-4 mb-6 rounded-lg sticky top-0 z-50 ${isHPChallenge ? 'border-l-4 border-blue-500' : ''}`}>
         <div className="flex justify-between items-center">
-          <div className="relative">
+          <div className="relative hidden md:block">
             <button
               onClick={handleBack}
               className={`flex items-center px-4 py-2 ${baseColors.highlight} text-gray-800 rounded-lg transition-colors`}
@@ -108,16 +139,16 @@ const ChallengeHeader: React.FC<ChallengeHeaderProps> = ({
           
           <div className="flex items-center">
             {icon && <span className="mr-2">{icon}</span>}
-            <h1 className="text-xl font-bold hidden md:block">{title}</h1>
+            <h1 className="text-xl font-bold">{title}</h1>
           </div>
           
           {isCompleted ? (
-            <div className={`flex items-center px-4 py-2 ${baseColors.secondary} rounded-lg`}>
+            <div className={`flex items-center px-4 py-2 ${baseColors.secondary} rounded-lg hidden md:flex`}>
               <CheckCircle className="h-5 w-5 mr-2" />
               <span className="font-medium">Challenge Completed!</span>
             </div>
           ) : (
-            <div className="relative">
+            <div className="relative hidden md:block">
               <button
                 onClick={handleCompleteAndReturn}
                 className={`flex items-center px-4 py-2 ${baseColors.completeButton} rounded-lg shadow-sm transition-colors`}

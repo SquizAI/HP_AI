@@ -88,6 +88,7 @@ const AgentMagicMain: React.FC = () => {
     userProgress.completedChallenges.includes('challenge-agent-magic')
   );
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
+  const [isWorkflowRunning, setIsWorkflowRunning] = useState<boolean>(false);
   
   // Check if challenge is already completed on mount
   useEffect(() => {
@@ -125,6 +126,76 @@ const AgentMagicMain: React.FC = () => {
   const selectProject = (project: Project) => {
     setSelectedProject(project);
     setCurrentView('workflow');
+  };
+  
+  // Add the workflow handlers
+  const handleRunWorkflow = () => {
+    setIsWorkflowRunning(true);
+    
+    // Immediately navigate to the chat view
+    setCurrentView('chat');
+    
+    // Create a more realistic simulation of an OpenAI Swarm session
+    // by showing a toast notification
+    const notifyUser = (message: string) => {
+      const toastContainer = document.getElementById('toast-container') || 
+        (() => {
+          const container = document.createElement('div');
+          container.id = 'toast-container';
+          container.className = 'fixed top-4 right-4 z-50 flex flex-col gap-3';
+          document.body.appendChild(container);
+          return container;
+        })();
+      
+      const toast = document.createElement('div');
+      toast.className = 'bg-indigo-600 text-white px-4 py-3 rounded-lg shadow-lg max-w-md';
+      toast.innerHTML = `
+        <div class="flex items-start">
+          <div class="mr-3">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </div>
+          <div>
+            <p class="font-medium">${message}</p>
+          </div>
+        </div>
+      `;
+      
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    };
+    
+    // Simulate OpenAI Swarm agents working sequentially
+    notifyUser("OpenAI Swarm: Initializing agent collaboration...");
+    
+    setTimeout(() => {
+      notifyUser("Agent 1: Research Analyst collecting data...");
+      
+      setTimeout(() => {
+        notifyUser("Agent 2: Data Scientist analyzing findings...");
+        
+        setTimeout(() => {
+          notifyUser("Agent 3: Business Analyst preparing insights...");
+          
+          setTimeout(() => {
+            notifyUser("Agent 4: Content Strategist generating report...");
+            
+            setTimeout(() => {
+              notifyUser("OpenAI Swarm: Workflow completed successfully");
+              setIsWorkflowRunning(false);
+            }, 2000);
+          }, 2000);
+        }, 2000);
+      }, 2000);
+    }, 2000);
+  };
+  
+  const handleWorkflowComplete = () => {
+    setIsWorkflowRunning(false);
   };
   
   return (
@@ -192,9 +263,31 @@ const AgentMagicMain: React.FC = () => {
         </div>
         
         {/* Current View Content */}
-        {currentView === 'hub' && <AgentHub onSelectAgent={setSelectedAgent} />}
-        {currentView === 'workflow' && <WorkflowDesigner />}
-        {currentView === 'chat' && <AgentChat selectedAgent={selectedAgent} />}
+        {currentView === 'hub' && <AgentHub onSelectProject={selectProject} />}
+        {currentView === 'workflow' && 
+          selectedProject ? (
+            <WorkflowDesigner 
+              project={selectedProject as any} 
+              isRunning={isWorkflowRunning} 
+              onRunWorkflow={handleRunWorkflow} 
+            />
+          ) : (
+            <div className="text-center py-10">
+              <p className="text-gray-600">Please select a project first</p>
+              <button 
+                className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                onClick={() => setCurrentView('hub')}
+              >
+                Return to Projects
+              </button>
+            </div>
+          )
+        }
+        {currentView === 'chat' && <AgentChat 
+          project={selectedProject as any} 
+          isWorkflowRunning={isWorkflowRunning}
+          onWorkflowComplete={handleWorkflowComplete}
+        />}
         {currentView === 'gallery' && <ProjectGallery onSelectProject={selectProject} />}
         {currentView === 'education' && <WorkflowEducation />}
       </div>

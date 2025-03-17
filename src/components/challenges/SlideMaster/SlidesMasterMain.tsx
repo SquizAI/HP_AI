@@ -16,8 +16,9 @@ import html2canvas from 'html2canvas';
 import { saveAs } from 'file-saver';
 import { motion, AnimatePresence } from 'framer-motion';
 import OpenAI from 'openai';
+import { getApiKey } from '../../../services/openai';
 import ChallengeHeader from '../../shared/ChallengeHeader';
-import { PresentationIcon } from 'lucide-react';
+import { PresentationIcon, RefreshCwIcon } from 'lucide-react';
 
 /*
  * SLIDE MASTER CHALLENGE REDESIGN PLAN
@@ -159,6 +160,7 @@ export interface Slide {
   generatedImageUrl?: string;
   transition?: TransitionType;
   background?: string;
+  isImageLoading?: boolean;
 }
 
 export interface Theme {
@@ -353,10 +355,10 @@ function showToast(options: ToastOptions): any {
   return toast;
 }
 
-// Add OpenAI client instance
+// Add OpenAI client instance with proper configuration
 const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || 'your-fallback-key',  // Use Vite's environment variable format
-  dangerouslyAllowBrowser: true
+  apiKey: getApiKey() || import.meta.env.VITE_OPENAI_API_KEY || '',
+  dangerouslyAllowBrowser: true // Required for client-side usage
 });
 
 // Helper function to create initial state
@@ -483,6 +485,7 @@ const SlidesMasterMain: React.FC = () => {
   const [showAnalysisOverlay, setShowAnalysisOverlay] = useState(false);
   const [isContentGenerated, setIsContentGenerated] = useState(false);
   const [isSlidesGenerated, setIsSlidesGenerated] = useState(false);
+  const [showProcessModal, setShowProcessModal] = useState(false);
   
   // Add state for challenge completion and confetti
   const [isCompleted, setIsCompleted] = useState<boolean>(
@@ -534,7 +537,8 @@ const SlidesMasterMain: React.FC = () => {
   
   // Helper function for loading toasts
   const showLoadingToast = (options: { title: string; description: string }) => {
-    toastIdRef.current = showToast({
+    // Remove reference to toastIdRef which doesn't exist
+    showToast({
       title: options.title,
       description: options.description,
       status: 'info',
@@ -552,20 +556,83 @@ const SlidesMasterMain: React.FC = () => {
     style: "professional"
   };
 
-  // Update the generatePresentationContentLocal function with proper typing
+  // Add an AIGenerationModal component at the appropriate location after the ProcessModal component
+  const AIGenerationModal = () => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div className="bg-white p-8 rounded-xl max-w-lg w-full shadow-2xl">
+          <div className="mb-6 text-center">
+            <div className="inline-block h-20 w-20 mb-6">
+              <div className="animate-spin h-full w-full border-4 border-t-indigo-600 border-r-purple-500 border-b-blue-600 border-l-transparent rounded-full"></div>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">Creating Your Presentation</h3>
+            <p className="text-gray-600 mb-4">AI is analyzing your topic and crafting professional slides...</p>
+            
+            <div className="w-full bg-gray-200 h-4 rounded-full overflow-hidden mb-6">
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 h-4 rounded-full transition-all duration-300 animate-pulse" style={{ width: '70%' }}></div>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+              <h4 className="font-medium text-indigo-800 flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+                </svg>
+                Generating AI Content
+              </h4>
+              <p className="text-sm text-indigo-600 mt-1">Creating high-quality slides with engaging content and detailed image prompts</p>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-3 text-sm">
+              <div className="flex items-start bg-purple-50 p-3 rounded-lg border border-purple-100">
+                <span className="text-purple-700 mr-2">1.</span>
+                <div>
+                  <h5 className="font-medium text-purple-800">Analyzing Your Topic</h5>
+                  <p className="text-purple-600">Researching key concepts, facts, and trends</p>
+                </div>
+              </div>
+              <div className="flex items-start bg-blue-50 p-3 rounded-lg border border-blue-100">
+                <span className="text-blue-700 mr-2">2.</span>
+                <div>
+                  <h5 className="font-medium text-blue-800">Structuring Content</h5>
+                  <p className="text-blue-600">Creating a logical flow with clear, substantive talking points</p>
+                </div>
+              </div>
+              <div className="flex items-start bg-green-50 p-3 rounded-lg border border-green-100">
+                <span className="text-green-700 mr-2">3.</span>
+                <div>
+                  <h5 className="font-medium text-green-800">Developing Image Concepts</h5>
+                  <p className="text-green-600">Designing visual elements that complement your message</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-6 text-center text-sm text-gray-500">
+            <p>Please wait while AI creates your professional presentation</p>
+            <p className="mt-1">This usually takes 15-30 seconds</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Update the generatePresentationContentLocal function to show the AI generation modal
   const generatePresentationContentLocal = async (topic: string, audience: string) => {
     try {
       setIsGenerating(true);
+      // Show the AI generation modal
+      setShowAIGenerationModal(true);
       
       // Force real data usage
       if (typeof window !== 'undefined' && window.ENV) {
         window.ENV.USE_MOCK_DATA = false;
       }
       
-      showLoadingToast({
-        title: "Generating Content",
-        description: "Creating presentation content from your topic...",
-      });
+      // Start timing
+      const startTime = Date.now();
+      const minProcessingTime = 15000; // Minimum 15 seconds
 
       // Update the state with the topic and audience
       updateState({
@@ -575,51 +642,69 @@ const SlidesMasterMain: React.FC = () => {
       });
 
       let generatedContent = '';
+      let structuredData = null;
       
       // Use OpenAI for content generation instead of mock data
       try {
-        // Create system prompt for structured output
-        const systemPrompt = `You are an expert presentation designer who creates well-structured, professional presentations.
-Generate a 6-slide presentation about the requested topic for the specified audience.
-Each slide should have a clear title and 3-5 bullet points of content.
-For the title slide, include a compelling subtitle.
-For other slides, include suggestions for relevant visuals.
+        // Create detailed system prompt for structured output
+        const systemPrompt = `You are an expert presentation content creator who specializes in creating engaging, informative, and visually descriptive presentations.
+
+Generate a comprehensive 6 slide presentation about the requested topic for the specified audience.
+Each slide should have a clear title, 3-5 detailed bullet points, and a specific image prompt that will be used to generate an AI image.
+
+Create content that is:
+1. Specific and substantive - avoid generic statements
+2. Data-driven where appropriate - include specific statistics and facts
+3. Visually descriptive - provide clear image prompts that will result in compelling visuals
+4. Tailored to the target audience's knowledge level and interests
 
 The presentation should follow this structure:
-1. Title slide with subtitle
-2. Introduction/Overview
-3. Main concept/Problem statement
-4. Benefits/Solutions
-5. Examples/Case studies
-6. Conclusion with call to action
+1. Title slide with compelling subtitle
+2. Introduction/Overview - introducing the key concepts
+3. Problem or Opportunity statement
+4. Key Benefits/Features/Solutions
+5. Supporting Evidence/Case Studies/Examples -Implementation/Next Steps
+7. Conclusion with strong call to action - Optional Q&A/Contact slide
 
-Your response MUST follow this EXACT JSON format:
+For EACH slide, create:
+- A clear, concise title
+- 3-5 substantive bullet points with specific information (not generic placeholders)
+- A detailed image prompt describing what should appear in the slide's visual
+
+Return ONLY valid JSON matching the exact structure shown in the example below:
+
 {
-  "title": "Overall Presentation Title",
+  "title": "Comprehensive Presentation Title",
   "slides": [
     {
       "type": "title",
-      "title": "Title of Slide 1",
-      "subtitle": "Optional subtitle for first slide",
+      "title": "Main Presentation Title",
+      "subtitle": "Compelling subtitle that engages the audience",
       "content": {
-        "bullets": ["Point 1", "Point 2", "Point 3"]
+        "bullets": ["Key message 1", "Key message 2", "Created for [audience]"]
       },
-      "imagePrompt": "Detailed description for AI image generation"
+      "imagePrompt": "Detailed description for AI image generation that shows [specific visual elements]"
     },
     {
       "type": "content",
-      "title": "Title of Slide 2",
+      "title": "Specific Slide Title",
       "content": {
-        "bullets": ["Point 1", "Point 2", "Point 3", "Point 4"]
+        "bullets": [
+          "Specific point with data/evidence", 
+          "Detailed explanation of concept", 
+          "Real-world example or application",
+          "Supporting information or context"
+        ]
       },
       "imagePrompt": "Detailed description for AI image generation"
     }
-    // Remaining slides with similar structure
+    // Remaining slides follow same pattern
   ]
 }`;
 
+        // Use the OpenAI client
         const response = await openai.chat.completions.create({
-          model: "gpt-4-turbo",
+          model: "gpt-4o",
           messages: [
             {
               role: "system",
@@ -627,54 +712,52 @@ Your response MUST follow this EXACT JSON format:
             },
             {
               role: "user",
-              content: `Create a professional presentation about "${topic}" for an audience of "${audience}". Please ensure each slide has a clear title, relevant bullet points, and a detailed image prompt. Make the content engaging, informative, and visually descriptive.`
+              content: `Create a professional presentation about "${topic}" for an audience of "${audience}". 
+              
+The audience needs specific, actionable information - not generic filler content.
+Each slide should have substantive bullet points containing real information, facts, or insights.
+For each slide, include a detailed image prompt that clearly describes what visual elements should appear.
+
+Make sure the content is:
+- Specific to ${topic}
+- Appropriate for ${audience}
+- Factually accurate
+- Engaging and informative`
             }
           ],
           response_format: { type: "json_object" },
           temperature: 0.7,
+          max_tokens: 4000, // Increased token limit for more detailed content
         });
 
-        // Parse the JSON response
-        const structuredOutput = JSON.parse(response.choices[0].message.content || '{}') as OpenAIPresentationResponse;
+        // Parse the JSON response - if there's an error here, we'll catch it below
+        const responseContent = response.choices[0].message.content || '{}';
+        console.log("OpenAI response received:", responseContent.substring(0, 200) + "...");
         
-        // Convert structured output to the expected raw format for backward compatibility
-        generatedContent = `Slide 1: ${structuredOutput.slides[0].title}
-${structuredOutput.slides[0].subtitle ? '• ' + structuredOutput.slides[0].subtitle : ''}
-${structuredOutput.slides[0].content.bullets.map((bullet: string) => '• ' + bullet).join('\n')}
-
-Slide 2: ${structuredOutput.slides[1].title}
-${structuredOutput.slides[1].content.bullets.map((bullet: string) => '• ' + bullet).join('\n')}
-${structuredOutput.slides[1].imagePrompt ? 'Image: ' + structuredOutput.slides[1].imagePrompt : ''}
-
-Slide 3: ${structuredOutput.slides[2].title}
-${structuredOutput.slides[2].content.bullets.map((bullet: string) => '• ' + bullet).join('\n')}
-${structuredOutput.slides[2].imagePrompt ? 'Image: ' + structuredOutput.slides[2].imagePrompt : ''}
-
-Slide 4: ${structuredOutput.slides[3].title}
-${structuredOutput.slides[3].content.bullets.map((bullet: string) => '• ' + bullet).join('\n')}
-${structuredOutput.slides[3].imagePrompt ? 'Image: ' + structuredOutput.slides[3].imagePrompt : ''}
-
-Slide 5: ${structuredOutput.slides[4].title}
-${structuredOutput.slides[4].content.bullets.map((bullet: string) => '• ' + bullet).join('\n')}
-${structuredOutput.slides[4].imagePrompt ? 'Image: ' + structuredOutput.slides[4].imagePrompt : ''}
-
-Slide 6: ${structuredOutput.slides[5].title}
-${structuredOutput.slides[5].content.bullets.map((bullet: string) => '• ' + bullet).join('\n')}
-${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5].imagePrompt : ''}`;
-
-        // Store the structured data for direct use
-        setStructuredSlideData(structuredOutput.slides);
+        structuredData = JSON.parse(responseContent) as OpenAIPresentationResponse;
+        setStructuredSlideData(structuredData.slides || []);
         
-        // Update title from the OpenAI response
-        updateState({
-          title: structuredOutput.title || topic,
-        });
+        // Format the content as text for the raw content view
+        generatedContent = structuredDataToTextContent(structuredData);
         
-        } catch (error) {
-        console.error("Error calling OpenAI:", error);
+        console.log("Generated structured content:", structuredData);
+
+      } catch (error) {
+        console.error("Error calling OpenAI for structured content:", error);
         // Fallback to mock data if OpenAI call fails
-          generatedContent = generateMockPresentationContent(topic, state.presentationStyle, audience);
+        generatedContent = generateMockPresentationContent(topic, state.presentationStyle, audience);
+        setStructuredSlideData([]);
       }
+
+      // Ensure minimum display time for modal
+      const elapsedTime = Date.now() - startTime;
+      if (elapsedTime < minProcessingTime) {
+        await new Promise(resolve => setTimeout(resolve, minProcessingTime - elapsedTime));
+      }
+
+      // Hide the AI generation modal when complete
+      setIsGenerating(false);
+      setShowAIGenerationModal(false);
 
       // Update the state with the generated content
       updateState({
@@ -683,7 +766,6 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
       });
 
       setIsContentGenerated(true);
-      setIsGenerating(false);
 
       showToast({
         title: "Content Generated",
@@ -698,6 +780,7 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
     } catch (error) {
       console.error("Error generating presentation:", error);
       setIsGenerating(false);
+      setShowAIGenerationModal(false);
       showToast({
         title: "Generation Failed",
         description: "There was an error generating your presentation. Please try again.",
@@ -708,36 +791,79 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
     }
   };
 
-  // Restore missing parseContentIntoSlides function
+  // Helper function to convert structured data to text format for raw content view
+  const structuredDataToTextContent = (data: OpenAIPresentationResponse): string => {
+    if (!data || !data.slides || !Array.isArray(data.slides)) {
+      return "Error: Invalid presentation data structure";
+    }
+    
+    let content = `${data.title || "Untitled Presentation"}\n\n`;
+    
+    data.slides.forEach((slide, index) => {
+      content += `Slide ${index + 1}: ${slide.title || "Untitled Slide"}\n`;
+      
+      if (slide.subtitle) {
+        content += `• ${slide.subtitle}\n`;
+      }
+      
+      if (slide.content && Array.isArray(slide.content.bullets)) {
+        slide.content.bullets.forEach(bullet => {
+          content += `• ${bullet}\n`;
+        });
+      }
+      
+      if (slide.imagePrompt) {
+        content += `• Image: ${slide.imagePrompt}\n`;
+      }
+      
+      content += "\n";
+    });
+    
+    return content;
+  };
+
+  // Modify parseContentIntoSlides function to better utilize structured slide data
   const parseContentIntoSlides = (content: string): Slide[] => {
-    // If we have structured data from OpenAI, use that directly
+    // Check if we have structured slide data first
     if (structuredSlideData && structuredSlideData.length > 0) {
+      console.log("Using structured slide data for slide creation");
       return structuredSlideData.map((slideData, index) => {
+        // Map the OpenAI slide data to our Slide interface
+        const slideType: SlideType = 
+          index === 0 ? 'title' :
+          index === structuredSlideData.length - 1 ? 'conclusion' :
+          slideData.type as SlideType || 'content';
+        
+        // Use uuidv4 for more reliable unique IDs
+        // If it's the title slide, give it an explicit title slide ID
+        const slideId = index === 0 ? 'title-slide' : `slide-${uuidv4()}`;
+        
         return {
-          id: `slide-${index + 1}`,
-          type: slideData.type as SlideType,
-          title: slideData.title,
+          id: slideId,
+          type: slideType,
+          title: slideData.title || `Slide ${index + 1}`,
           content: {
-            bullets: slideData.content.bullets,
-            imageDescription: slideData.imagePrompt,
+            bullets: slideData.content?.bullets || [],
+            mainText: slideData.subtitle || '',
+            imageDescription: slideData.imagePrompt || '',
           },
           notes: slideData.notes || '',
-          imagePrompt: slideData.imagePrompt,
+          imagePrompt: slideData.imagePrompt || slideData.title,
         };
       });
     }
     
-    // Otherwise, use the existing parsing logic as fallback
-    const slideDelimiter = /Slide \d+:?/gi;
-    const slideTexts = content.split(slideDelimiter).filter(text => text.trim().length > 0);
+    // Fallback to parsing text content if structured data is not available
+    console.log("Falling back to text content parsing for slides");
     
-    // If we don't get enough slides, make sure we return exactly 6
-    const processedSlides = slideTexts.slice(0, Math.min(6, slideTexts.length));
+    // Split the content into slide sections (unchanged from original)
+    const slideTexts = content.split(/\n\s*\n/).filter(text => text.trim().length > 0);
     
-    // If we have fewer than 6 slides, add empty slides to make up the difference
-    while (processedSlides.length < 6) {
-      processedSlides.push(` Additional Slide ${processedSlides.length + 1}\n• Add your content here\n• Customize this slide`);
-    }
+    // Process slide sections (existing code)
+    const processedSlides = slideTexts.map(slideText => {
+      // Clean up any extra whitespace
+      return slideText.trim();
+    });
     
     return processedSlides.map((slideText, index) => {
       const lines = slideText.trim().split('\n').filter(line => line.trim().length > 0);
@@ -783,42 +909,71 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
   const generateSlides = () => {
     try {
       setIsGenerating(true);
-      showLoadingToast({
-        title: "Creating Slides",
-        description: "Turning your content into beautiful slides...",
-      });
-
+      
+      // Create a timestamp for minimum display time
+      const startTime = Date.now();
+      const minProcessingTime = 15000; // 15 seconds minimum
+      
+      // Show detailed processing modal
+      setShowProcessModal(true);
+      setProcessingMessage("Organizing your content into presentation slides...");
+      
       // Parse the content into slides
       const slides = parseContentIntoSlides(state.rawGeneratedContent);
       
-      // Update the state with the slides
-      updateState({
-        slides: slides,
-        currentStep: STEPS.SLIDES_PREVIEW
-      });
-
-      setIsSlidesGenerated(true);
-      setIsGenerating(false);
-
-      showToast({
-        title: "Slides Created",
-        description: "Your presentation slides are ready!",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-      
-      // Automatically generate images for slides after a brief delay
-      setTimeout(() => {
-        if (slides.length > 0) {
-          generateImagesForSlides(slides);
+      // Simulate longer processing time for better UX feedback
+      setTimeout(async () => {
+        // Update the state with the slides
+        updateState({
+          slides: slides,
+          currentStep: STEPS.SLIDES_PREVIEW
+        });
+        
+        setIsSlidesGenerated(true);
+        
+        // Make sure the processing modal stays visible for at least 15 seconds
+        const processTime = Date.now() - startTime;
+        if (processTime < minProcessingTime) {
+          await new Promise(resolve => setTimeout(resolve, minProcessingTime - processTime));
         }
-      }, 1000);
+        
+        setIsGenerating(false);
+        
+        // Do NOT close the process modal yet, as we're about to generate images
+        // setShowProcessModal(false); - Removing this line
+        
+        showToast({
+          title: "Slides Created",
+          description: "Your presentation slides are ready! Now generating images...",
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+        
+        // Automatically generate images for slides - now we keep the process modal open
+        if (slides.length > 0) {
+          // Update the process modal message for image generation
+          setProcessingMessage("Generating images for your slides...");
+          
+          // Start image generation
+          generateImagesForSlides(slides)
+            .finally(() => {
+              // Only close the process modal after image generation is complete
+              setShowProcessModal(false);
+            });
+        } else {
+          // If there are no slides, close the modal
+          setShowProcessModal(false);
+        }
+        
+      }, 2000); // Small delay for initial processing
       
-        } catch (error) {
+    } catch (error) {
       console.error("Error creating slides:", error);
       setIsGenerating(false);
-        showToast({
+      setShowProcessModal(false);
+      
+      showToast({
         title: "Slide Creation Failed",
         description: "There was an error creating your slides. Please try again.",
         status: "error",
@@ -1334,7 +1489,7 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
       <body class="theme-${state.theme.name.toLowerCase().replace(/\s+/g, '-')}">
         <div class="slides-container">
           ${state.slides.map((slide, index) => `
-            <div class="slide ${index === 0 ? 'active' : index === 1 ? 'next' : ''} ${slide.type === 'title' ? 'title-slide' : ''}" id="slide-${index}">
+            <div class="slide ${index === 0 ? 'active' : index === 1 ? 'next' : ''}" id="slide-${index}" data-key="${slide.id || `slide-${index}`}">
               ${slide.generatedImageUrl ? `<img src="${slide.generatedImageUrl}" alt="${slide.title}" class="slide-background">` : ''}
               <div class="slide-inner">
                 <div class="slide-header">
@@ -1348,7 +1503,7 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
                       ${slide.content.bullets && slide.content.bullets.length > 0 ? `
                         <div class="bullet-points">
                           ${slide.content.bullets.map((bullet, i) => `
-                            <p style="--i: ${i};" class="title-bullet">${bullet}</p>
+                            <p style="--i: ${i};" class="title-bullet" data-key="bullet-${i}">${bullet}</p>
                           `).join('')}
                         </div>
                       ` : ''}
@@ -1360,7 +1515,7 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
                         ${slide.content.bullets && slide.content.bullets.length > 0 ? `
                           <div class="bullet-points">
                             ${slide.content.bullets.map((bullet, i) => `
-                              <div style="--i: ${i};" class="bullet-point">
+                              <div style="--i: ${i};" class="bullet-point" data-key="bullet-${i}">
                                 <span class="bullet-icon">${i + 1}</span>
                                 <span>${bullet}</span>
                               </div>
@@ -1389,7 +1544,7 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
           <div class="slide-indicator">
             <span id="current-slide">1</span>/<span id="total-slides">${state.slides.length}</span>
             <div class="slide-dots" id="slide-dots">
-              ${state.slides.map((_, i) => `<div class="slide-dot ${i === 0 ? 'active' : ''}" data-index="${i}"></div>`).join('')}
+              ${state.slides.map((_, i) => `<div class="slide-dot ${i === 0 ? 'active' : ''}" data-index="${i}" data-key="dot-${i}"></div>`).join('')}
             </div>
           </div>
           <div class="nav-buttons">
@@ -1756,12 +1911,14 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
                   >
                     {isGenerating ? (
                         <div className="flex items-center">
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                          Creating Your Presentation...
-                      </div>
+                          <div className="mr-3 relative">
+                            <div className="animate-spin h-6 w-6 border-3 border-t-indigo-600 border-r-purple-500 border-b-indigo-600 border-l-transparent rounded-full"></div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="h-2 w-2 bg-white rounded-full"></div>
+                            </div>
+                          </div>
+                          <span>Creating Your Presentation...</span>
+                        </div>
                     ) : (
                         <>
                           <span className="mr-2">✨</span> Generate Professional Presentation
@@ -1804,9 +1961,15 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
                   } text-white rounded-md transition-colors`}
                 >
                   {isGenerating ? (
-                    <>
-                      <span className="animate-pulse">Generating Slides...</span>
-                    </>
+                    <div className="flex items-center">
+                      <div className="animate-spin -ml-1 mr-2 h-5 w-5 text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </div>
+                      <span>Processing Slides...</span>
+                    </div>
                   ) : (
                     "Generate Slides"
                   )}
@@ -1896,7 +2059,7 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
                           color: state.theme.secondaryColor 
                         }}
                       >
-                        {slide.content.bullets && slide.content.bullets.length > 0 ? (
+                        {slide.content && slide.content.bullets && slide.content.bullets.length > 0 ? (
                           <ul className="list-disc pl-5 space-y-1 text-sm">
                             {slide.content.bullets.map((bullet, i) => (
                               <li key={i} className="text-sm">{bullet}</li>
@@ -1988,7 +2151,7 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
                           color: state.theme.secondaryColor 
                         }}
                       >
-                        {state.slides[0].content.bullets && state.slides[0].content.bullets.length > 0 && (
+                        {state.slides && state.slides.length > 0 && state.slides[0]?.content?.bullets && state.slides[0].content.bullets.length > 0 && (
                           <p className="text-xl">{state.slides[0].content.bullets[0]}</p>
                         )}
                       </div>
@@ -2175,7 +2338,7 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
                           color: state.theme.secondaryColor 
                         }}
                       >
-                        {currentSlide.content.bullets && currentSlide.content.bullets.length > 0 ? (
+                        {currentSlide.content && currentSlide.content.bullets && currentSlide.content.bullets.length > 0 ? (
                           <ul className="list-disc pl-5 space-y-1">
                             {currentSlide.content.bullets.map((bullet, i) => (
                               <li key={i}>{bullet}</li>
@@ -2496,25 +2659,169 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
   }
 
   const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ currentSlide, totalSlides, message }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-lg max-w-md w-full">
-        <div className="mb-4 text-center">
-          <div className="inline-block animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mb-2"></div>
-          <h3 className="text-lg font-semibold">{message}</h3>
-          <p className="text-gray-600">Processing slide {currentSlide} of {totalSlides}</p>
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-lg max-w-md w-full shadow-2xl">
+        <div className="mb-6 text-center">
+          <div className="inline-block h-16 w-16 mb-4">
+            <div className="animate-spin h-16 w-16 border-4 border-t-blue-600 border-r-indigo-500 border-b-purple-600 border-l-transparent rounded-full"></div>
+          </div>
+          <h3 className="text-xl font-bold text-gray-800 mb-2">{message}</h3>
+          <div className="flex items-center justify-center space-x-2">
+            <div className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-600"></span>
+            </div>
+            <p className="text-gray-600">Processing slide {currentSlide} of {totalSlides}</p>
+          </div>
         </div>
-        <div className="w-full bg-gray-200 h-2 rounded-full">
+        
+        <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden mb-4">
           <div 
-            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-300"
             style={{ width: `${(currentSlide / totalSlides) * 100}%` }}
           ></div>
+        </div>
+        
+        <div className="text-sm text-gray-500 bg-blue-50 p-4 rounded-md border border-blue-100">
+          <p className="font-medium text-blue-800 mb-1">AI is working on your presentation</p>
+          <p>Generating professional images that align with your content. This process takes time to ensure high-quality results.</p>
         </div>
       </div>
     </div>
   );
 
+  // Add a separate function for title slide image generation
+  const generateTitleSlideImage = async (titleSlide: Slide): Promise<boolean> => {
+    if (!titleSlide) return false;
+    
+    console.log("Processing title slide with dedicated function");
+    console.log("Title slide data:", titleSlide);
+    setCurrentProcessingSlide(1);
+    setProcessingMessage(`Generating image for title slide: "${titleSlide.title}"`);
+    
+    // Set loading state for this slide
+    const loadingSlides = [...state.slides];
+    
+    // SIMPLIFIED: Just use the slide passed to this function directly, don't try to find it again
+    try {
+      // Set the loading state for this specific slide
+      const updatedSlide = {
+        ...titleSlide,
+        isImageLoading: true
+      };
+      
+      console.log("Setting loading state for title slide");
+      
+      // Find the index of this slide to update it in the state array
+      const slideIndex = loadingSlides.findIndex(s => s.id === titleSlide.id);
+      if (slideIndex >= 0) {
+        loadingSlides[slideIndex] = updatedSlide;
+        updateState({
+          slides: loadingSlides
+        });
+      } else {
+        console.log("Warning: Using direct slide update since index not found in state");
+        // Add the slide to state if it's not found
+        updateState({
+          slides: [...loadingSlides, updatedSlide]
+        });
+        return false;
+      }
+      
+      // Generate a prompt based on slide content
+      let prompt = "";
+      
+      if (titleSlide.imagePrompt) {
+        prompt = titleSlide.imagePrompt;
+      } else {
+        // Create a prompt based on slide content and type
+        const basePrompt = titleSlide.title || titleSlide.content.mainText || state.generatedPrompt;
+        prompt = `High quality, professional title image for a presentation about "${basePrompt}". Make it visually striking and attention-grabbing. Style: ${state.theme.name}, Audience: ${state.targetAudience}`;
+      }
+      
+      console.log(`Generating image for title slide with prompt: ${prompt}`);
+      
+      // Use generateImage function which is the correct function name
+      const imageUrl = await generateImage(prompt);
+      
+      if (imageUrl) {
+        console.log("Successfully generated image for title slide");
+        
+        // Refresh slides from state to avoid overriding any changes
+        const currentSlides = [...state.slides];
+        
+        // Find the slide index again in case it changed
+        const updatedSlideIndex = currentSlides.findIndex(s => s.id === titleSlide.id);
+        
+        if (updatedSlideIndex >= 0) {
+          currentSlides[updatedSlideIndex] = {
+            ...currentSlides[updatedSlideIndex],
+            generatedImageUrl: imageUrl,
+            isImageLoading: false
+          };
+        
+          updateState({
+            slides: currentSlides
+          });
+        } else {
+          console.log("Warning: Slide not found in state after image generation");
+        }
+        
+        return true;
+      }
+      
+      // Fallback in case of error
+      console.log("Failed to generate image for title slide");
+      
+      // Update slide to remove loading state
+      const currentSlides = [...state.slides];
+      
+      // Find the slide index again in case it changed
+      const updatedSlideIndex = currentSlides.findIndex(s => s.id === titleSlide.id);
+      
+      if (updatedSlideIndex >= 0) {
+        currentSlides[updatedSlideIndex] = {
+          ...currentSlides[updatedSlideIndex],
+          isImageLoading: false
+        };
+        
+        updateState({
+          slides: currentSlides
+        });
+      }
+      
+      return false;
+    } catch (error) {
+      console.error(`Error generating image for title slide:`, error);
+      setProcessingMessage(`Error with title slide image. Continuing with other slides...`);
+      
+      // Update slide to remove loading state
+      const currentSlides = [...state.slides];
+      
+      // Find the slide in state to update
+      const errorSlideIndex = currentSlides.findIndex(s => s.id === titleSlide.id);
+      
+      if (errorSlideIndex >= 0) {
+        currentSlides[errorSlideIndex] = {
+          ...currentSlides[errorSlideIndex],
+          isImageLoading: false
+        };
+        updateState({
+          slides: currentSlides
+        });
+      }
+      
+      // Release UI even if there was an error
+      updateState({ isGeneratingImages: false });
+      setShowProcessModal(false);
+      return false;
+    }
+  };
+
+  // Update the generateImagesForSlides function to directly use slide 0
   const generateImagesForSlides = async (slides: Slide[]) => {
     updateState({ isGeneratingImages: true });
+    setShowProcessModal(true);
     
     try {
       // Force real data usage
@@ -2527,33 +2834,44 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
       
       // Count total slides that need image generation
       const slidesToProcess = updatedSlides.filter(slide => 
-        slide.type !== SlideTypeValues.TITLE && !slide.generatedImageUrl
+        !slide.generatedImageUrl
       );
+      
       setTotalSlidesToProcess(slidesToProcess.length);
       setCurrentProcessingSlide(0);
       
-      showToast({
-        title: "Generating Images",
-        description: "Creating visuals for your slides...",
-        status: "info",
-        duration: 5000,
-        isClosable: true,
-      });
-
-      let processedCount = 0;
-      for (let i = 0; i < updatedSlides.length; i++) {
+      // Update process modal with image generation status
+      setProcessingMessage("Starting image generation for your slides...");
+      
+      // First generate the critical slides (the first 2 slides) with blocking UI
+      let hasProcessedCriticalSlides = false;
+      let priorityCount = 0;
+      const prioritySlides = Math.min(2, updatedSlides.length); // Only process first 2 slides with spinner
+      
+      // Process the priority slides first (with full screen modal)
+      for (let i = 0; i < prioritySlides; i++) {
         const slide = updatedSlides[i];
         
-        // Skip image generation for title slides or slides that already have images
-        if (slide.type === SlideTypeValues.TITLE || (slide.generatedImageUrl && slide.generatedImageUrl.startsWith('http'))) {
+        // Skip slides that already have images
+        if (slide.generatedImageUrl && slide.generatedImageUrl.startsWith('http')) {
+          priorityCount++;
           continue;
         }
         
         try {
           // Update processing progress
-          processedCount++;
-          setCurrentProcessingSlide(processedCount);
-          setProcessingMessage(`Generating image for "${slide.title}"`);
+          setCurrentProcessingSlide(i + 1);
+          setProcessingMessage(`Generating image for priority slide "${slide.title}" (${i + 1}/${prioritySlides})`);
+          
+          // Set loading state for this slide
+          updatedSlides[i] = {
+            ...updatedSlides[i],
+            isImageLoading: true
+          };
+          
+          updateState({
+            slides: [...updatedSlides]
+          });
           
           // Generate a prompt based on slide content
           let prompt = "";
@@ -2564,52 +2882,188 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
             // Create a prompt based on slide content and type
             const basePrompt = slide.title || slide.content.mainText || state.generatedPrompt;
             
-            if (slide.type === SlideTypeValues.IMAGE) {
+            if (slide.type === 'title') {
+              prompt = `High quality, professional title image for a presentation about "${basePrompt}". Make it visually striking and attention-grabbing. Style: ${state.theme.name}, Audience: ${state.targetAudience}`;
+            } else if (slide.type === 'image') {
               prompt = `High quality, professional image for a presentation slide about "${basePrompt}". Make it visually striking and attention-grabbing. Style: ${state.theme.name}, Audience: ${state.targetAudience}`;
-            } else if (slide.type === SlideTypeValues.CHART) {
+            } else if (slide.type === 'chart') {
               prompt = `Professional visualization representing data about "${basePrompt}". Style: ${state.theme.name}, Audience: ${state.targetAudience}`;
             } else {
               prompt = `Professional image related to "${basePrompt}" for a business presentation. Style: ${state.theme.name}, Audience: ${state.targetAudience}`;
             }
           }
           
+          console.log(`Generating image for priority slide ${i} with prompt: ${prompt}`);
+          
           // Generate the image
           const imageUrl = await generateImage(prompt);
           
           if (imageUrl) {
             updatedSlides[i] = {
-              ...slide,
-              generatedImageUrl: imageUrl
+              ...updatedSlides[i],
+              generatedImageUrl: imageUrl,
+              isImageLoading: false
             };
+            
+            priorityCount++;
             successCount++;
             
-            // Update state after each successful image generation
+            console.log(`Image generated successfully for priority slide ${i}`);
+            
+            // Update the state with this slide
             updateState({
-              slides: [...updatedSlides],
-              isGeneratingImages: true // Keep true until all done
+              slides: [...updatedSlides]
+            });
+          } else {
+            // Update slide to remove loading state on failure
+            updatedSlides[i] = {
+              ...updatedSlides[i],
+              isImageLoading: false
+            };
+            
+            updateState({
+              slides: [...updatedSlides]
             });
           }
         } catch (error) {
-          console.error(`Error generating image for slide ${i + 1}:`, error);
+          console.error(`Error generating image for priority slide ${i}:`, error);
+          
+          // Update slide to remove loading state on error
+          updatedSlides[i] = {
+            ...updatedSlides[i],
+            isImageLoading: false
+          };
+          
+          updateState({
+            slides: [...updatedSlides]
+          });
         }
       }
       
-      // Reset progress tracking and update final state
-      setCurrentProcessingSlide(0);
-      setTotalSlidesToProcess(0);
-      
-      updateState({
-        slides: updatedSlides,
-        isGeneratingImages: false
+      // After processing priority slides, release the UI
+      setShowProcessModal(false);
+      updateState({ 
+        slides: [...updatedSlides],
+        isGeneratingImages: false 
       });
       
       showToast({
-        title: `${successCount} Images Generated`,
-        description: "Your presentation now has visuals!",
+        title: "Priority Slides Ready",
+        description: "You can start working with your presentation now. Remaining images will continue loading in the background.",
         status: "success",
         duration: 5000,
         isClosable: true,
       });
+      
+      // Process the remaining slides in the background
+      const remainingSlides = updatedSlides.slice(prioritySlides);
+      if (remainingSlides.length > 0) {
+        // Show background processing indicator
+        setIsBackgroundProcessing(true);
+        setBackgroundProcessingProgress(0);
+        setBackgroundProcessingMessage("Generating remaining images in background...");
+        
+        // Process remaining slides in the background
+        (async () => {
+          for (let i = 0; i < remainingSlides.length; i++) {
+            const slideIndex = i + prioritySlides;
+            const slide = updatedSlides[slideIndex];
+            
+            // Skip slides that already have images
+            if (slide.generatedImageUrl && slide.generatedImageUrl.startsWith('http')) {
+              continue;
+            }
+            
+            try {
+              // Update background processing progress
+              const progress = Math.round((i / remainingSlides.length) * 100);
+              setBackgroundProcessingProgress(progress);
+              setBackgroundProcessingMessage(`Processing slide ${i + 1}/${remainingSlides.length}`);
+              
+              // Set loading state for this slide
+              updatedSlides[slideIndex] = {
+                ...updatedSlides[slideIndex],
+                isImageLoading: true
+              };
+              
+              updateState({
+                slides: [...updatedSlides]
+              });
+              
+              // Generate a prompt based on slide content
+              let prompt = "";
+              
+              if (slide.imagePrompt) {
+                prompt = slide.imagePrompt;
+              } else {
+                // Create a prompt based on slide content and type
+                const basePrompt = slide.title || slide.content.mainText || state.generatedPrompt;
+                
+                if (slide.type === 'title') {
+                  prompt = `High quality, professional title image for a presentation about "${basePrompt}". Make it visually striking and attention-grabbing. Style: ${state.theme.name}, Audience: ${state.targetAudience}`;
+                } else if (slide.type === 'image') {
+                  prompt = `High quality, professional image for a presentation slide about "${basePrompt}". Make it visually striking and attention-grabbing. Style: ${state.theme.name}, Audience: ${state.targetAudience}`;
+                } else if (slide.type === 'chart') {
+                  prompt = `Professional visualization representing data about "${basePrompt}". Style: ${state.theme.name}, Audience: ${state.targetAudience}`;
+                } else {
+                  prompt = `Professional image related to "${basePrompt}" for a business presentation. Style: ${state.theme.name}, Audience: ${state.targetAudience}`;
+                }
+              }
+              
+              // Generate the image
+              const imageUrl = await generateImage(prompt);
+              
+              if (imageUrl) {
+                updatedSlides[slideIndex] = {
+                  ...updatedSlides[slideIndex],
+                  generatedImageUrl: imageUrl,
+                  isImageLoading: false
+                };
+                
+                successCount++;
+                
+                // Update the state with this slide
+                updateState({
+                  slides: [...updatedSlides]
+                });
+              } else {
+                // Update slide to remove loading state on failure
+                updatedSlides[slideIndex] = {
+                  ...updatedSlides[slideIndex],
+                  isImageLoading: false
+                };
+                
+                updateState({
+                  slides: [...updatedSlides]
+                });
+              }
+            } catch (error) {
+              console.error(`Error generating image for background slide ${slideIndex}:`, error);
+              
+              // Update slide to remove loading state on error
+              updatedSlides[slideIndex] = {
+                ...updatedSlides[slideIndex],
+                isImageLoading: false
+              };
+              
+              updateState({
+                slides: [...updatedSlides]
+              });
+            }
+          }
+          
+          // All done - hide background processing indicator
+          setIsBackgroundProcessing(false);
+          
+          showToast({
+            title: "All Images Generated",
+            description: `Successfully created ${successCount} slide images for your presentation.`,
+            status: "success",
+            duration: 5000,
+            isClosable: true,
+          });
+        })();
+      }
       
     } catch (error) {
       console.error("Error generating images:", error);
@@ -2617,8 +3071,10 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
       // Reset progress tracking on error
       setCurrentProcessingSlide(0);
       setTotalSlidesToProcess(0);
+      setIsBackgroundProcessing(false);
       
       updateState({ isGeneratingImages: false });
+      setShowProcessModal(false);
       
       showToast({
         title: "Image Generation Failed",
@@ -2633,34 +3089,52 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
   // Add an AI enhance button in the slides preview section
   const renderSlidesPreview = () => {
     return (
-      <div className="slides-preview-container">
-        <div className="slides-preview-header">
-          <h2>Your Presentation</h2>
-          <div className="slides-preview-actions">
-            <button 
-              className="flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:shadow-md transition-all"
-              onClick={() => generateImagesForSlides(state.slides)}
-            >
-              <span className="mr-1">✨</span> Enhance with AI
-            </button>
-            <button 
-              className="action-button"
-              onClick={handleExport}
-              disabled={state.slides.length === 0}
-            >
-              Export
-            </button>
-            <button 
-              className="action-button secondary"
-              onClick={handleRestart}
-            >
-              Start Over
-            </button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+        {state.slides.map((slide, index) => (
+          <div 
+            key={slide.id || `slide-${index}`}
+            className="relative border hover:border-purple-500 rounded-lg overflow-hidden cursor-pointer group"
+            onClick={() => handleEditSlide(index)}
+          >
+            <div className="aspect-video bg-gray-100 relative">
+              {slide.isImageLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-200 bg-opacity-70">
+                  <div className="animate-spin h-12 w-12 border-4 border-t-purple-600 border-r-purple-400 border-b-purple-600 border-l-transparent rounded-full"></div>
+                </div>
+              )}
+              {slide.generatedImageUrl ? (
+                <img 
+                  src={slide.generatedImageUrl} 
+                  alt={slide.title || `Slide ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              ) : !slide.isImageLoading ? (
+                <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
+                  <span>No image</span>
+                </div>
+              ) : null}
+              
+              <div className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  className="bg-white rounded-full p-1 shadow hover:bg-purple-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRegenerateImage(index);
+                  }}
+                >
+                  <RefreshCwIcon className="h-4 w-4 text-purple-600" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-2 bg-white">
+              <div className="text-xs font-medium truncate">{`Slide ${index + 1}: ${slide.title || 'Untitled'}`}</div>
+              <div className="text-xs text-gray-500 truncate">
+                {slide?.type === 'title' ? 'Title Slide' : (slide?.type || 'Unknown type')}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="slides-preview-content">
-          {/* Add your slides preview content here */}
-        </div>
+        ))}
       </div>
     );
   };
@@ -2693,10 +3167,128 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
     }, 5000);
   };
 
+  // In the SlidesMasterMain component, after the other useState declarations
+  // Around line ~530, add the structuredSlideData state
+  const [structuredSlideData, setStructuredSlideData] = useState<any[]>([]);
+
+  // Add a ProcessModal component for slide generation
+  const ProcessModal = () => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div className="bg-white p-8 rounded-xl max-w-lg w-full shadow-2xl">
+          <div className="mb-6 text-center">
+            <div className="inline-block h-20 w-20 mb-6">
+              <div className="animate-spin h-full w-full border-4 border-t-indigo-600 border-r-purple-500 border-b-blue-600 border-l-transparent rounded-full"></div>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">Creating Your Presentation</h3>
+            <p className="text-gray-600 mb-4">
+              {state.isGeneratingImages 
+                ? "Generating AI images for your slides..." 
+                : "Transforming your content into professional slides..."}
+            </p>
+            
+            <div className="w-full bg-gray-200 h-4 rounded-full overflow-hidden mb-6">
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 h-4 rounded-full transition-all duration-300 animate-pulse" 
+                   style={{ width: state.isGeneratingImages ? '70%' : '80%' }}></div>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+              <h4 className="font-medium text-indigo-800 flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+                </svg>
+                {state.isGeneratingImages 
+                  ? `${processingMessage || "Generating high-quality AI images"}`
+                  : `${processingMessage || "Processing your content"}`}
+              </h4>
+              <p className="text-sm text-indigo-600 mt-1">
+                {state.isGeneratingImages 
+                  ? "AI image generation is resource-intensive and may take some time"
+                  : "Our AI is structuring your content in the most effective way"}
+              </p>
+            </div>
+            
+            {state.isGeneratingImages ? (
+              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                <h4 className="font-medium text-yellow-800 flex items-center">
+                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path>
+                  </svg>
+                  Why is this taking time?
+                </h4>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Creating custom AI images for each slide requires significant processing power. This is the most time-consuming part of building your presentation, but results in unique, high-quality visuals tailored to your content.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                  <h5 className="font-medium text-purple-800">Formatting Content</h5>
+                  <p className="text-purple-600">Organizing titles, bullets, and paragraphs</p>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                  <h5 className="font-medium text-blue-800">Preparing Templates</h5>
+                  <p className="text-blue-600">Selecting optimal slide layouts</p>
+                </div>
+                <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                  <h5 className="font-medium text-green-800">Adding Visuals</h5>
+                  <p className="text-green-600">Preparing for image generation</p>
+                </div>
+                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100">
+                  <h5 className="font-medium text-yellow-800">Applying Design</h5>
+                  <p className="text-yellow-600">Harmonizing with selected theme</p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-6 text-center text-sm text-gray-500">
+            <p>
+              {state.isGeneratingImages 
+                ? "AI image generation typically takes 30-60 seconds to complete"
+                : "This process typically takes 15-30 seconds to complete"}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Add the showAIGenerationModal state variable at the top of the component
+  const [showAIGenerationModal, setShowAIGenerationModal] = useState(false);
+
+  // Add a state for background processing indicator
+  const [isBackgroundProcessing, setIsBackgroundProcessing] = useState(false);
+  const [backgroundProcessingProgress, setBackgroundProcessingProgress] = useState(0);
+  const [backgroundProcessingMessage, setBackgroundProcessingMessage] = useState('');
+
+  // Add a background processing indicator component
+  const BackgroundProcessingIndicator = () => {
+    if (!isBackgroundProcessing) return null;
+    
+    return (
+      <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-xs z-40 border border-gray-200">
+        <div className="flex items-center mb-2">
+          <div className="animate-spin h-5 w-5 border-2 border-indigo-600 border-t-transparent rounded-full mr-2"></div>
+          <h3 className="text-sm font-medium text-gray-700">Background Processing</h3>
+        </div>
+        <p className="text-xs text-gray-500 mb-2">{backgroundProcessingMessage}</p>
+        <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+          <div 
+            className="bg-indigo-600 h-full rounded-full transition-all duration-300"
+            style={{ width: `${backgroundProcessingProgress}%` }}
+          ></div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="container mx-auto p-4 max-w-7xl">
-      <ChallengeHeader
-        title="AI Slide Master Challenge"
+    <div className="container mx-auto py-4 min-h-screen">
+      <ChallengeHeader 
+        title="AI Presentation Creator" 
         icon={<PresentationIcon className="h-6 w-6 text-purple-600" />}
         challengeId="challenge-6"
         isCompleted={isCompleted}
@@ -2707,11 +3299,16 @@ ${structuredOutput.slides[5].imagePrompt ? 'Image: ' + structuredOutput.slides[5
       />
       
       <div className="bg-white shadow-md rounded-lg p-6">
-      {renderCurrentStep()}
+        {renderCurrentStep()}
       </div>
       
       {/* Export Modal */}
       {isExportModalOpen && <ExportModal />}
+      {showProcessModal && <ProcessModal />}
+      {showAIGenerationModal && <AIGenerationModal />}
+      
+      {/* Background Processing Indicator */}
+      <BackgroundProcessingIndicator />
     </div>
   );
 };

@@ -1,2 +1,2 @@
-import DictationWizardMain from './DictationWizardMain';
-export default DictationWizardMain; 
+import SimpleDictationWizard from './SimpleDictationWizard';
+export default SimpleDictationWizard; 
