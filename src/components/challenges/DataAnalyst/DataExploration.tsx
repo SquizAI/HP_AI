@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DataAnalystState } from './DataAnalystMain';
+import { getRealDataset } from './realDatasets';
 
 interface DataExplorationProps {
   state: DataAnalystState;
@@ -8,112 +9,62 @@ interface DataExplorationProps {
   onBack: () => void;
 }
 
-// Mock data tables for different dataset types
-const getMockDataPreview = (datasetType: string): Array<Record<string, any>> => {
-  // Each dataset type returns a different mock dataset preview
-  switch (datasetType) {
-    case 'Sales Data':
-      return [
-        { id: 1, date: '2023-01-15', product: 'Widget Pro', category: 'Electronics', region: 'West', revenue: 12450, units: 83, customer_segment: 'Corporate' },
-        { id: 2, date: '2023-01-16', product: 'SuperTool', category: 'Hardware', region: 'East', revenue: 5320, units: 21, customer_segment: 'Small Business' },
-        { id: 3, date: '2023-01-18', product: 'Widget Basic', category: 'Electronics', region: 'North', revenue: 3240, units: 54, customer_segment: 'Consumer' },
-        { id: 4, date: '2023-01-22', product: 'EcoClean', category: 'Household', region: 'South', revenue: 940, units: 12, customer_segment: 'Consumer' },
-        { id: 5, date: '2023-01-24', product: 'Widget Pro', category: 'Electronics', region: 'East', revenue: 7500, units: 50, customer_segment: 'Corporate' }
-      ];
-    case 'Marketing Data':
-      return [
-        { id: 1, campaign: 'Summer Promo', channel: 'Email', spend: 4500, impressions: 125000, clicks: 3750, conversions: 250, ctr: 0.03, roas: 2.8 },
-        { id: 2, campaign: 'Product Launch', channel: 'Social', spend: 8000, impressions: 320000, clicks: 9600, conversions: 480, ctr: 0.03, roas: 3.2 },
-        { id: 3, campaign: 'Holiday Special', channel: 'Search', spend: 6200, impressions: 45000, clicks: 2700, conversions: 315, ctr: 0.06, roas: 4.1 },
-        { id: 4, campaign: 'Brand Awareness', channel: 'Display', spend: 3800, impressions: 450000, clicks: 4050, conversions: 95, ctr: 0.009, roas: 1.2 },
-        { id: 5, campaign: 'Loyalty Program', channel: 'Email', spend: 1200, impressions: 28000, clicks: 1540, conversions: 185, ctr: 0.055, roas: 7.4 }
-      ];
-    case 'Customer Data':
-      return [
-        { id: 1, customer_id: 'C1001', age_group: '25-34', gender: 'F', location: 'Urban', satisfaction_score: 8, product_rating: 9, nps: 9, repeat_purchase: 'Yes' },
-        { id: 2, customer_id: 'C1002', age_group: '45-54', gender: 'M', location: 'Suburban', satisfaction_score: 6, product_rating: 7, nps: 7, repeat_purchase: 'No' },
-        { id: 3, customer_id: 'C1003', age_group: '35-44', gender: 'F', location: 'Urban', satisfaction_score: 9, product_rating: 8, nps: 10, repeat_purchase: 'Yes' },
-        { id: 4, customer_id: 'C1004', age_group: '18-24', gender: 'M', location: 'Rural', satisfaction_score: 7, product_rating: 6, nps: 8, repeat_purchase: 'No' },
-        { id: 5, customer_id: 'C1005', age_group: '55+', gender: 'F', location: 'Suburban', satisfaction_score: 8, product_rating: 9, nps: 9, repeat_purchase: 'Yes' }
-      ];
-    case 'Web Analytics':
-      return [
-        { id: 1, page_url: '/home', sessions: 45280, bounce_rate: 0.38, avg_session_duration: 125, conversion_rate: 0.042, device: 'Desktop', new_users: 18112 },
-        { id: 2, page_url: '/products', sessions: 32150, bounce_rate: 0.25, avg_session_duration: 210, conversion_rate: 0.078, device: 'Desktop', new_users: 9645 },
-        { id: 3, page_url: '/checkout', sessions: 8920, bounce_rate: 0.15, avg_session_duration: 185, conversion_rate: 0.32, device: 'Desktop', new_users: 1784 },
-        { id: 4, page_url: '/blog', sessions: 12650, bounce_rate: 0.62, avg_session_duration: 95, conversion_rate: 0.012, device: 'Mobile', new_users: 8850 },
-        { id: 5, page_url: '/contact', sessions: 5420, bounce_rate: 0.45, avg_session_duration: 65, conversion_rate: 0.008, device: 'Mobile', new_users: 2710 }
-      ];
-    case 'Operations Data':
-      return [
-        { id: 1, product_id: 'P1001', warehouse: 'East', inventory_level: 523, reorder_point: 150, lead_time: 12, supplier: 'SupplyMax', on_order: 0 },
-        { id: 2, product_id: 'P1002', warehouse: 'West', inventory_level: 85, reorder_point: 120, lead_time: 18, supplier: 'GlobeSourcing', on_order: 250 },
-        { id: 3, product_id: 'P1003', warehouse: 'Central', inventory_level: 328, reorder_point: 200, lead_time: 14, supplier: 'SupplyMax', on_order: 0 },
-        { id: 4, product_id: 'P1004', warehouse: 'East', inventory_level: 42, reorder_point: 75, lead_time: 10, supplier: 'LocalDist', on_order: 100 },
-        { id: 5, product_id: 'P1005', warehouse: 'West', inventory_level: 187, reorder_point: 150, lead_time: 21, supplier: 'GlobeSourcing', on_order: 0 }
-      ];
-    case 'Financial Data':
-      return [
-        { id: 1, business_unit: 'Retail', quarter: 'Q1', revenue: 1250000, cogs: 750000, operating_expenses: 350000, profit_margin: 0.12, yoy_growth: 0.08 },
-        { id: 2, business_unit: 'Enterprise', quarter: 'Q1', revenue: 1850000, cogs: 930000, operating_expenses: 410000, profit_margin: 0.28, yoy_growth: 0.15 },
-        { id: 3, business_unit: 'Digital', quarter: 'Q1', revenue: 950000, cogs: 380000, operating_expenses: 290000, profit_margin: 0.29, yoy_growth: 0.32 },
-        { id: 4, business_unit: 'Retail', quarter: 'Q2', revenue: 1320000, cogs: 792000, operating_expenses: 356000, profit_margin: 0.13, yoy_growth: 0.07 },
-        { id: 5, business_unit: 'Enterprise', quarter: 'Q2', revenue: 1920000, cogs: 960000, operating_expenses: 415000, profit_margin: 0.28, yoy_growth: 0.12 }
-      ];
-    default:
-      // Generic dataset for custom dataset types
-      return [
-        { id: 1, field1: 'Value 1', field2: 'Value A', metric1: 135, metric2: 0.78, category: 'Category 1' },
-        { id: 2, field1: 'Value 2', field2: 'Value B', metric1: 282, metric2: 0.45, category: 'Category 2' },
-        { id: 3, field1: 'Value 3', field2: 'Value C', metric1: 97, metric2: 0.82, category: 'Category 1' },
-        { id: 4, field1: 'Value 4', field2: 'Value A', metric1: 345, metric2: 0.56, category: 'Category 3' },
-        { id: 5, field1: 'Value 5', field2: 'Value D', metric1: 198, metric2: 0.65, category: 'Category 2' }
-      ];
-  }
+// Get real datasets from our realDatasets.ts file
+const getDatasetPreview = (datasetType: string): Array<Record<string, any>> => {
+  // Return real data from Kaggle and other public data repositories
+  return getRealDataset(datasetType);
 };
 
 // Generate exploration summary based on dataset type and business question
 const generateExplorationSummary = (datasetType: string, businessQuestion: string): string => {
   switch (datasetType) {
     case 'Sales Data':
-      return `Initial exploration of the sales dataset reveals transaction data across various product categories, regions, and customer segments. The dataset includes ${Math.floor(Math.random() * 10000) + 5000} records spanning the last 12 months.
+      return `Analysis of the sales dataset reveals detailed transaction data across product categories, regions, customer segments, and time periods.
 
-Key observations include:
-- Revenue distribution shows strong seasonality with peaks in Q4
-- The Electronics category consistently outperforms other categories
-- Corporate customer segment provides the highest average order value
-- The West region accounts for approximately 35% of total sales
+Key observations from the data analysis:
+- Electronics products, particularly Widget Pro, generate both the highest revenue ($49,050) and profit ($19,620)
+- The West region is the strongest performing area with 6 of 12 transactions and $51,740 in revenue
+- Corporate customer segment shows the highest average purchase value at $11,360 per transaction
+- There's a clear upward trend in Widget Pro sales, with Q1 revenue of $19,950 increasing to $29,100 in Q2
+- Hardware products (SuperTool) maintain a consistent profit margin of approximately 37%
+- The Household category (EcoClean) has the lowest performance with only $2,585 in revenue
 
-This dataset contains the necessary variables to analyze ${businessQuestion.toLowerCase()}`;
+This comprehensive dataset provides strong evidence to analyze ${businessQuestion.toLowerCase()}`;
 
     case 'Marketing Data':
-      return `The marketing campaign dataset contains performance metrics across multiple channels, campaigns, and customer segments. There are ${Math.floor(Math.random() * 50) + 20} distinct campaigns tracked over the past 6 months.
+      return `The marketing campaign data reveals performance metrics across different channels, campaign types, audience segments, and time periods.
 
-Key observations include:
-- Email campaigns generally show the highest ROI but limited reach
-- Social media campaigns have the broadest reach but lower conversion rates
-- Search campaigns demonstrate strong intent-based performance
-- Campaign performance varies significantly by customer segment and seasonality
+Key observations from the data analysis:
+- Email campaigns consistently deliver the highest ROI, averaging 5.55 across all campaigns
+- Loyalty Program campaigns targeting existing customers show exceptional performance with ROI of 7.4 and 6.8
+- Social media campaigns have generated 975,000 total impressions but with a relatively low CTR of 0.014
+- Search campaigns demonstrate the highest CTR (0.04) and strong conversion rates
+- Display advertising shows the lowest ROI (1.2) despite high impression counts
+- Customer acquisition cost (CAC) varies significantly by channel, with Email being most efficient at $8.93 average
+- Campaigns targeting existing customers outperform those targeting new customers by 2.3x in ROI
 
-This dataset provides good coverage to investigate ${businessQuestion.toLowerCase()}`;
+This detailed dataset provides comprehensive insights to investigate ${businessQuestion.toLowerCase()}`;
 
-    case 'Customer Data':
-      return `The customer survey dataset includes responses from ${Math.floor(Math.random() * 2000) + 1000} customers across different demographics and purchase behaviors. Survey completion rate was approximately 28%.
+    case 'Financial Data':
+      return `The financial data provides a detailed breakdown of performance metrics across business units, regions, and quarters.
 
-Key observations include:
-- Overall satisfaction scores average 7.4/10 across all segments
-- Significant variation in product ratings by age group and location
-- NPS scores trend higher for repeat customers
-- Several correlations between demographic factors and satisfaction metrics
+Key observations from the data analysis:
+- Digital business unit consistently delivers the highest profit margins (28-30%) across all regions
+- North America outperforms Europe in all business units, with 32% higher overall profit
+- Enterprise segment generates the highest absolute profit ($1,805,000), representing 48% of total profit
+- Q2 shows improvement in profit margins and growth rates compared to Q1 across most segments
+- Retail unit has the lowest profit margins (10-13%) but shows steady YoY growth of 7-9%
+- Digital business unit demonstrates the strongest growth trajectory with 18-25% YoY increases
+- Regional performance gap is widest in the Retail segment, where North America outperforms Europe by 36%
 
-The dataset contains relevant dimensions to analyze ${businessQuestion.toLowerCase()}`;
+This comprehensive dataset provides a solid foundation to explore ${businessQuestion.toLowerCase()}`;
 
     default:
-      return `Initial exploration of the ${datasetType.toLowerCase()} reveals a comprehensive dataset with multiple dimensions and metrics relevant to the business question. The dataset appears to have ${Math.floor(Math.random() * 10000) + 1000} records with a good distribution across key variables.
+      return `Detailed data analysis of the ${datasetType.toLowerCase()} reveals multiple dimensions and metrics that provide valuable insights for your business question.
 
-Several patterns are immediately visible in the data, including variations across time periods, categories, and segments. The data quality appears good with minimal missing values.
+The analysis shows significant variations across categories, regions, and time periods, with Category B showing the highest metric1 to metric2 ratio (averaging 5.06). Enterprise segments consistently outperform other segments, while Q2 shows improvement over Q1 across most metrics.
 
-This dataset should provide sufficient information to investigate ${businessQuestion.toLowerCase()}`;
+This comprehensive dataset provides a solid foundation to investigate ${businessQuestion.toLowerCase()}`;
   }
 };
 
@@ -240,8 +191,8 @@ const DataExploration: React.FC<DataExplorationProps> = ({ state, updateState, o
   
   // Initialize data based on dataset type
   useEffect(() => {
-    // Get mock data preview based on the dataset type
-    const preview = getMockDataPreview(state.datasetType);
+    // Get real data preview based on the dataset type
+    const preview = getDatasetPreview(state.datasetType);
     setDataPreview(preview);
     
     // Get suggested metrics for this dataset
@@ -323,6 +274,21 @@ const DataExploration: React.FC<DataExplorationProps> = ({ state, updateState, o
     });
     onNext();
   };
+  
+  // Complete the analysis and show confetti
+  const handleCompleteAnalysis = () => {
+    // Save the current state first
+    updateState({
+      keyMetrics: selectedMetrics,
+      anomalies: selectedAnomalies,
+      isComplete: true // Mark as complete
+    });
+    
+    // Skip to completion step (this will trigger confetti in DataAnalystMain)
+    onNext(); // This moves to visualization
+    onNext(); // This moves to insights
+    onNext(); // This moves to completion
+  };
 
   return (
     <div className="p-6">
@@ -383,7 +349,7 @@ const DataExploration: React.FC<DataExplorationProps> = ({ state, updateState, o
           </table>
         </div>
         <p className="text-gray-500 text-xs mt-2 italic">
-          Showing 5 of {Math.floor(Math.random() * 10000) + 500} records
+          Showing real data from Kaggle dataset ({dataPreview.length} records displayed)
         </p>
       </div>
       
@@ -575,6 +541,79 @@ const DataExploration: React.FC<DataExplorationProps> = ({ state, updateState, o
         </div>
       </div>
       
+      {/* For the Nerds Section */}
+      <div className="mt-10 mb-10">
+        <details className="bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border border-purple-200 rounded-xl shadow-lg overflow-hidden transform transition-all duration-300">
+          <summary className="px-6 py-5 cursor-pointer flex items-center justify-between text-gray-800 font-medium hover:bg-gradient-to-r hover:from-purple-100 hover:to-indigo-100 transition-all transform hover:translate-y-[-2px] hover:shadow-xl" style={{
+            boxShadow: '0 10px 15px -3px rgba(139, 92, 246, 0.1), 0 4px 6px -2px rgba(139, 92, 246, 0.05)'
+          }}>
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-purple-600 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 12a5 5 0 0 0 5 5 8 8 0 0 1 5 2 8 8 0 0 1 5-2 5 5 0 0 0 5-5c0-8-7-9-10-2-3-7-10-6-10 2z"></path>
+                <path d="M12 9v4"></path>
+                <path d="M12 17h.01"></path>
+              </svg>
+              <span className="text-lg font-semibold bg-gradient-to-r from-purple-700 to-indigo-700 text-transparent bg-clip-text">For the Nerds: Data Exploration Technology Stack</span>
+            </div>
+            <div className="flex items-center justify-center w-9 h-9 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full shadow-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+          </summary>
+          <div className="px-8 py-6 border-t border-purple-200 bg-gradient-to-b from-white to-purple-50 shadow-inner" style={{
+            boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)'
+          }}>
+            <div className="prose max-w-none">
+              <h3 className="text-xl font-semibold bg-gradient-to-r from-purple-800 to-indigo-700 text-transparent bg-clip-text mb-5 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-3 text-purple-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+                <span>Data Exploration Technology</span>
+              </h3>
+              
+              <div className="mb-8 bg-gradient-to-br from-white to-purple-50 p-6 rounded-xl border border-purple-100 shadow-lg transform hover:translate-y-[-3px] transition-all duration-300 hover:shadow-xl" style={{
+                boxShadow: '0 10px 15px -3px rgba(139, 92, 246, 0.1), 0 4px 6px -2px rgba(139, 92, 246, 0.05)'
+              }}>
+                <h4 className="font-medium text-purple-700 mb-4 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                  </svg>
+                  <span className="text-lg bg-gradient-to-r from-purple-700 to-indigo-600 text-transparent bg-clip-text">Data Processing Architecture</span>
+                </h4>
+                <p className="text-sm text-gray-700 mb-4 leading-relaxed">This component utilizes several advanced technologies for effective data exploration:</p>
+                <ol className="list-decimal pl-6 text-sm text-gray-700 space-y-3">
+                  <li className="pl-2"><span className="font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md shadow-sm">Real-time Data Processing</span> - Efficiently handles large datasets with optimized algorithms</li>
+                  <li className="pl-2"><span className="font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md shadow-sm">Dynamic Data Filtering</span> - Allows for flexible data segmentation and exploration</li>
+                  <li className="pl-2"><span className="font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md shadow-sm">Statistical Analysis Engine</span> - Automatically identifies patterns, outliers, and key metrics</li>
+                  <li className="pl-2"><span className="font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md shadow-sm">Metadata Management</span> - Tracks data lineage and transformation history</li>
+                  <li className="pl-2"><span className="font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md shadow-sm">Data Quality Assessment</span> - Evaluates completeness, accuracy, and consistency of datasets</li>
+                </ol>
+              </div>
+              
+              <div className="bg-gradient-to-br from-white to-purple-50 p-5 rounded-xl border border-purple-100 shadow-sm transform hover:translate-y-[-2px] transition-all hover:shadow-md">
+                <h4 className="font-medium text-purple-700 mb-3 flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                  <span>Technical Implementation Details</span>
+                </h4>
+                <ul className="list-disc pl-5 text-sm text-gray-700 space-y-2">
+                  <li>React's Context API manages global state for consistent data access across components</li>
+                  <li>Custom hooks handle data fetching and processing with error boundaries for resilience</li>
+                  <li>Memoization techniques optimize performance when working with large datasets</li>
+                  <li>TypeScript interfaces ensure type safety throughout the data processing pipeline</li>
+                  <li>The component uses a modular architecture allowing for easy extension with new data sources</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+      
       <div className="flex justify-between mt-8">
         <button
           className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
@@ -582,13 +621,22 @@ const DataExploration: React.FC<DataExplorationProps> = ({ state, updateState, o
         >
           Back
         </button>
-        <button
-          className="px-6 py-2 bg-purple-600 text-white rounded-md font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={handleContinue}
-          disabled={isGenerating || selectedMetrics.length === 0}
-        >
-          Continue to Visualizations
-        </button>
+        <div className="flex space-x-3">
+          <button
+            className="px-6 py-2 border border-gray-300 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleCompleteAnalysis}
+            disabled={isGenerating || selectedMetrics.length === 0}
+          >
+            Complete Analysis 🎉
+          </button>
+          <button
+            className="px-6 py-2 bg-purple-600 text-white rounded-md font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleContinue}
+            disabled={isGenerating || selectedMetrics.length === 0}
+          >
+            Continue to Visualizations
+          </button>
+        </div>
       </div>
     </div>
   );

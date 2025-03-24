@@ -8,48 +8,7 @@ interface InsightGenerationProps {
   onBack: () => void;
 }
 
-// Schema for structured insights output from AI
-const INSIGHT_STRUCTURE_SCHEMA = {
-  type: 'object',
-  properties: {
-    insights: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          title: {
-            type: 'string',
-            description: 'Clear, concise title for the insight'
-          },
-          description: {
-            type: 'string',
-            description: 'Detailed explanation of the insight including supporting data'
-          },
-          importance: {
-            type: 'string',
-            enum: ['low', 'medium', 'high'],
-            description: 'Level of importance/impact of this insight'
-          },
-          confidence: {
-            type: 'number',
-            minimum: 0,
-            maximum: 100,
-            description: 'Confidence level in this insight (0-100)'
-          }
-        },
-        required: ['title', 'description', 'importance', 'confidence']
-      }
-    },
-    actionItems: {
-      type: 'array',
-      items: {
-        type: 'string'
-      },
-      description: 'List of recommended actions based on these insights'
-    }
-  },
-  required: ['insights', 'actionItems']
-};
+// The output structure is now described directly in the UI for better user experience
 
 // Mock function to generate insights based on visualizations and data
 const generateInsights = (
@@ -62,15 +21,21 @@ const generateInsights = (
   return new Promise((resolve) => {
     // Simulate API delay
     setTimeout(() => {
-      // Generate different insights based on the dataset type
+      // Generate different insights based on the dataset type and business question
       let insights: DataInsight[] = [];
       let actionItems: string[] = [];
+      
+      // Use keyMetrics to tailor insights to the specific metrics the user is interested in
+      const metricFocus = keyMetrics.length > 0 ? keyMetrics[0] : 'revenue';
+      
+      // Modify the title of the first insight to incorporate the business question
+      const enhancedTitle = `Analysis of ${metricFocus} in relation to ${businessQuestion}`;
       
       switch (datasetType) {
         case 'Sales Data':
           insights = [
             {
-              title: 'Electronics drives revenue but Hardware drives profit',
+              title: enhancedTitle,
               description: 'While Electronics contributes 45% of total revenue, Hardware products have a 37% profit margin, making them more profitable overall despite lower volume. This suggests an opportunity to optimize product mix.',
               importance: 'high',
               confidence: 92
@@ -328,12 +293,18 @@ const InsightGeneration: React.FC<InsightGenerationProps> = ({ state, updateStat
     setActionItems(prev => prev.filter((_, i) => i !== index));
   };
   
-  // Save insights and continue
+  // Save insights and mark challenge as complete with confetti
   const handleContinue = () => {
+    // Update state with insights and action items
     updateState({
       insights: insights,
-      actionItems: actionItems
+      actionItems: actionItems,
+      isComplete: true // Mark the challenge as complete
     });
+    
+    // Instead of just moving to the next step, we'll directly trigger the completion
+    // This will show confetti and mark the challenge as completed
+    // The DataAnalystMain component will handle the confetti animation
     onNext();
   };
   
@@ -430,11 +401,15 @@ const InsightGeneration: React.FC<InsightGenerationProps> = ({ state, updateStat
             
             <div className="mt-4">
               <p className="text-gray-500 text-sm mb-3">
-                <strong>Output Structure:</strong> All insights will be generated with a consistent structure including title, description, importance level, and confidence score.
+                <strong>Output Structure:</strong> All insights will be generated with a consistent structure including:
               </p>
-              <pre className="bg-gray-800 text-green-300 p-3 rounded-md text-xs overflow-x-auto">
-                {JSON.stringify(INSIGHT_STRUCTURE_SCHEMA, null, 2)}
-              </pre>
+              <ul className="text-gray-600 text-sm list-disc pl-5">
+                <li><strong>Title:</strong> Clear, concise label for each insight</li>
+                <li><strong>Description:</strong> Detailed explanation with supporting data</li>
+                <li><strong>Importance Level:</strong> Low, Medium, or High - indicating business impact</li>
+                <li><strong>Confidence Score:</strong> 0-100 rating of statistical confidence</li>
+                <li><strong>Action Items:</strong> Recommended next steps based on these insights</li>
+              </ul>
             </div>
             
             <button
