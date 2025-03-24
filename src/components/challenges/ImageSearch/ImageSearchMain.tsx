@@ -6,8 +6,8 @@ import ImageUploader from './components/ImageUploader';
 import SearchResults from './components/SearchResults';
 import SampleImages from './components/SampleImages';
 
-// Gemini API key from environment variables
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+// Import Gemini API configuration
+import { getGeminiHeaders } from '../../../services/apiConfig';
 
 // Define the search result interface
 interface SearchSuggestion {
@@ -124,10 +124,7 @@ const ImageSearchMain: React.FC = () => {
           }
         },
         {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': GEMINI_API_KEY
-          }
+          headers: getGeminiHeaders()
         }
       );
       

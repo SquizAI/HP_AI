@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserProgress } from '../../utils/userDataManager';
 import ReactConfetti from 'react-confetti';
@@ -16,7 +16,6 @@ import {
   Image, 
   MessageSquare, 
   Layers,
-  Video,
   
   // Business and strategy icons
   Lightbulb, 
@@ -157,6 +156,10 @@ const ChallengeHubNew: React.FC = () => {
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
   const [windowSize, setWindowSize] = useState({width: window.innerWidth, height: window.innerHeight});
   
+  // Refs for scrolling to sections
+  const beginnerChallengesRef = useRef<HTMLDivElement>(null);
+  const hpChallengesRef = useRef<HTMLDivElement>(null);
+  
   // Standard challenges with new ordering and numbering
   const challenges = [
     {
@@ -290,13 +293,13 @@ const ChallengeHubNew: React.FC = () => {
       implementationStatus: 'complete'
     },
     {
-      id: 'challenge-14',
-      title: 'Agent Magic',
-      description: "Create powerful AI agents that can automate complex tasks and workflows.",
+      id: 'challenge-16',
+      title: 'Slide Master',
+      description: "Create professional presentations with AI-powered content generation and design assistance.",
       skillLevel: 'advanced',
-      icon: '✨',
-      modality: 'agent',
-      path: '/challenge/agent-magic',
+      icon: '🎞️',
+      modality: 'presentation',
+      path: '/challenge/slidemaster',
       implementationStatus: 'complete'
     },
     {
@@ -307,6 +310,16 @@ const ChallengeHubNew: React.FC = () => {
       icon: '📊',
       modality: 'analytics',
       path: '/challenge/dataanalyst',
+      implementationStatus: 'complete'
+    },
+    {
+      id: 'challenge-14',
+      title: 'Agent Magic',
+      description: "Create powerful AI agents that can automate complex tasks and workflows.",
+      skillLevel: 'advanced',
+      icon: '✨',
+      modality: 'agent',
+      path: '/challenge/agent-magic',
       implementationStatus: 'complete'
     },
 
@@ -367,7 +380,7 @@ const ChallengeHubNew: React.FC = () => {
       'challenge-16',
       // Alternative IDs for specific challenges
       'challenge-ocr', 'challenge-creative-vision', 'challenge-object-detection',
-      'challenge-privacy-guardian',
+      'challenge-privacy-guardian', 'slide-master',
       // HP challenges
       'hp-challenge-1', 'hp-challenge-2', 'hp-challenge-3'
     ].includes(challengeId);
@@ -722,13 +735,23 @@ const ChallengeHubNew: React.FC = () => {
           
           {/* Call to action buttons */}
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
-            <button className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 flex items-center font-medium">
+            <button 
+              onClick={() => {
+                beginnerChallengesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }} 
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 flex items-center font-medium"
+            >
               <span>Explore Challenges</span>
               <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
               </svg>
             </button>
-            <button className="px-6 py-3 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-lg shadow-md hover:bg-white/20 transition-all duration-300">
+            <button 
+              onClick={() => {
+                hpChallengesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="px-6 py-3 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-lg shadow-md hover:bg-white/20 transition-all duration-300"
+            >
               Learn About HP AI
             </button>
           </div>
@@ -829,7 +852,7 @@ const ChallengeHubNew: React.FC = () => {
       
       {/* Beginner Challenges Section */}
       {beginnerChallenges.length > 0 && (
-        <div className="mb-12 flex flex-col items-center relative">
+        <div ref={beginnerChallengesRef} className="mb-12 flex flex-col items-center relative">
           <div className="absolute inset-0 opacity-10 bg-repeat z-0" style={{ backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMwLTkuOTQtOC4wNi0xOC0xOC0xOHY2YzYuNjMgMCAxMiA1LjM3IDEyIDEyaC02YzkuOTQgMCAxOC04LjA2IDE4LTE4eiIgZmlsbD0iI0UwRjJGMSIvPjwvZz48L3N2Zz4=')" }}></div>
           <div className="flex flex-col sm:flex-row items-center justify-center mb-6 w-full text-center relative z-10">
             <div className="flex items-center mb-2 sm:mb-0">
@@ -887,7 +910,7 @@ const ChallengeHubNew: React.FC = () => {
                         </div>
                       </div>
                       
-                      <h3 className={`text-lg font-semibold mb-2 ${isCompleted(challenge.id) ? 'text-white' : 'text-gray-800'}`}>
+                      <h3 className={`text-xl font-bold tracking-tight leading-tight transition-colors mt-2 mb-3 ${isCompleted(challenge.id) ? 'text-white hover:text-white/90' : `text-${modalityTypes[challenge.modality as keyof typeof modalityTypes]?.color.replace('#', '')} hover:opacity-80`}`} style={{ color: isCompleted(challenge.id) ? undefined : modalityTypes[challenge.modality as keyof typeof modalityTypes]?.color }}>
                         {challenge.title}
                       </h3>
                       
@@ -1019,7 +1042,7 @@ const ChallengeHubNew: React.FC = () => {
                         </div>
                       </div>
                       
-                      <h3 className={`text-lg font-semibold mb-2 ${isCompleted(challenge.id) ? 'text-white' : 'text-gray-800'}`}>
+                      <h3 className={`text-xl font-bold tracking-tight leading-tight transition-colors mt-2 mb-3 ${isCompleted(challenge.id) ? 'text-white hover:text-white/90' : `text-${modalityTypes[challenge.modality as keyof typeof modalityTypes]?.color.replace('#', '')} hover:opacity-80`}`} style={{ color: isCompleted(challenge.id) ? undefined : modalityTypes[challenge.modality as keyof typeof modalityTypes]?.color }}>
                         {challenge.title}
                       </h3>
                       
@@ -1151,7 +1174,7 @@ const ChallengeHubNew: React.FC = () => {
                         </div>
                       </div>
                       
-                      <h3 className={`text-lg font-semibold mb-2 ${isCompleted(challenge.id) ? 'text-white' : 'text-gray-800'}`}>
+                      <h3 className={`text-xl font-bold tracking-tight leading-tight transition-colors mt-2 mb-3 ${isCompleted(challenge.id) ? 'text-white hover:text-white/90' : `text-${modalityTypes[challenge.modality as keyof typeof modalityTypes]?.color.replace('#', '')} hover:opacity-80`}`} style={{ color: isCompleted(challenge.id) ? undefined : modalityTypes[challenge.modality as keyof typeof modalityTypes]?.color }}>
                         {challenge.title}
                       </h3>
                       
@@ -1225,7 +1248,7 @@ const ChallengeHubNew: React.FC = () => {
       
       {/* HP Partner Challenges Section */}
       {partnerChallenges.length > 0 && (
-        <div className="mb-12 relative">
+        <div ref={hpChallengesRef} className="mb-12 relative">
           {/* HP branding background with premium effect */}
           <div className="absolute -inset-6 bg-gradient-to-r from-[#0096D6]/10 to-indigo-50 rounded-xl -z-10"></div>
           <div className="absolute -inset-1 border-2 border-dashed border-[#0096D6]/30 rounded-lg -z-5 opacity-50"></div>
@@ -1314,7 +1337,7 @@ const ChallengeHubNew: React.FC = () => {
                         </span>
                       </div>
                       
-                      <h3 className={`text-lg font-semibold mb-2 ${isCompleted(challenge.id) ? 'text-white' : 'text-gray-800'}`}>
+                      <h3 className={`text-xl font-bold tracking-tight leading-tight transition-colors mt-2 mb-3 ${isCompleted(challenge.id) ? 'text-white hover:text-white/90' : `text-${modalityTypes[challenge.modality as keyof typeof modalityTypes]?.color.replace('#', '')} hover:opacity-80`}`} style={{ color: isCompleted(challenge.id) ? undefined : modalityTypes[challenge.modality as keyof typeof modalityTypes]?.color }}>
                         {challenge.title}
                       </h3>
                       

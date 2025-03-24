@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Award, ChevronDown, ChevronUp, CheckCircle, PieChart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Award, ChevronDown, ChevronUp, CheckCircle, PieChart, Home } from 'lucide-react';
 import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
 import Confetti from '../../shared/Confetti';
 import ChallengeHeader from '../../shared/ChallengeHeader';
 
 const HPPowerBIMain: React.FC = () => {
+  const navigate = useNavigate();
   // User progress tracking
   const [userProgress, setUserProgress] = useUserProgress();
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
@@ -277,6 +279,17 @@ const HPPowerBIMain: React.FC = () => {
             </ul>
           </div>
         )}
+      </div>
+      
+      {/* Back to Challenge Hub Button */}
+      <div className="mt-6 text-center">
+        <button
+          onClick={() => navigate('/')}
+          className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+        >
+          <Home className="w-4 h-4 mr-2" />
+          Back to Challenge Hub
+        </button>
       </div>
     </div>
   );

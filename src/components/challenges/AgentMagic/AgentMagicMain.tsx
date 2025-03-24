@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
 import {
   Sparkles,
@@ -33,7 +34,8 @@ import {
   ExternalLink,
   BookOpen,
   HelpCircle,
-  Info
+  Info,
+  Home
 } from 'lucide-react';
 
 // Import sub-components
@@ -80,6 +82,7 @@ interface Project {
 
 // Main component
 const AgentMagicMain: React.FC = () => {
+  const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<'hub' | 'workflow' | 'chat' | 'gallery' | 'education'>('hub');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<AgentConfig | null>(null);
@@ -120,12 +123,24 @@ const AgentMagicMain: React.FC = () => {
   // Navigate to different views
   const navigateTo = (view: 'hub' | 'workflow' | 'chat' | 'gallery' | 'education') => {
     setCurrentView(view);
+    // Scroll to the top when changing views
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'auto'
+    });
   };
   
   // Select a project
   const selectProject = (project: Project) => {
     setSelectedProject(project);
     setCurrentView('workflow');
+    // Scroll to the top when selecting a project
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'auto'
+    });
   };
   
   // Add the workflow handlers
@@ -134,6 +149,13 @@ const AgentMagicMain: React.FC = () => {
     
     // Immediately navigate to the chat view
     setCurrentView('chat');
+    
+    // Scroll to the top when running a workflow
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'auto'
+    });
     
     // Create a more realistic simulation of an OpenAI Swarm session
     // by showing a toast notification
@@ -203,7 +225,7 @@ const AgentMagicMain: React.FC = () => {
       <ChallengeHeader
         title="Agent Magic Challenge"
         icon={<Sparkles className="h-6 w-6 text-yellow-600" />}
-        challengeId="challenge-agent-magic"
+        challengeId="challenge-16"
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
         showConfetti={showConfetti}
@@ -290,6 +312,17 @@ const AgentMagicMain: React.FC = () => {
         />}
         {currentView === 'gallery' && <ProjectGallery onSelectProject={selectProject} />}
         {currentView === 'education' && <WorkflowEducation />}
+      </div>
+      
+      {/* Back to Challenge Hub Button */}
+      <div className="mt-6 text-center">
+        <button
+          onClick={() => navigate('/')}
+          className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+        >
+          <Home className="w-4 h-4 mr-2" />
+          Back to Challenge Hub
+        </button>
       </div>
     </div>
   );

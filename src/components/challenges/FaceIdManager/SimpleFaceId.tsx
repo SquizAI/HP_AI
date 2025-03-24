@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, User, Shield, CheckCircle, XCircle, RefreshCw, AlertTriangle, Info, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Camera, User, Shield, CheckCircle, XCircle, RefreshCw, Info, Lock, Home, Brain } from 'lucide-react';
 import ChallengeHeader from '../../shared/ChallengeHeader';
+import { useChallengeStatus } from '../../../utils/userDataManager';
+import Confetti from '../../shared/Confetti';
 
 // Sample images for demo
 // In a real application, these would be stored in an assets folder
@@ -71,6 +74,7 @@ const SAMPLE_AUTHORIZED_PEOPLE = [
 ];
 
 // Privacy concerns and considerations
+// Used in the privacy concerns section rendered by renderPrivacyConcerns
 const PRIVACY_CONCERNS = [
   {
     title: "Data Storage",
@@ -207,6 +211,34 @@ const styles = `
     100% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
   }
   
+  .info-button-pulse {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .info-button-pulse::after {
+    content: '';
+    display: block;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.3) 10%, transparent 10.5%);
+    background-position: 50%;
+    background-repeat: no-repeat;
+    background-size: 1000% 1000%;
+    opacity: 0;
+    animation: info-ripple 2.5s infinite ease-out;
+  }
+  
+  @keyframes info-ripple {
+    0% { opacity: 0; }
+    30% { opacity: 1; }
+    100% { background-size: 100% 100%; opacity: 0; }
+  }
+  
   .scan-line {
     height: 4px;
     background: linear-gradient(to right, rgba(59, 130, 246, 0), rgba(59, 130, 246, 0.8), rgba(59, 130, 246, 0));
@@ -308,6 +340,17 @@ const styles = `
  * Uses a simplified approach without complex face recognition libraries
  */
 const SimpleFaceId: React.FC = () => {
+  const navigate = useNavigate();
+  // Use the standardized hook for challenge status management
+  const { 
+    isCompleted, 
+    setIsCompleted, 
+    showConfetti, 
+    setShowConfetti,
+    handleCompleteChallenge,
+    challengeId 
+  } = useChallengeStatus('challenge-3'); // Use standard ID from ChallengeHubNew.tsx
+  
   // ---------- STATE ----------
   // Core state
   const [mode, setMode] = useState<'idle' | 'register' | 'verify'>('idle');
@@ -325,16 +368,13 @@ const SimpleFaceId: React.FC = () => {
   const [processingMessage, setProcessingMessage] = useState('');
   
   // UI state
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [showExplainer, setShowExplainer] = useState(true);
+  const [showExplainer, setShowExplainer] = useState(false);
   const [selectedSampleFace, setSelectedSampleFace] = useState<{
     name: string;
     image: string;
     authorized: boolean;
     description: string;
   } | null>(null);
-  const [showVerifyAnimation, setShowVerifyAnimation] = useState(false);
   
   // Verification results
   const [verificationResult, setVerificationResult] = useState<{
@@ -388,6 +428,14 @@ const SimpleFaceId: React.FC = () => {
     // This assumes they've already seen the educational content
     if (localStorage.getItem('simpleFaceId_userName')) {
       setShowExplainer(false);
+    }
+    
+    // Check if the challenge has been completed before
+    // Use the correct challenge ID (challenge-3) to check completion status
+    const isAlreadyCompleted = localStorage.getItem('userProgress');
+    if (isAlreadyCompleted) {
+      const userProgress = JSON.parse(isAlreadyCompleted);
+      setIsCompleted(userProgress.completedChallenges.includes('challenge-3'));
     }
     
     // For demo purposes, we'll assume models are loaded
@@ -677,12 +725,17 @@ const SimpleFaceId: React.FC = () => {
           ))}
         </div>
       </div>
+
+
       
       <button 
         onClick={() => setShowExplainer(false)}
-        className="mt-6 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md"
+        className="mt-6 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md flex items-center"
       >
-        Hide Explainer
+        <span>Hide Educational Content</span>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        </svg>
       </button>
     </div>
   );
@@ -959,6 +1012,11 @@ const SimpleFaceId: React.FC = () => {
       setStatusMessage(face.authorized 
         ? `${face.name} has been verified and granted access.`
         : `${face.name} is not authorized for access.`);
+      
+      // Mark challenge as completed using the standardized handler
+      // This ensures it's properly reflected in the Challenge Hub
+      handleCompleteChallenge();
+      
     } catch (error) {
       console.error("Error testing sample face:", error);
       setErrorMessage("Failed to process sample face. Please try again.");
@@ -976,31 +1034,18 @@ const SimpleFaceId: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">Face ID Challenge</h2>
         
         <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-          <button
-            onClick={() => handleModeSelect('register')}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-sm sm:text-base"
-          >
-            Register New Face
-          </button>
-          
-          <button
-            onClick={() => handleModeSelect('verify')}
-            className={`w-full py-3 ${
-              isRegistered
-                ? 'bg-green-600 hover:bg-green-700'
-                : 'bg-gray-400 cursor-not-allowed'
-            } text-white rounded-lg font-medium transition-colors text-sm sm:text-base`}
-            disabled={!isRegistered}
-          >
-            Verify My Identity {isRegistered && `(${registeredUser})`}
-          </button>
           
           <button
             onClick={() => setShowExplainer(true)}
-            className="w-full py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded-lg font-medium transition-colors flex items-center justify-center text-sm sm:text-base"
+            className="w-full py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded-lg font-medium transition-colors flex items-center justify-center text-sm sm:text-base info-button-pulse relative"
           >
-            <Info className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-            Learn About Facial Recognition
+            <Info className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 animate-bounce" />
+            <span className="flex items-center">
+              Learn About Facial Recognition
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
           </button>
         </div>
         
@@ -1316,15 +1361,58 @@ const SimpleFaceId: React.FC = () => {
   // ---------- MAIN RENDER ----------
   return (
     <div className="max-w-3xl mx-auto p-2 sm:p-4">
+      {/* Show confetti animation when challenge is completed */}
+      {showConfetti && <Confetti active={showConfetti} />}
+      
       <ChallengeHeader
         title="Face ID Challenge"
         icon={<User className="h-6 w-6 text-blue-600" />}
-        challengeId="challenge-7"
+        challengeId={challengeId}
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
         showConfetti={showConfetti}
         setShowConfetti={setShowConfetti}
+        onCompleteChallenge={handleCompleteChallenge}
       />
+      
+      {/* How AI Works for You section */}
+      <div className="bg-gradient-to-r from-white to-purple-50 rounded-xl shadow-sm border border-purple-100 p-4 mb-4">
+        <h2 className="text-lg font-semibold text-purple-700 mb-3 flex items-center">
+          <Lock size={20} className="mr-2 text-purple-500" />
+          How AI Works for You:
+        </h2>
+        <p className="text-gray-700 mb-4 border-l-4 border-purple-300 pl-4">
+          AI-powered facial recognition is transforming security and access control, making identity verification fast, seamless, and smart. In this challenge, you'll select sample images and watch AI in action as it determines whether they are authorized users in a simulated business setting. Using deep learning, AI maps key facial features—like eye distance and jawline shape—to create a unique digital "faceprint" for verification. See firsthand how AI enhances security, speeds up check-ins, and ensures only the right people get access!
+        </p>
+      </div>
+      
+      {/* Challenge Steps Quick View */}
+      <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl shadow-sm border border-purple-100 p-4 mb-6">
+        <h2 className="text-lg font-semibold text-purple-700 mb-3 flex items-center">
+          <CheckCircle size={20} className="mr-2 text-purple-500" />
+          Challenge Steps Quick View:
+        </h2>
+        <ul className="space-y-3">
+          <li className="flex items-start bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+            <span className="text-green-500 mr-2 font-bold text-xl">✔</span>
+            <span>
+              <span className="text-purple-600 font-medium">Step 1:</span> Read through the Understanding Facial Recognition section.
+            </span>
+          </li>
+          <li className="flex items-start bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+            <span className="text-green-500 mr-2 font-bold text-xl">✔</span>
+            <span>
+              <span className="text-purple-600 font-medium">Step 2:</span> Select a sample image and let AI perform facial recognition.
+            </span>
+          </li>
+          <li className="flex items-start bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+            <span className="text-green-500 mr-2 font-bold text-xl">✔</span>
+            <span>
+              <span className="text-purple-600 font-medium">Step 3:</span> Challenge Completed! Click Complete & Return!
+            </span>
+          </li>
+        </ul>
+      </div>
       
       <div className="bg-blue-50 border-l-4 border-blue-500 p-3 sm:p-4 mb-3 sm:mb-4 rounded-r-md">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
@@ -1384,6 +1472,81 @@ const SimpleFaceId: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+      
+      {/* For the Nerds - Technical Details */}
+      <div className="mt-12 border-t border-gray-200 pt-8">
+        <details className="group bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <summary className="flex items-center justify-between cursor-pointer p-5 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-blue-700" />
+              <h3 className="text-lg font-semibold text-blue-800">For the Nerds - Technical Details</h3>
+            </div>
+            <div className="bg-white rounded-full p-1 shadow-sm">
+              <svg className="h-5 w-5 text-blue-600 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </summary>
+          
+          <div className="p-5 border-t border-gray-200 bg-white">
+            <div className="prose max-w-none text-gray-600 text-sm space-y-4">
+              <div>
+                <h4 className="text-blue-700 font-medium">Face Detection Algorithms</h4>
+                <p>This challenge uses <strong>TensorFlow.js</strong> and the <strong>face-api.js</strong> library, which implements several neural network models:</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li><strong>SSD Mobilenet V1</strong> - A single-shot detection model optimized for speed and efficiency on web browsers</li>
+                  <li><strong>Tiny Face Detector</strong> - A lightweight alternative that prioritizes performance over accuracy</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="text-blue-700 font-medium">Face Recognition Pipeline</h4>
+                <p>The facial recognition process follows these technical steps:</p>
+                <ol className="list-decimal pl-5 mt-2 space-y-1">
+                  <li><strong>Face Detection</strong> - Locates faces in the image and returns bounding boxes</li>
+                  <li><strong>Facial Landmark Detection</strong> - Identifies 68 key points on each face (eyes, nose, mouth, etc.)</li>
+                  <li><strong>Face Alignment</strong> - Normalizes face position based on landmarks</li>
+                  <li><strong>Feature Extraction</strong> - Generates a 128-dimensional face descriptor (embedding vector)</li>
+                  <li><strong>Similarity Calculation</strong> - Computes Euclidean distance between face descriptors to determine match probability</li>
+                </ol>
+              </div>
+              
+              <div>
+                <h4 className="text-blue-700 font-medium">Neural Network Architecture</h4>
+                <p>The face recognition models use convolutional neural networks (CNNs) based on the FaceNet architecture. Key technical aspects include:</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li>Pre-trained on millions of face images using triplet loss function</li>
+                  <li>Model size optimized for browser performance (~2-6MB depending on model)</li>
+                  <li>WebGL acceleration for tensor operations when available</li>
+                  <li>Quantized weights to reduce memory footprint</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="text-blue-700 font-medium">Performance Considerations</h4>
+                <p>Several optimizations are implemented to ensure smooth performance:</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li>Asynchronous model loading to prevent UI blocking</li>
+                  <li>Frame rate throttling during video processing</li>
+                  <li>Canvas-based rendering for efficient visualization</li>
+                  <li>WebWorkers for computation-heavy tasks when supported</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+      
+      {/* Back to Challenge Hub Button */}
+      <div className="mt-6 text-center">
+        <button
+          onClick={() => navigate('/')}
+          className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+        >
+          <Home className="w-4 h-4 mr-2" />
+          Back to Challenge Hub
+        </button>
       </div>
     </div>
   );

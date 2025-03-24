@@ -122,7 +122,7 @@ const GALLERY_PROJECTS: Project[] = [
     description: 'Create a complete event marketing campaign including promotional materials, email sequences, registration pages, and follow-up content.',
     industry: 'Event Marketing',
     workflow: [], // Will be populated in the workflow designer
-    preview: 'https://images.unsplash.com/photo-1540317580384-e5d43867caa6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    preview: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     status: 'premium',
     estimatedValue: '$6,000 - $11,000',
     deliverables: [

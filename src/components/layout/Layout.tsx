@@ -1,101 +1,101 @@
 import React, { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Home, Lightbulb, User, Settings, Heart, BookOpen, Menu, X, ChevronRight, CheckCircle, ChevronDown, Laptop } from 'lucide-react'
+import { Home, Lightbulb, Settings, Heart, BookOpen, Menu, X, ChevronRight, CheckCircle, ChevronDown, Laptop } from 'lucide-react'
 
 // Import standard challenges data
 const standardChallenges = [
   {
     id: 'challenge-1',
     challengeNumber: 1,
-    title: 'AI Biz Strategist',
-    path: '/challenge/bizstrategist'
-  },
-  {
-    id: 'challenge-2',
-    challengeNumber: 2,
-    title: 'AI Smart Select',
-    path: '/challenge/smartselect'
-  },
-  {
-    id: 'challenge-3',
-    challengeNumber: 3,
-    title: 'AI Data Analyst',
-    path: '/challenge/dataanalyst'
-  },
-  {
-    id: 'challenge-4',
-    challengeNumber: 4,
-    title: 'AI Social Media Strategist',
-    path: '/challenge/social-media-strategist'
-  },
-  {
-    id: 'challenge-5',
-    challengeNumber: 5,
-    title: 'AI Global Communicator',
-    path: '/challenge/global-communicator'
-  },
-  {
-    id: 'challenge-6',
-    challengeNumber: 6,
-    title: 'AI Slide Master',
-    path: '/challenge/slidemaster'
-  },
-  {
-    id: 'challenge-7',
-    challengeNumber: 7,
-    title: 'Facial Recognition System',
-    path: '/challenge/face-id-manager'
-  },
-  {
-    id: 'challenge-8',
-    challengeNumber: 8,
-    title: 'AI Emotional Insight',
-    path: '/challenge/emotional-insight'
-  },
-  {
-    id: 'challenge-9',
-    challengeNumber: 9,
-    title: 'AI Voice Generator Pro',
-    path: '/challenge/voice-generator'
-  },
-  {
-    id: 'challenge-10',
-    challengeNumber: 10,
     title: 'AI Dictation Wizard',
     path: '/challenge/dictation-wizard'
   },
   {
-    id: 'challenge-11',
-    challengeNumber: 11,
+    id: 'challenge-2',
+    challengeNumber: 2,
     title: 'AI Image Classifier',
     path: '/challenge/image-classifier'
   },
   {
-    id: 'challenge-ocr',
-    challengeNumber: 12,
+    id: 'challenge-3',
+    challengeNumber: 3,
+    title: 'Facial Recognition System',
+    path: '/challenge/face-id-manager'
+  },
+  {
+    id: 'challenge-4',
+    challengeNumber: 4,
     title: 'AI OCR Assistant',
     path: '/challenge/ocr-assistant'
   },
   {
-    id: 'challenge-object-detection',
-    challengeNumber: 13,
-    title: 'AI Object Detection',
-    path: '/challenge/object-detection'
-  },
-  {
-    id: 'challenge-privacy-guardian',
-    challengeNumber: 14,
-    title: 'AI Privacy Guardian',
-    path: '/challenge/privacy-guardian'
-  },
-  {
-    id: 'challenge-creative-vision',
-    challengeNumber: 15,
+    id: 'challenge-5',
+    challengeNumber: 5,
     title: 'Creative Vision AI',
     path: '/challenge/creative-vision'
   },
   {
-    id: 'challenge-agent-magic',
+    id: 'challenge-6',
+    challengeNumber: 6,
+    title: 'AI Privacy Guardian',
+    path: '/challenge/privacy-guardian'
+  },
+  {
+    id: 'challenge-7',
+    challengeNumber: 7,
+    title: 'AI Voice Generator Pro',
+    path: '/challenge/voice-generator'
+  },
+  {
+    id: 'challenge-8',
+    challengeNumber: 8,
+    title: 'AI Global Communicator',
+    path: '/challenge/global-communicator'
+  },
+  {
+    id: 'challenge-9',
+    challengeNumber: 9,
+    title: 'AI Object Detection',
+    path: '/challenge/object-detection'
+  },
+  {
+    id: 'challenge-10',
+    challengeNumber: 10,
+    title: 'AI Emotional Insight',
+    path: '/challenge/emotional-insight'
+  },
+  {
+    id: 'challenge-11',
+    challengeNumber: 11,
+    title: 'AI Smart Select',
+    path: '/challenge/smartselect'
+  },
+  {
+    id: 'challenge-12',
+    challengeNumber: 12,
+    title: 'AI Social Media Strategist',
+    path: '/challenge/social-media-strategist'
+  },
+  {
+    id: 'challenge-13',
+    challengeNumber: 13,
+    title: 'AI Biz Strategist',
+    path: '/challenge/bizstrategist'
+  },
+  {
+    id: 'challenge-16',
+    challengeNumber: 14,
+    title: 'Slide Master',
+    path: '/challenge/slidemaster'
+  },
+  {
+    id: 'challenge-15',
+    challengeNumber: 15,
+    title: 'AI Data Analyst',
+    path: '/challenge/dataanalyst'
+  },
+  {
+    id: 'challenge-14',
     challengeNumber: 16,
     title: 'Agent Magic',
     path: '/challenge/agent-magic'
@@ -204,7 +204,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     className="h-8 w-auto mr-3" 
                   />
                   <div className="flex flex-col">
-                    <span className="text-[#5CB2CC] font-bold text-xl tracking-tight">AI Challenge Hub</span>
+                    <span className="text-[#5CB2CC] font-bold text-xl tracking-tight">HP AI Challenge</span>
                     <span className="text-[9px] text-gray-500 font-medium -mt-1">by TriveraTech</span>
                   </div>
                 </Link>
@@ -326,7 +326,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </div>
                 
                 <a 
-                  href="https://triveratech.com/about" 
+                  href="https://triveratech.com/whychooseus" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors flex items-center"
@@ -335,9 +335,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   About
                 </a>
               </div>
-              <button className="p-2 rounded-full bg-blue-100 text-[#5CB2CC] hover:bg-blue-200 transition-colors shadow-sm">
-                <User size={20} />
-              </button>
             </div>
             
             {/* Mobile menu button */}

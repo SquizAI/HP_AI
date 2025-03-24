@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { saveChallengeSlidemaster, useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
+import { saveChallengeSlidemaster, useUserProgress, useChallengeStatus } from '../../../utils/userDataManager';
 import PromptEditor from './PromptEditor';
 import ThemeSelector from './ThemeSelector';
 import CompletionScreen from './CompletionScreen';
@@ -357,7 +357,7 @@ function showToast(options: ToastOptions): any {
 
 // Add OpenAI client instance with proper configuration
 const openai = new OpenAI({
-  apiKey: getApiKey() || import.meta.env.VITE_OPENAI_API_KEY || '',
+  apiKey: getApiKey() || '',
   dangerouslyAllowBrowser: true // Required for client-side usage
 });
 
@@ -460,7 +460,17 @@ const SlidesMasterMain: React.FC = () => {
   const toast = showToast;
   
   // Get user progress
-  const [userProgress, setUserProgress] = useUserProgress();
+  const [userProgress] = useUserProgress();
+  
+  // Use standardized challenge status hook
+  const { 
+    isCompleted, 
+    setIsCompleted, 
+    showConfetti, 
+    setShowConfetti, 
+    handleCompleteChallenge,
+    challengeId
+  } = useChallengeStatus('challenge-16');
   
   // Component state
   const [state, setState] = useState<SlideMasterState>(createInitialState());
@@ -487,18 +497,23 @@ const SlidesMasterMain: React.FC = () => {
   const [isSlidesGenerated, setIsSlidesGenerated] = useState(false);
   const [showProcessModal, setShowProcessModal] = useState(false);
   
-  // Add state for challenge completion and confetti
-  const [isCompleted, setIsCompleted] = useState<boolean>(
-    userProgress.completedChallenges.includes('challenge-6')
-  );
-  const [showConfetti, setShowConfetti] = useState<boolean>(false);
+  // The saveChallengeSlidemaster function can be used when needed
+  const saveChallengeData = () => {
+    saveChallengeSlidemaster(
+      challengeId,
+      state.title || 'Untitled Presentation',
+      state.theme.name,
+      generatedSlides.length,
+      generatedSlides.filter(slide => slide.imageUrl).length
+    );
+  };
   
-  // Check if challenge is already completed on mount
+  // Save data when challenge is completed and we have slides
   useEffect(() => {
-    if (userProgress.completedChallenges.includes('challenge-6')) {
-      setIsCompleted(true);
+    if (isCompleted && generatedSlides.length > 0) {
+      saveChallengeData();
     }
-  }, [userProgress]);
+  }, [isCompleted, generatedSlides.length]);
   
   useEffect(() => {
     // Load saved state from localStorage if available
@@ -3139,8 +3154,8 @@ Make sure the content is:
     );
   };
 
-  // Handle completing the challenge
-  const handleCompleteChallenge = () => {
+  // Custom validation function to be used before completing the challenge
+  const validateAndComplete = () => {
     // Check if user has completed enough of the presentation to mark as complete
     if (state.slides.length < 3) {
       alert('Please create at least 3 slides before completing the challenge.');
@@ -3152,19 +3167,14 @@ Make sure the content is:
       return;
     }
     
-    markChallengeAsCompleted('challenge-6');
-    setIsCompleted(true);
+    // Call the standard handleCompleteChallenge from useChallengeStatus
+    handleCompleteChallenge();
     
     // Update state to mark as complete
     updateState({ isComplete: true });
     
-    // Show confetti
-    setShowConfetti(true);
-    
-    // Hide confetti after 5 seconds
-    setTimeout(() => {
-      setShowConfetti(false);
-    }, 5000);
+    // Save the presentation data
+    saveChallengeData();
   };
 
   // In the SlidesMasterMain component, after the other useState declarations
@@ -3290,12 +3300,12 @@ Make sure the content is:
       <ChallengeHeader 
         title="AI Presentation Creator" 
         icon={<PresentationIcon className="h-6 w-6 text-purple-600" />}
-        challengeId="challenge-6"
+        challengeId={challengeId}
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
         showConfetti={showConfetti}
         setShowConfetti={setShowConfetti}
-        onCompleteChallenge={handleCompleteChallenge}
+        onCompleteChallenge={validateAndComplete}
       />
       
       <div className="bg-white shadow-md rounded-lg p-6">

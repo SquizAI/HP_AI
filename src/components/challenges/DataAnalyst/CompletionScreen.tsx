@@ -4,10 +4,10 @@ import { DataAnalystState } from './DataAnalystMain';
 
 interface CompletionScreenProps {
   state: DataAnalystState;
-  restartChallenge: () => void;
+  onRestart: () => void;
 }
 
-const CompletionScreen: React.FC<CompletionScreenProps> = ({ state, restartChallenge }) => {
+const CompletionScreen: React.FC<CompletionScreenProps> = ({ state, onRestart }) => {
   const navigate = useNavigate();
 
   return (
@@ -117,7 +117,7 @@ const CompletionScreen: React.FC<CompletionScreenProps> = ({ state, restartChall
       <div className="flex flex-col sm:flex-row justify-center gap-4 mt-10">
         <button
           className="px-6 py-3 bg-purple-600 text-white rounded-md font-medium hover:bg-purple-700 transition-colors"
-          onClick={restartChallenge}
+          onClick={onRestart}
         >
           Analyze Another Dataset
         </button>

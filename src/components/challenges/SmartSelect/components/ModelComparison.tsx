@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { markChallengeAsCompleted } from '../../../../utils/userDataManager';
 import { BusinessScenario, ModelResponse, ModelType } from '../SmartSelectMain';
 
 interface ModelComparisonProps {
@@ -24,6 +25,33 @@ export const ModelComparison: React.FC<ModelComparisonProps> = ({
   onContinue
 }) => {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [challengeCompleted, setChallengeCompleted] = useState<boolean>(false);
+  
+  // Effect to mark challenge as completed when responses are available
+  useEffect(() => {
+    // Mark the challenge as completed as soon as we have any model response
+    if (!isLoading && responses.basic && !challengeCompleted) {
+      // Mark the challenge as completed immediately
+      markChallengeAsCompleted('challenge-11');
+      setChallengeCompleted(true);
+      
+      // Create and dispatch a custom event for confetti
+      const completeEvent = new CustomEvent('modelcomparison-visible');
+      document.dispatchEvent(completeEvent);
+      
+      // Also check for ModelComparisonArena visibility (as a backup)
+      const timer = setTimeout(() => {
+        const modelComparisonArea = document.querySelector('[data-component-name="ModelComparisonArena"]');
+        if (modelComparisonArea && !challengeCompleted) {
+          markChallengeAsCompleted('challenge-11');
+          setChallengeCompleted(true);
+          document.dispatchEvent(completeEvent);
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, responses, challengeCompleted]);
   
   if (!scenario) {
     return <div>No scenario selected</div>;
@@ -297,6 +325,70 @@ export const ModelComparison: React.FC<ModelComparisonProps> = ({
         {renderResponseCard('basic', basicResponse)}
         {renderResponseCard('advanced', advancedResponse)}
       </div>
+      
+      {/* Comparison Outcome & Recommendations - NEW SECTION */}
+      {basicResponse && advancedResponse && (
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg shadow-sm p-6 mb-8">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+            <svg className="h-6 w-6 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Comparison Outcome & Recommendations
+          </h3>
+          
+          <div className="prose prose-sm max-w-none text-gray-700 mb-6">
+            <p className="mb-3">Based on the responses you've just seen, here's what these results mean for your business needs:</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-white rounded-lg border border-blue-200 p-4">
+                <h4 className="font-medium text-blue-800 mb-2">When to use {modelDescriptions.basic.name}:</h4>
+                <ul className="list-disc pl-5 space-y-1 text-sm">
+                  <li>For routine, straightforward business tasks that need quick responses</li>
+                  <li>When cost efficiency is a priority over depth of analysis</li>
+                  <li>For high-volume, repetitive queries where speed matters</li>
+                  <li>When you need concise, direct answers rather than elaborate explanations</li>
+                </ul>
+              </div>
+              
+              <div className="bg-white rounded-lg border border-purple-200 p-4">
+                <h4 className="font-medium text-purple-800 mb-2">When to use {modelDescriptions.advanced.name}:</h4>
+                <ul className="list-disc pl-5 space-y-1 text-sm">
+                  <li>For complex scenarios requiring nuanced understanding and reasoning</li>
+                  <li>When accuracy and depth of analysis are more important than speed</li>
+                  <li>For strategic business decisions where comprehensive context matters</li>
+                  <li>When you need detailed explanations with supporting rationale</li>
+                </ul>
+              </div>
+            </div>
+            
+            <h4 className="font-medium text-gray-800 mb-2">Which model is right for your project?</h4>
+            <p>
+              For this specific scenario (<span className="font-medium text-blue-800">{scenario.title}</span>), 
+              {basicResponse.responseTime < advancedResponse.responseTime && basicResponse.confidence >= 80 ? (
+                <span> the <span className="font-medium text-blue-800">{modelDescriptions.basic.name}</span> appears to be sufficient if speed is your priority. It provided a concise response with good confidence in a shorter time.</span>
+              ) : advancedResponse.confidence > basicResponse.confidence + 10 ? (
+                <span> the <span className="font-medium text-purple-800">{modelDescriptions.advanced.name}</span> would be recommended as it demonstrated significantly higher confidence and provided a more comprehensive analysis.</span>
+              ) : scenario.complexity === 'high' ? (
+                <span> given the high complexity, the <span className="font-medium text-purple-800">{modelDescriptions.advanced.name}</span> would be more appropriate to ensure all nuances are properly addressed.</span>
+              ) : (
+                <span> both models performed adequately, but the choice depends on your specific priorities: speed and cost-efficiency ({modelDescriptions.basic.name}) versus depth and comprehensiveness ({modelDescriptions.advanced.name}).</span>
+              )}
+            </p>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
+              <h5 className="font-medium text-yellow-800 text-sm mb-1 flex items-center">
+                <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                Pro Tip
+              </h5>
+              <p className="text-xs text-yellow-800">
+                In real-world applications, many organizations use a tiered approach: basic models for routine tasks and advanced models for strategic decisions. This maximizes cost efficiency while ensuring quality where it matters most.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Explanation of differences */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-8">

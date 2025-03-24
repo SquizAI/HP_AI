@@ -275,7 +275,7 @@ const ServiceProChallenge: React.FC = () => {
       <ChallengeHeader
         title="ServicePro Challenge"
         icon={<Ticket className="h-6 w-6 text-blue-600" />}
-        challengeId="challenge-1"
+        challengeId="challenge-6"
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
         showConfetti={showConfetti}

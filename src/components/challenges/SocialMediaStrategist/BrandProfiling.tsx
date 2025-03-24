@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SocialMediaStrategy } from './SocialMediaStrategistMain';
 
 interface BrandProfilingProps {
@@ -183,6 +183,22 @@ const BrandProfiling: React.FC<BrandProfilingProps> = ({ state, updateState, onN
   const [showAITips, setShowAITips] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   
+  // Add keyframe animation to the stylesheet
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes pulse-shadow {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+        50% { box-shadow: 0 0 0 15px rgba(79, 70, 229, 0); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+  
   // Toggle a goal selection
   const toggleGoal = (goalId: string) => {
     if (state.goals.includes(goalId)) {
@@ -347,11 +363,16 @@ const BrandProfiling: React.FC<BrandProfilingProps> = ({ state, updateState, onN
               Brand Description <span className="text-red-500">*</span>
             </label>
             <div className="relative group">
-              <button
-                type="button"
-                className="text-xs text-blue-600 flex items-center hover:text-blue-800"
+              <div
+                className="relative group"
               >
-                <span className="mr-1">✨</span> Try a template
+                <button 
+                  type="button"
+                  className="flex items-center justify-center px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-200 font-bold text-md w-full group-hover:bg-purple-700"
+                  style={{ animation: 'pulse-shadow 2s infinite' }}
+                >
+                  <span className="mr-2 text-lg">✨</span> Try a Template
+                </button>
                 <div className="absolute z-10 top-full right-0 mt-1 w-72 bg-white shadow-lg rounded-md border border-gray-200 p-3 hidden group-hover:block">
                   <h4 className="font-medium text-gray-700 mb-2 text-sm">Select a template</h4>
                   <div className="space-y-2">
@@ -369,7 +390,7 @@ const BrandProfiling: React.FC<BrandProfilingProps> = ({ state, updateState, onN
                     ))}
                   </div>
                 </div>
-              </button>
+              </div>
             </div>
           </div>
           
@@ -398,22 +419,22 @@ const BrandProfiling: React.FC<BrandProfilingProps> = ({ state, updateState, onN
             Select a primary brand personality <span className="text-red-500">*</span>
           </label>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {BRAND_PERSONALITIES.map(personality => (
               <div
                 key={personality.id}
-                className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${
                   state.brandPersonality === personality.name 
-                    ? 'border-blue-500 bg-blue-50 shadow-sm' 
-                    : 'border-gray-200 hover:border-blue-200'
+                    ? 'border-blue-500 bg-blue-50 shadow-lg transform -translate-y-1' 
+                    : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
                 }`}
                 onClick={() => selectPersonality(personality.id)}
               >
-                <div className="text-center mb-2">
-                  <span className="text-2xl">{personality.icon}</span>
+                <div className="text-center mb-4">
+                  <span className="text-5xl">{personality.icon}</span>
                 </div>
-                <h3 className="text-sm font-medium text-center text-gray-800 mb-1">{personality.name}</h3>
-                <p className="text-xs text-gray-500 text-center">{personality.description}</p>
+                <h3 className="text-lg font-medium text-center text-gray-800 mb-2">{personality.name}</h3>
+                <p className="text-sm text-gray-600 text-center">{personality.description}</p>
               </div>
             ))}
           </div>
@@ -453,22 +474,22 @@ const BrandProfiling: React.FC<BrandProfilingProps> = ({ state, updateState, onN
             What do you want to achieve? (Select 2-4 primary goals) <span className="text-red-500">*</span>
           </label>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {SOCIAL_MEDIA_GOALS.map(goal => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {SOCIAL_MEDIA_GOALS.slice(0, 4).map(goal => (
               <div
                 key={goal.id}
-                className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
                   state.goals.includes(goal.id) 
-                    ? 'border-green-500 bg-green-50 shadow-sm' 
-                    : 'border-gray-200 hover:border-green-100'
+                    ? 'border-green-500 bg-green-50 shadow-lg transform -translate-y-1' 
+                    : 'border-gray-200 hover:border-green-300 hover:shadow-md'
                 }`}
                 onClick={() => toggleGoal(goal.id)}
               >
                 <div className="flex items-start">
-                  <span className="text-xl mr-2">{goal.icon}</span>
+                  <span className="text-3xl mr-3">{goal.icon}</span>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-800">{goal.name}</h3>
-                    <p className="text-xs text-gray-500">{goal.description}</p>
+                    <h3 className="text-md font-medium text-gray-800 mb-1">{goal.name}</h3>
+                    <p className="text-sm text-gray-600">{goal.description}</p>
                   </div>
                 </div>
               </div>
@@ -477,35 +498,59 @@ const BrandProfiling: React.FC<BrandProfilingProps> = ({ state, updateState, onN
         </div>
       </div>
       
-      <div className="bg-blue-50 p-5 rounded-lg border border-blue-100 mb-8">
-        <h3 className="font-medium text-blue-800 mb-2 flex items-center">
-          <span className="mr-2">💡</span>
-          Pro Tips
-        </h3>
-        <ul className="space-y-1 text-blue-800">
-          <li className="flex items-start">
-            <span className="text-blue-500 mr-2">•</span>
-            Your brand identity should be consistent across all platforms while adapting to each platform's unique format.
-          </li>
-          <li className="flex items-start">
-            <span className="text-blue-500 mr-2">•</span>
-            The most engaging brands have a distinctive voice that reflects their personality in every post.
-          </li>
-          <li className="flex items-start">
-            <span className="text-blue-500 mr-2">•</span>
-            Your social media goals should align with your overall business objectives.
-          </li>
-        </ul>
+      <div className="mb-12">
+        <div className="flex items-center mb-4">
+          <div className="mr-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">1</div>
+          <h3 className="text-xl font-medium text-gray-800">Pro Tips</h3>
+        </div>
+        
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100 shadow-md">
+          <h3 className="font-medium text-blue-800 mb-4 flex items-center text-lg">
+            <span className="mr-2">💡</span>
+            Brand Strategy Tips
+          </h3>
+          <ul className="space-y-3 text-gray-700">
+            <li className="flex items-start bg-white p-3 rounded-lg shadow-sm border border-blue-50">
+              <span className="text-blue-500 mr-3 text-xl">•</span>
+              <span>Your brand identity should be consistent across all platforms while adapting to each platform's unique format.</span>
+            </li>
+            <li className="flex items-start bg-white p-3 rounded-lg shadow-sm border border-blue-50">
+              <span className="text-blue-500 mr-3 text-xl">•</span>
+              <span>The most engaging brands have a distinctive voice that reflects their personality in every post.</span>
+            </li>
+            <li className="flex items-start bg-white p-3 rounded-lg shadow-sm border border-blue-50">
+              <span className="text-blue-500 mr-3 text-xl">•</span>
+              <span>Your social media goals should align with your overall business objectives.</span>
+            </li>
+          </ul>
+        </div>
       </div>
       
-      <div className="flex justify-end mt-8">
-        <button
-          onClick={handleNext}
-          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          disabled={!state.brandName || !state.industry || !state.description || !state.brandPersonality || state.goals.length === 0}
-        >
-          Continue to Audience Research
-        </button>
+      {/* Navigation button section */}
+      <div className="mt-12 mb-12 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100 shadow-md">
+        <div className="flex flex-col md:flex-row items-center justify-between py-3">
+          <div className="mb-4 md:mb-0 text-center md:text-left">
+            <div className="text-lg font-medium text-indigo-700 mb-2">Step 1: Brand Profiling</div>
+            <p className="text-gray-600">Complete your brand profile to continue</p>
+          </div>
+          <button
+            onClick={handleNext}
+            className="w-full md:w-auto px-8 py-5 md:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-xl hover:shadow-2xl transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center text-lg font-semibold"
+            disabled={!state.brandName || !state.industry || !state.description || !state.brandPersonality || state.goals.length === 0}
+            style={{
+              animation: 'pulse-shadow 2s infinite',
+            }}
+          >
+            <span className="mr-2 text-xl hidden md:inline">✨</span> Continue to Audience Research <span className="ml-3 text-xl">→</span>
+          </button>
+        </div>
+        {/* Show message when button is disabled */}
+        {(!state.brandName || !state.industry || !state.description || !state.brandPersonality || state.goals.length === 0) && (
+          <div className="mt-4 text-center text-orange-600 bg-orange-50 p-3 rounded-lg border border-orange-100">
+            <span className="font-medium">Please complete all required fields marked with </span>
+            <span className="text-red-500">*</span>
+          </div>
+        )}
       </div>
     </div>
   );

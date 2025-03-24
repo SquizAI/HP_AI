@@ -7,8 +7,10 @@ import {
 } from './components';
 import axios from 'axios';
 import ChallengeHeader from '../../shared/ChallengeHeader';
-import { FileCheck } from 'lucide-react';
+import { FileCheck, Brain } from 'lucide-react';
 import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
+import { getApiKey } from '../../../services/openai';
+import { getGeminiConfig } from '../../../services/apiConfig';
 
 // Type definitions
 export interface BusinessScenario {
@@ -53,7 +55,7 @@ const ApiService = {
   callGPTAPI: async (prompt: string, modelInfo: ModelInfo): Promise<ModelResponse> => {
     const startTime = Date.now();
     // Use environment variable from .env file
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
+    const apiKey = getApiKey() || '';
     
     try {
       const response = await axios.post(
@@ -95,9 +97,18 @@ const ApiService = {
   
   callGeminiAPI: async (prompt: string, modelInfo: ModelInfo): Promise<ModelResponse> => {
     const startTime = Date.now();
-    // Use validated working API key directly in service
-    // In production, this would be securely managed by a backend service
-    const apiKey = 'AIzaSyCbqUv-332Cmpg0Ws3egUP4HDfuWuGtcDs';
+    // Get the API key from environment variables via the apiConfig service
+    const { apiKey } = getGeminiConfig();
+    
+    if (!apiKey) {
+      return {
+        text: '',
+        responseTime: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        error: 'Gemini API key is not properly configured in environment variables'
+      };
+    }
     
     try {
       const response = await axios.post(
@@ -254,7 +265,7 @@ const AIModelComparison: React.FC = () => {
   // User progress tracking
   const [userProgress, setUserProgress] = useUserProgress();
   const [isCompleted, setIsCompleted] = useState<boolean>(
-    userProgress.completedChallenges.includes('challenge-model-comparison')
+    userProgress.completedChallenges.includes('challenge-11')
   );
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
 
@@ -334,6 +345,14 @@ const AIModelComparison: React.FC = () => {
       // Check for errors
       if (gptResponse.error || geminiResponse.error) {
         setError(`API Error: ${gptResponse.error || geminiResponse.error}`);
+      } else {
+        // Mark challenge as completed if both responses were successful
+        markChallengeAsCompleted('challenge-11');
+        setIsCompleted(true);
+        
+        // Show confetti for visual feedback
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 5000);
       }
     } catch (error: any) {
       setError(`Unexpected error: ${error.message}`);
@@ -364,7 +383,7 @@ const AIModelComparison: React.FC = () => {
       return;
     }
     
-    markChallengeAsCompleted('challenge-model-comparison');
+    markChallengeAsCompleted('challenge-11');
     setIsCompleted(true);
     
     // Show confetti
@@ -381,12 +400,44 @@ const AIModelComparison: React.FC = () => {
     return (
       <div className="space-y-8">
         {/* User Guidance Section */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 shadow-sm border border-blue-100">
-          <h2 className="text-xl font-semibold text-blue-800 mb-2">AI Model Selection Challenge</h2>
-          <p className="text-gray-700">
-            Compare GPT-4o and Gemini 2.0 Flash responses to business prompts to understand when to use each model. 
-            This will help you make cost-effective decisions for your organization's AI usage.
-          </p>
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 shadow-sm border border-blue-100" data-component-name="AIModelComparison">
+          <h2 className="text-xl font-semibold text-blue-800 mb-2" data-component-name="AIModelComparison">AI Smart Select: Find the Best AI for the Job!</h2>
+          <div className="space-y-4" data-component-name="AIModelComparison">
+            <div>
+              <h3 className="text-lg font-semibold text-indigo-800 mb-2">How AI Works for You:</h3>
+              <p className="text-gray-700">
+                Not all AI models perform the same! Some are faster and more cost-effective, while others provide deeper reasoning and analysis.
+              </p>
+              <p className="text-gray-700 mt-2">
+                When using AI in business, considering factors like cost, speed, response quality, and memory capacity helps ensure you choose the right model for each project—whether it's handling customer support, analyzing data, generating reports, or optimizing workflows. Making informed AI choices can maximize efficiency, control costs, and improve overall decision-making for your organization.
+              </p>
+              <p className="text-gray-700 mt-2">
+                In this challenge, you'll compare responses from Co Pilot and Gemini to real-world business prompts. See how each model handles tasks and learn when to use the right AI for better performance, accuracy, and cost-efficiency in your organization!
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold text-indigo-800 mb-2">Challenge Steps Quick View:</h3>
+              <ul className="space-y-2">
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  <span><span className="font-semibold">Step 1:</span> Choose a Business Challenge</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  <span><span className="font-semibold">Step 2:</span> Simply click on a Pre-Defined Scenario or Create a Custom Prompt, and Enhance with AI</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  <span><span className="font-semibold">Step 3:</span> Compare the Model Results and Review the Recommendations. Explore the Model Capabilities and Other LLMs tabs</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-500 mr-2">✓</span>
+                  <span><span className="font-semibold">Step 4:</span> Challenge Completed! Click Complete & Return!</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
         
         {/* Scenario Selector with Improved UI */}
@@ -494,7 +545,7 @@ const AIModelComparison: React.FC = () => {
       <ChallengeHeader
         title="AI Model Comparison Challenge"
         icon={<FileCheck className="h-6 w-6 text-blue-600" />}
-        challengeId="challenge-model-comparison"
+        challengeId="challenge-11"
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
         showConfetti={showConfetti}
@@ -527,6 +578,54 @@ const AIModelComparison: React.FC = () => {
         {activeTab === 'capabilities' && renderCapabilitiesTab()}
         {activeTab === 'other-llms' && renderOtherLLMsTab()}
       </div>
+      
+      {/* For the Nerds Section */}
+      <details className="mt-8 bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+        <summary className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 cursor-pointer flex items-center">
+          <Brain className="h-5 w-5 text-indigo-600 mr-2" />
+          <span className="font-medium text-gray-900">For the Nerds: Technical Details</span>
+        </summary>
+        <div className="p-6 bg-white">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">AI Model Selection Architecture</h3>
+            
+            <div>
+              <h4 className="font-medium text-gray-800">Technical Implementation</h4>
+              <p className="text-gray-700 mt-1">
+                This challenge implements a comparative analysis framework for large language models (LLMs) using React and TypeScript. The application architecture follows a component-based design pattern with stateful management of API interactions and response processing.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-gray-800">API Integration</h4>
+              <p className="text-gray-700 mt-1">
+                The system integrates with both OpenAI's GPT-4o and Google's Gemini 2.0 Flash APIs through secure authentication mechanisms. API calls are made using axios with proper error handling and response parsing. Token usage estimation is implemented for both models to calculate approximate costs.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-gray-800">Performance Metrics</h4>
+              <p className="text-gray-700 mt-1">
+                Response time is measured using high-precision timestamps to calculate latency. Input and output tokens are tracked for cost estimation, with Gemini responses using an approximation algorithm based on character count since the API doesn't provide direct token counts.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-gray-800">UI/UX Considerations</h4>
+              <p className="text-gray-700 mt-1">
+                The interface employs a tab-based navigation system with conditional rendering based on user interactions. Loading states are managed to provide visual feedback during API calls, and error handling is implemented with user-friendly messages.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-gray-800">Data Processing</h4>
+              <p className="text-gray-700 mt-1">
+                Business scenarios are structured as TypeScript interfaces with categorization by complexity and domain. Model responses are processed through a standardized pipeline that extracts and normalizes the content for consistent comparison.
+              </p>
+            </div>
+          </div>
+        </div>
+      </details>
       
       {/* Reset Button - Only Show When Results Are Present */}
       {(responseGPT || responseGemini) && !loading && (

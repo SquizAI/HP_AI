@@ -58,14 +58,20 @@ const OCRResults: React.FC<OCRResultsProps> = ({
       {/* Image preview (if available) */}
       {imagePreview && (
         <div className="mb-6 flex flex-col items-center">
-          <div className="relative inline-block">
+          <div className="relative inline-block shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-zoom-in">
             <img 
               src={imagePreview} 
               alt="Processed Image" 
-              className="rounded-lg max-h-[300px] max-w-full border border-gray-200"
+              className="rounded-lg max-h-[500px] max-w-full border border-gray-200 object-contain"
+              onClick={(e) => {
+                // Add zoom effect on click
+                const img = e.currentTarget;
+                img.classList.toggle('max-h-[500px]');
+                img.classList.toggle('max-h-[800px]');
+              }}
             />
             {isHandwriting && (
-              <div className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full">
+              <div className="absolute top-2 right-2 bg-amber-500 text-white text-sm px-3 py-1.5 rounded-full font-medium">
                 Handwritten
               </div>
             )}

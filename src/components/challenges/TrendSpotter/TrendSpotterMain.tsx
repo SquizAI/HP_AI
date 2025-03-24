@@ -182,7 +182,7 @@ const TrendSpotterChallenge: React.FC = () => {
       <ChallengeHeader
         title="AI Trend Spotter"
         icon={<LineChart className="h-6 w-6 text-orange-500" />}
-        challengeId="challenge-2"
+        challengeId="challenge-14"
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
         showConfetti={showConfetti}

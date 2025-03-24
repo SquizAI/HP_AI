@@ -51,7 +51,7 @@ const savePresentation = (presentation: SlideMasterState) => {
 const CompletionScreen: React.FC<CompletionScreenProps> = ({
   state,
   onRestart,
-  challengeId = 'slide-master'
+  challengeId = 'challenge-16'
 }) => {
   const [exportFormat, setExportFormat] = useState<'pdf' | 'pptx' | 'images'>('pptx');
   const [exporting, setExporting] = useState(false);

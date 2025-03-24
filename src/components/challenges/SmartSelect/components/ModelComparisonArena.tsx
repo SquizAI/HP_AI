@@ -19,9 +19,9 @@ export const ModelComparisonArena: React.FC<ModelComparisonArenaProps> = ({
   loading,
   responseGPT,
   responseGemini,
-  showDifferences,
-  showMetrics = true,
-  onToggleDifferences
+  showDifferences, // Used to control UI state for showing differences between models
+  showMetrics = true, // Used to control which tab is active by default
+  onToggleDifferences // Handler for toggling difference highlighting
 }) => {
   const [activeTab, setActiveTab] = useState<'response' | 'metrics'>('response');
   
@@ -63,8 +63,10 @@ export const ModelComparisonArena: React.FC<ModelComparisonArenaProps> = ({
     response: ModelResponse | null,
     cost: string
   ) => {
+    // Apply highlighting class when differences are shown
+    const highlightClass = showDifferences ? 'border-2 border-indigo-300' : '';
     return (
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+      <div className={`bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden ${highlightClass}`}>
         {/* Model header */}
         <div className={`px-6 py-4 ${model.provider === 'OpenAI' ? 'bg-green-50' : 'bg-blue-50'}`}>
           <div className="flex items-center justify-between">
@@ -124,9 +126,17 @@ export const ModelComparisonArena: React.FC<ModelComparisonArenaProps> = ({
   };
 
   return (
-    <div className="bg-white p-6">
+    <div className="bg-white p-6" data-component-name="ModelComparisonArena">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-medium text-gray-900">Model Response Comparison</h2>
+        
+        {/* Toggle differences button */}
+        <button
+          onClick={onToggleDifferences}
+          className="ml-auto mr-4 px-3 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+        >
+          {showDifferences ? 'Hide Differences' : 'Show Differences'}
+        </button>
         
         {/* Tabs - Only show if not controlled externally */}
         {showMetrics === undefined && (

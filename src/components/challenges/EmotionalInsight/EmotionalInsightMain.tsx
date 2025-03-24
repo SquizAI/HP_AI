@@ -5,7 +5,8 @@ import Reflection from './components/Reflection';
 import BusinessApplication from './components/BusinessApplication';
 import ChallengeHeader from '../../shared/ChallengeHeader';
 import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
-import { Heart, Smile } from 'lucide-react';
+import { Heart, Smile, Brain } from 'lucide-react';
+import Confetti from '../../shared/Confetti';
 
 // Define steps for the challenge
 enum STEPS {
@@ -312,10 +313,13 @@ const EmotionalInsightMain: React.FC = () => {
   // Main render
   return (
     <div className="max-w-5xl mx-auto p-4">
+      {/* Show confetti animation when challenge is completed */}
+      {showConfetti && <Confetti active={showConfetti} />}
+      
       <ChallengeHeader
         title="Emotional Insight Challenge"
         icon={<Smile className="h-6 w-6 text-pink-600" />}
-        challengeId="challenge-8"
+        challengeId="challenge-10" // Corrected to match ID in ChallengeHubNew.tsx
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
         showConfetti={showConfetti}
@@ -338,6 +342,85 @@ const EmotionalInsightMain: React.FC = () => {
             Try our test page →
           </a>
         </p>
+      </div>
+
+      {/* For the Nerds - Technical Details */}
+      <div className="mt-12 border-t border-gray-200 pt-8">
+        <details className="group bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <summary className="flex items-center justify-between cursor-pointer p-5 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-blue-700" />
+              <h3 className="text-lg font-semibold text-blue-800">For the Nerds - Technical Details</h3>
+            </div>
+            <div className="bg-white rounded-full p-1 shadow-sm">
+              <svg className="h-5 w-5 text-blue-600 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </summary>
+          
+          <div className="p-5 border-t border-gray-200 bg-white">
+            <div className="prose max-w-none text-gray-600 text-sm space-y-4">
+              <div>
+                <h4 className="text-blue-700 font-medium">Emotion Recognition Technology</h4>
+                <p>This challenge uses multiple AI technologies for emotion detection:</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li><strong>Facial Emotion Recognition</strong> - Convolutional Neural Networks (CNNs) trained on facial expression datasets</li>
+                  <li><strong>Text Sentiment Analysis</strong> - Natural Language Processing (NLP) models with transformer architectures</li>
+                  <li><strong>Voice Emotion Detection</strong> - Spectral and prosodic feature extraction with recurrent neural networks</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="text-blue-700 font-medium">Facial Emotion Recognition Pipeline</h4>
+                <p>The face-based emotion detection follows these technical steps:</p>
+                <ol className="list-decimal pl-5 mt-2 space-y-1">
+                  <li><strong>Face Detection</strong> - Using face-api.js to locate faces in images or video frames</li>
+                  <li><strong>Feature Extraction</strong> - Identifying key facial landmarks (68-point mapping)</li>
+                  <li><strong>Expression Classification</strong> - Analyzing facial muscle movements to classify emotions</li>
+                  <li><strong>Confidence Scoring</strong> - Providing probability distributions across emotion categories</li>
+                  <li><strong>Temporal Smoothing</strong> - For video, applying rolling averages to stabilize predictions</li>
+                </ol>
+              </div>
+              
+              <div>
+                <h4 className="text-blue-700 font-medium">Text Sentiment Analysis</h4>
+                <p>The text-based emotion analysis uses these techniques:</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li><strong>Tokenization</strong> - Breaking text into tokens for processing</li>
+                  <li><strong>Word Embeddings</strong> - Converting words to vector representations (Word2Vec, GloVe)</li>
+                  <li><strong>Transformer Models</strong> - BERT or RoBERTa-based models fine-tuned for emotion detection</li>
+                  <li><strong>Contextual Understanding</strong> - Analyzing semantic relationships between words</li>
+                  <li><strong>Multi-label Classification</strong> - Detecting multiple emotions with varying intensities</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="text-blue-700 font-medium">Voice Emotion Recognition</h4>
+                <p>Audio-based emotion detection employs these methods:</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li><strong>Audio Feature Extraction</strong> - Analyzing MFCC (Mel-frequency cepstral coefficients)</li>
+                  <li><strong>Prosodic Analysis</strong> - Measuring pitch, energy, speaking rate, and rhythm</li>
+                  <li><strong>Spectral Analysis</strong> - Examining frequency distributions in speech</li>
+                  <li><strong>LSTM Networks</strong> - Processing sequential audio data to capture temporal patterns</li>
+                  <li><strong>Multi-modal Fusion</strong> - Combining linguistic and acoustic features for improved accuracy</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="text-blue-700 font-medium">Technical Implementation</h4>
+                <p>The application architecture includes:</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li><strong>React Component Architecture</strong> - Modular design with specialized components for each modality</li>
+                  <li><strong>TensorFlow.js</strong> - Client-side machine learning for real-time processing</li>
+                  <li><strong>Web Audio API</strong> - For capturing and processing audio input</li>
+                  <li><strong>Canvas API</strong> - For rendering emotion visualizations and face detection overlays</li>
+                  <li><strong>State Management</strong> - React hooks for maintaining application state across analysis steps</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   );

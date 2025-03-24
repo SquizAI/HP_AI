@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Play, Pause, Camera, RefreshCw } from 'lucide-react';
 import axios from 'axios';
+import { getOpenAIHeaders, getGeminiHeaders, getOpenAIConfig } from '../../../../services/apiConfig';
 
 interface VideoRecognitionProps {
   onResultsUpdate: (results: any[] | null) => void;
@@ -289,7 +290,7 @@ const VideoRecognition: React.FC<VideoRecognitionProps> = ({ onResultsUpdate, is
         const openaiResponse = await axios.post(
           'https://api.openai.com/v1/chat/completions',
           {
-            model: import.meta.env.VITE_OPENAI_MODEL || "gpt-4o",
+            model: getOpenAIConfig().defaultModel || "gpt-4o",
             messages: [
               {
                 role: "system",
@@ -316,10 +317,7 @@ const VideoRecognition: React.FC<VideoRecognitionProps> = ({ onResultsUpdate, is
             temperature: 0.1 // Lower to be more deterministic
           },
           {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
-            }
+            headers: getOpenAIHeaders()
           }
         );
         
@@ -396,10 +394,7 @@ const VideoRecognition: React.FC<VideoRecognitionProps> = ({ onResultsUpdate, is
             }
           },
           {
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': import.meta.env.VITE_GEMINI_API_KEY
-            }
+            headers: getGeminiHeaders()
           }
         );
         

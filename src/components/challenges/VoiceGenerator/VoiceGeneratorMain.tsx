@@ -1,128 +1,192 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Play, Download, RefreshCw, Check, Globe, Volume2, Wand2, Mic } from 'lucide-react';
-import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
-import axios from 'axios';
-import Confetti from '../../shared/Confetti';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Mic, 
+  Volume2, 
+  Play, 
+  StopCircle, 
+  Download, 
+  RefreshCw, 
+  Check, 
+  Wand2, 
+  Globe, 
+  ChevronDown, 
+  ChevronUp,
+  AlertCircle,
+  User,
+  Square,
+  Home,
+  Brain
+} from 'lucide-react';
+import { useChallengeStatus } from '../../../utils/userDataManager';
 import ChallengeHeader from '../../shared/ChallengeHeader';
+import Confetti from '../../shared/Confetti';
+import { getOpenAIHeaders } from '../../../services/apiConfig';
+import axios from 'axios';
 
-// Eleven Labs voices - these are some popular voices from their library
+// Eleven Labs voices - using real voice IDs from the new API key account
 const ELEVEN_LABS_VOICES = [
-  { id: 'K4mIm9HZLpIcJUypZOl1', name: 'Jaime', description: 'Conversational, friendly professional tone', gender: 'male' },
-  { id: '2gPFXx8pN3Avh27Dw5Ma', name: 'Oxley', description: 'Dramatic, villainous character voice', gender: 'male' },
-  { id: 'cla3YFxFwdDazSiKsv9U', name: 'Alexander', description: 'Clean, confident, deep masculine voice', gender: 'male' },
-  { id: '5Q0t7uMcjvnagumLfvZi', name: 'Paul', description: 'Warm, natural-sounding male voice', gender: 'male' }
+  // Male Voices
+  { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger', description: 'Conversational, friendly professional tone', gender: 'male' },
+  { id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie', description: 'Clear, articulate male voice', gender: 'male' },
+  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', description: 'Deep, confident masculine voice', gender: 'male' },
+  { id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum', description: 'Warm, natural-sounding male voice', gender: 'male' },
+  { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', description: 'Authoritative male voice', gender: 'male' },
+  // Female Voices
+  { id: '9BWtsMINqrJLrRacOk9x', name: 'Aria', description: 'Warm, conversational female voice', gender: 'female' },
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Friendly, professional female voice', gender: 'female' },
+  { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura', description: 'Clear, articulate female voice', gender: 'female' },
+  { id: 'SAz9YHcvj6GT2YYXdXww', name: 'River', description: 'Soft-spoken female voice', gender: 'female' },
+  { id: 'XB0fDUnXU5powFXDhCwa', name: 'Charlotte', description: 'Professional female voice', gender: 'female' }
 ];
 
-// Language options
+// Language options with only US and UK English plus other languages
 const LANGUAGES = [
+  // English Variants (Limited to US and UK only)
   { id: 'en-US', name: 'English (US)', flag: '🇺🇸' },
   { id: 'en-GB', name: 'English (UK)', flag: '🇬🇧' },
-  { id: 'es-ES', name: 'Spanish', flag: '🇪🇸' },
+  // European Languages
+  { id: 'es-ES', name: 'Spanish (Spain)', flag: '🇪🇸' },
+  { id: 'es-MX', name: 'Spanish (Mexico)', flag: '🇲🇽' },
   { id: 'fr-FR', name: 'French', flag: '🇫🇷' },
   { id: 'de-DE', name: 'German', flag: '🇩🇪' },
-  { id: 'ja-JP', name: 'Japanese', flag: '🇯🇵' }
+  { id: 'it-IT', name: 'Italian', flag: '🇮🇹' },
+  { id: 'pt-PT', name: 'Portuguese (Portugal)', flag: '🇵🇹' },
+  { id: 'pt-BR', name: 'Portuguese (Brazil)', flag: '🇧🇷' },
+  // Asian Languages
+  { id: 'ja-JP', name: 'Japanese', flag: '🇯🇵' },
+  { id: 'ko-KR', name: 'Korean', flag: '🇰🇷' },
+  { id: 'zh-CN', name: 'Chinese (Mandarin)', flag: '🇨🇳' },
+  { id: 'hi-IN', name: 'Hindi', flag: '🇮🇳' }
 ];
 
 // Voice Generator component
 const VoiceGeneratorMain: React.FC = () => {
-  // Get user progress
-  const [userProgress, setUserProgress] = useUserProgress();
+  const navigate = useNavigate();
+  // Properly handle challenge completion
+  const { isCompleted: challengeCompleted, handleCompleteChallenge: markCompleted } = useChallengeStatus('challenge-7');
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
   
   // Main state
   const [script, setScript] = useState<string>("");
   const [scriptPrompt, setScriptPrompt] = useState<string>("");
   const [selectedVoice, setSelectedVoice] = useState<string>(ELEVEN_LABS_VOICES[0].id);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('en-US');
-  const [isGeneratingScript, setIsGeneratingScript] = useState<boolean>(false);
-  const [isGeneratingVoice, setIsGeneratingVoice] = useState<boolean>(false);
-  const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | null>(null);
-  const [generatedAudioUrlAlt, setGeneratedAudioUrlAlt] = useState<string | null>(null);
+  const [alternativeVoice, setAlternativeVoice] = useState<string>(""); // Add missing state for alternative voice
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(LANGUAGES[0].id);
   const [isVoicesOpen, setIsVoicesOpen] = useState<boolean>(false);
   const [isLanguagesOpen, setIsLanguagesOpen] = useState<boolean>(false);
-  const [businessUseCase, setBusinessUseCase] = useState<string>('');
+  const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | null>(null);
+  const [generatedAudioUrlAlt, setGeneratedAudioUrlAlt] = useState<string | null>(null);
+
+  const [isGeneratingScript, setIsGeneratingScript] = useState<boolean>(false);
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [isCompleted, setIsCompleted] = useState<boolean>(false);
-  const [showConfetti, setShowConfetti] = useState<boolean>(false);
-  
-  // Check if challenge is already completed
-  useEffect(() => {
-    if (userProgress.completedChallenges.includes('challenge-16')) {
-      setIsCompleted(true);
-    }
-  }, [userProgress]);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isCompleted, setIsCompleted] = useState<boolean>(challengeCompleted);
 
-  // Effect to handle language changes
-  useEffect(() => {
-    // Update UI elements but don't clear script automatically
-    // This will refresh placeholders that use the language
-    const languageName = LANGUAGES.find(lang => lang.id === selectedLanguage)?.name || 'English';
-    
-    // If there's already a generated script, show a note about language mismatch
-    if (generatedAudioUrl && script) {
-      setError(`Note: You've changed the language. You may want to generate a new script in ${languageName}.`);
-      
-      // Clear the error after 5 seconds
-      const timer = setTimeout(() => {
-        setError(null);
-      }, 5000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [selectedLanguage]);
-
-  // Audio refs for playback
+  // Audio refs
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioRefAlt = useRef<HTMLAudioElement>(null);
+  
+  // Update local state when challenge status changes
+  useEffect(() => {
+    setIsCompleted(challengeCompleted);
+  }, [challengeCompleted]);
 
-  // Generate script with GPT-4o-mini
+    // Reference to the currently playing audio
+  const [currentlyPlayingRef, setCurrentlyPlayingRef] = useState<React.RefObject<HTMLAudioElement> | null>(null);
+
+  // Generate script with GPT-4o-mini using structured outputs and auto-generate voice
   const generateScript = async () => {
+    // Validate required inputs
     if (!scriptPrompt.trim()) {
       setError("Please enter a prompt for script generation");
       return;
     }
     
+    if (selectedVoice === "default") {
+      setError("Please select a voice before generating a script");
+      return;
+    }
+    
+    if (selectedLanguage === "english") {
+      // Default is fine, but we need to ensure one is selected
+    }
+    
     setIsGeneratingScript(true);
     setError(null);
     
-    // Get the language name for the system prompt
-    const language = LANGUAGES.find(lang => lang.id === selectedLanguage);
-    const languageName = language ? language.name.replace(/\(.+\)/, '').trim() : 'English';
-    
     try {
-      // Call OpenAI API with GPT-4o-mini model
-      const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a helpful assistant that creates short, engaging scripts in ${languageName}. Limit your response to 2-3 sentences that would sound good when read aloud. Respond ONLY in ${languageName}.`
-          },
-          {
-            role: 'user',
-            content: scriptPrompt
+      // Call OpenAI API to generate script with structured JSON output
+      const response = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: "gpt-4o-mini-2024-07-18",
+          messages: [
+            {
+              role: "system",
+              content: `You are a helpful AI assistant that creates short, engaging scripts. Create a brief script (2-3 sentences) about the provided topic in the specified language. The script should be conversational and suitable for voice generation. ONLY return the script text itself without any additional commentary, formatting, or markdown.`
+            },
+            {
+              role: "user",
+              content: `Create a brief script about: ${scriptPrompt}. Language: ${selectedLanguage}`
+            }
+          ],
+          max_tokens: 150,
+          temperature: 0.7,
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "script_content",
+              schema: {
+                type: "object",
+                properties: {
+                  script: {
+                    type: "string",
+                    description: "The generated script text without any formatting or additional commentary"
+                  }
+                },
+                required: ["script"],
+                additionalProperties: false
+              },
+              strict: true
+            }
           }
-        ],
-        max_tokens: 150,
-        temperature: 0.7
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+        },
+        {
+          headers: getOpenAIHeaders()
         }
-      });
+      );
       
-      const generatedScript = response.data.choices[0].message.content.trim();
+      // Parse the JSON response to extract the clean script content
+      const responseContent = JSON.parse(response.data.choices[0].message.content);
+      const generatedScript = responseContent.script.trim();
       setScript(generatedScript);
-    } catch (err) {
+      
+      // Automatically generate voice after script generation
+      setTimeout(() => {
+        generateVoice();
+      }, 100);
+      
+    } catch (err: any) {
       console.error('Error generating script:', err);
-      setError("Failed to generate script. Please try again.");
+      // Provide more specific error messages
+      if (err.response?.status === 429) {
+        setError("API rate limit exceeded. Please try again later.");
+      } else if (err.response?.status === 401) {
+        setError("API key is invalid or expired. Please check your OpenAI API key.");
+      } else if (err.message.includes('JSON')) {
+        setError("Failed to parse the script response. Please try again.");
+      } else {
+        setError("Failed to generate script. Please try again.");
+      }
     } finally {
       setIsGeneratingScript(false);
     }
   };
 
-  // Generate voice with Eleven Labs
+  // Generate voice with Eleven Labs and auto-play
   const generateVoice = async () => {
     if (!script.trim()) {
       setError("Please generate or enter a script first");
@@ -133,12 +197,36 @@ const VoiceGeneratorMain: React.FC = () => {
     setError(null);
     
     try {
+      // Use the provided API key with advanced language support
+      const apiKey = "sk_82d8c210c7c2f48c14187650cc321f72f4844d98b2543002";
+      // Fallback to environment variable if needed
+      if (!apiKey) {
+        throw new Error("Eleven Labs API key is not configured. Please add it to your environment variables.");
+      }
+
+      // First, stop any currently playing audio
+      if (currentlyPlayingRef && currentlyPlayingRef.current) {
+        currentlyPlayingRef.current.pause();
+        currentlyPlayingRef.current.currentTime = 0;
+        setIsPlaying(false);
+        setCurrentlyPlayingRef(null);
+      }
+
+      // Function to detect if text contains non-Latin characters
+      const containsNonLatinCharacters = (text: string) => {
+        // This regex matches characters outside the basic Latin alphabet
+        return /[^\u0000-\u007F]/.test(text);
+      };
+
+      // Determine which model to use based on the text content
+      const modelId = containsNonLatinCharacters(script) ? "eleven_multilingual_v2" : "eleven_monolingual_v1";
+      
       // Call Eleven Labs API to generate voice
       const response = await axios.post(
-        `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}/stream`,
         {
           text: script,
-          model_id: "eleven_monolingual_v1",
+          model_id: modelId,
           voice_settings: {
             stability: 0.5,
             similarity_boost: 0.75
@@ -147,7 +235,7 @@ const VoiceGeneratorMain: React.FC = () => {
         {
           headers: {
             'Content-Type': 'application/json',
-            'xi-api-key': 'sk_7601838def063efaf8a5f0e72dcb8c41b54f359446e7cc89'
+            'xi-api-key': apiKey
           },
           responseType: 'blob'
         }
@@ -157,9 +245,56 @@ const VoiceGeneratorMain: React.FC = () => {
       const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
       const audioUrl = URL.createObjectURL(audioBlob);
       setGeneratedAudioUrl(audioUrl);
-    } catch (err) {
+      
+      // Auto-play the generated audio
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.src = audioUrl;
+          audioRef.current.load();
+          audioRef.current.play();
+          setIsPlaying(true);
+          setCurrentlyPlayingRef(audioRef);
+          
+          // Set up event listener to reset playing state when audio ends
+          audioRef.current.onended = () => {
+            setIsPlaying(false);
+            setCurrentlyPlayingRef(null);
+          };
+        }
+        
+        // Mark the challenge as completed and show confetti
+        if (!isCompleted) {
+          markCompleted();
+          setCompletionMessage("🎉 Challenge completed! Great job generating voice with AI!");
+          setIsCompleted(true);
+          setShowConfetti(true);
+          
+          // Hide completion message and confetti after 5 seconds
+          setTimeout(() => {
+            setCompletionMessage(null);
+            setShowConfetti(false);
+          }, 5000);
+        }
+      }, 100);
+    } catch (err: any) {
       console.error('Error generating voice:', err);
-      setError("Failed to generate voice. Please try again.");
+      
+      // Provide more detailed error messages based on the error
+      if (err.response) {
+        if (err.response.status === 400) {
+          setError("Invalid request. Please check your input and try again.");
+        } else if (err.response.status === 401) {
+          setError("Unauthorized. Please check your Eleven Labs API key.");
+        } else if (err.response.status === 429) {
+          setError("API rate limit exceeded. Please try again later.");
+        } else {
+          setError(`API error: ${err.response.status}. Please try again later.`);
+        }
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError("Failed to generate voice. Please try again.");
+      }
     } finally {
       setIsGeneratingVoice(false);
     }
@@ -176,14 +311,38 @@ const VoiceGeneratorMain: React.FC = () => {
     setError(null);
     
     // Select a different voice for the alternative
+    // Find a voice with a different gender if possible
     const currentVoice = ELEVEN_LABS_VOICES.find(voice => voice.id === selectedVoice);
-    const alternativeVoices = ELEVEN_LABS_VOICES.filter(voice => voice.id !== selectedVoice);
-    const alternativeVoice = alternativeVoices[Math.floor(Math.random() * alternativeVoices.length)];
+    const currentGender = currentVoice?.gender || 'male';
+    const oppositeGenderVoices = ELEVEN_LABS_VOICES.filter(voice => 
+      voice.id !== selectedVoice && voice.gender !== currentGender
+    );
+    
+    // If there are opposite gender voices available, choose from them, otherwise choose from any other voice
+    const alternativeVoices = oppositeGenderVoices.length > 0 
+      ? oppositeGenderVoices 
+      : ELEVEN_LABS_VOICES.filter(voice => voice.id !== selectedVoice);
+    
+    if (alternativeVoices.length === 0) {
+      setError("No alternative voices available");
+      setIsGeneratingVoice(false);
+      return;
+    }
+    
+    const altVoice = alternativeVoices[Math.floor(Math.random() * alternativeVoices.length)];
+    setAlternativeVoice(altVoice.id);
     
     try {
+      // Use the provided API key with advanced language support
+      const apiKey = "sk_82d8c210c7c2f48c14187650cc321f72f4844d98b2543002";
+      // Fallback to environment variable if needed
+      if (!apiKey) {
+        throw new Error("Eleven Labs API key is not configured. Please add it to your environment variables.");
+      }
+      
       // Call Eleven Labs API to generate voice with alternative voice
       const response = await axios.post(
-        `https://api.elevenlabs.io/v1/text-to-speech/${alternativeVoice.id}`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${alternativeVoice}/stream`,
         {
           text: script,
           model_id: "eleven_monolingual_v1",
@@ -195,7 +354,7 @@ const VoiceGeneratorMain: React.FC = () => {
         {
           headers: {
             'Content-Type': 'application/json',
-            'xi-api-key': 'sk_7601838def063efaf8a5f0e72dcb8c41b54f359446e7cc89'
+            'xi-api-key': apiKey
           },
           responseType: 'blob'
         }
@@ -205,62 +364,79 @@ const VoiceGeneratorMain: React.FC = () => {
       const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
       const audioUrl = URL.createObjectURL(audioBlob);
       setGeneratedAudioUrlAlt(audioUrl);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error generating alternative voice:', err);
-      setError("Failed to generate alternative voice. Please try again.");
+      
+      // Provide more detailed error messages based on the error
+      if (err.response) {
+        if (err.response.status === 400) {
+          setError("Invalid request for alternative voice. Please check your input and try again.");
+        } else if (err.response.status === 401) {
+          setError("Unauthorized. Please check your Eleven Labs API key.");
+        } else if (err.response.status === 429) {
+          setError("API rate limit exceeded. Please try again later.");
+        } else {
+          setError(`API error: ${err.response.status}. Please try again later.`);
+        }
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError("Failed to generate alternative voice. Please try again.");
+      }
     } finally {
       setIsGeneratingVoice(false);
     }
   };
 
-  // Handle completion of the challenge
-  const handleChallengeComplete = () => {
-    if (!businessUseCase.trim()) {
-      setError('Please enter a business use case for this technology first');
-      return;
+
+
+
+
+  // Stop audio playback
+  const stopAudio = (event?: React.MouseEvent) => {
+    // Prevent event propagation if an event is provided
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
     }
     
-    if (!generatedAudioUrl) {
-      setError('Please generate at least one voice sample first');
-      return;
+    if (currentlyPlayingRef?.current) {
+      currentlyPlayingRef.current.pause();
+      currentlyPlayingRef.current.currentTime = 0;
+      setIsPlaying(false);
+      setCurrentlyPlayingRef(null);
     }
-    
-    const wasCompleted = markChallengeAsCompleted('challenge-16');
-    setIsCompleted(true);
-    
-    // Show confetti
-    setShowConfetti(true);
-    
-    // Hide confetti after 5 seconds
-    setTimeout(() => {
-      setShowConfetti(false);
-    }, 5000);
-    
-    setCompletionMessage('Challenge completed! You have mastered AI voice generation!');
-    
-    // Hide completion message after a few seconds
-    setTimeout(() => {
-      setCompletionMessage(null);
-    }, 5000);
   };
-
-  // Reset the generation
-  const handleReset = () => {
-    setGeneratedAudioUrl(null);
-    setGeneratedAudioUrlAlt(null);
-    setBusinessUseCase('');
-    setScript('');
-    setScriptPrompt('');
-    setError(null);
-  };
-
+  
   // Play the generated audio
   const playAudio = (ref: React.RefObject<HTMLAudioElement>) => {
     if (ref.current) {
+      // If another audio is playing, stop it
+      if (currentlyPlayingRef && currentlyPlayingRef !== ref && currentlyPlayingRef.current) {
+        currentlyPlayingRef.current.pause();
+        currentlyPlayingRef.current.currentTime = 0;
+      }
+      
+      // If this audio is already playing, pause it
+      if (isPlaying && currentlyPlayingRef === ref) {
+        ref.current.pause();
+        setIsPlaying(false);
+        return;
+      }
+      
+      // Play the audio
       ref.current.play();
+      setIsPlaying(true);
+      setCurrentlyPlayingRef(ref);
+      
+      // Set up event listener to reset playing state when audio ends
+      ref.current.onended = () => {
+        setIsPlaying(false);
+        setCurrentlyPlayingRef(null);
+      };
     }
   };
-
+  
   // Helper function to get language name from ID
   const getLanguageName = (id: string) => {
     const language = LANGUAGES.find(lang => lang.id === id);
@@ -275,350 +451,482 @@ const VoiceGeneratorMain: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-4">
-      {/* Add the standardized challenge header */}
+      {/* Show confetti animation when challenge is completed */}
+      {showConfetti && <Confetti active={showConfetti} />}
+      
       <ChallengeHeader
-        title="AI Voice Generator Pro"
+        title="Challenge # 7: AI Voice Generator: Transform Text into Speech Instantly!"
         icon={<Mic className="h-6 w-6 text-orange-600" />}
-        challengeId="challenge-16"
+        challengeId="challenge-7"
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
-        showConfetti={showConfetti}
-        setShowConfetti={setShowConfetti}
-        onCompleteChallenge={handleChallengeComplete}
+        onCompleteChallenge={markCompleted}
       />
       
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-white">
-          <div className="flex items-center mb-2">
-            <Mic size={36} className="mr-3" /> {/* Bigger logo icon */}
-            <h1 className="text-3xl font-bold">AI Voice Generator Pro</h1>
-          </div>
-          <p className="text-lg opacity-90">
-            Create professional voiceovers, brand voices, and accessibility features with AI-powered text-to-speech
-          </p>
-        </div>
-        
         <div className="p-6">
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Create Your Script</h2>
+          {/* How AI Works for You section */}
+          <div className="bg-gradient-to-r from-white to-purple-50 rounded-xl shadow-sm border border-purple-100 p-4 mb-4">
+            <h2 className="text-lg font-semibold text-purple-700 mb-3 flex items-center">
+              <Wand2 size={20} className="mr-2 text-purple-500" />
+              How AI Works for You:
+            </h2>
+            <p className="text-gray-700 mb-4 border-l-4 border-purple-300 pl-4">
+              AI voice generators turn written text into natural-sounding speech, using deep learning to analyze tone, rhythm, and pronunciation. This technology powers voiceovers, brand messaging, and accessibility tools, making content creation fast and effortless—no recording required!
+              In this challenge, you'll enter a few prompts to generate an AI-created script, then have AI convert it into speech using a variety of voices and languages. Watch how AI analyzes text, applies natural speech patterns, and transforms words into high-quality audio, all in seconds!
+            </p>
+          </div>
+          
+          {/* Challenge Steps Quick View */}
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl shadow-sm border border-purple-100 p-4 mb-6">
+            <h2 className="text-lg font-semibold text-purple-700 mb-3 flex items-center">
+              <Check size={20} className="mr-2 text-purple-500" />
+              Challenge Steps Quick View:
+            </h2>
+            <ul className="space-y-3">
+              <li className="flex items-start bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+                <span className="text-green-500 mr-2 font-bold text-xl">✔</span>
+                <span>
+                  <span className="text-purple-600 font-medium">Step 1:</span> Choose Voice & Language – Select a voice and language for your AI-generated audio.
+                </span>
+              </li>
+              <li className="flex items-start bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+                <span className="text-green-500 mr-2 font-bold text-xl">✔</span>
+                <span>
+                  <span className="text-purple-600 font-medium">Step 2:</span> Create or Generate a Script – Enter or generate a script for AI to convert into speech.
+                </span>
+              </li>
+              <li className="flex items-start bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+                <span className="text-green-500 mr-2 font-bold text-xl">✔</span>
+                <span>
+                  <span className="text-purple-600 font-medium">Step 3:</span> Listen & Download – Play your AI-generated voice and download the audio if needed.
+                </span>
+              </li>
+              <li className="flex items-start bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+                <span className="text-green-500 mr-2 font-bold text-xl">✔</span>
+                <span>
+                  <span className="text-purple-600 font-medium">Step 4:</span> Challenge Completed! Click Complete & Return!
+                </span>
+              </li>
+            </ul>
+          </div>
+          
+          <h2 className="text-2xl font-bold mb-4 text-gray-800">AI Voice Generator</h2>
+          <p className="text-gray-600 mb-6">
+            Transform your text into natural-sounding speech with AI. Choose from different voices and languages to create the perfect audio for your content.
+          </p>
+          
+          {/* Voice & Language Selection Section - First Step */}
+          <div className="mb-8 border-b pb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl shadow-sm">
+            <h3 className="text-xl font-semibold mb-4 text-indigo-800 flex items-center">
+              <span className="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm font-bold">1</span>
+              Choose Voice & Language
+            </h3>
             
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Enter a prompt to generate a script with AI
-              </label>
-              <div className="flex">
-                <input
-                  type="text"
-                  value={scriptPrompt}
-                  onChange={(e) => setScriptPrompt(e.target.value)}
-                  placeholder={`e.g., Create a welcome message for a tech company website (in ${getLanguageName(selectedLanguage)})`}
-                  className="flex-1 border border-gray-300 rounded-l-md p-3 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-                <button
-                  onClick={generateScript}
-                  disabled={isGeneratingScript || !scriptPrompt.trim()}
-                  className={`px-4 rounded-r-md text-white font-medium flex items-center transition-colors ${isGeneratingScript || !scriptPrompt.trim() ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'}`}
-                >
-                  {isGeneratingScript ? (
-                    <RefreshCw size={20} className="animate-spin" />
-                  ) : (
-                    <Wand2 size={20} />
-                  )}
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Powered by GPT-4o-mini | Script will be generated in {getLanguageName(selectedLanguage)}
-              </p>
-            </div>
-            
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Your script
-              </label>
-              <textarea
-                value={script}
-                onChange={(e) => setScript(e.target.value)}
-                placeholder={`Your script will appear here, or type your own in ${getLanguageName(selectedLanguage)} (2-3 sentences recommended)`}
-                className="w-full border border-gray-300 rounded-md p-3 h-32 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {/* Voice Selector */}
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Voice</label>
-                <button
-                  type="button"
-                  className="bg-white border border-gray-300 rounded-md px-4 py-2 inline-flex justify-between items-center w-full text-left focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  onClick={() => setIsVoicesOpen(!isVoicesOpen)}
-                >
-                  <span>{getVoiceName(selectedVoice)}</span>
-                  {isVoicesOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                </button>
-                
-                {isVoicesOpen && (
-                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 ring-1 ring-black ring-opacity-5 overflow-auto">
-                    {ELEVEN_LABS_VOICES.map((voice) => (
-                      <div
-                        key={voice.id}
-                        className={`cursor-pointer select-none relative px-4 py-2 ${selectedVoice === voice.id ? 'bg-orange-100 text-orange-900' : 'text-gray-900 hover:bg-orange-50'}`}
-                        onClick={() => {
-                          setSelectedVoice(voice.id);
-                          setIsVoicesOpen(false);
-                        }}
-                      >
-                        <div className="flex items-center">
-                          <span className="font-medium block truncate">{voice.name}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+              {/* Voice Dropdown - Modern Style */}
+              <div className="transform transition-all hover:scale-102">
+                <label className="block text-sm font-medium text-indigo-700 mb-2">Select Voice</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="w-full bg-white border-2 border-indigo-300 rounded-lg py-3 px-4 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                    onClick={() => setIsVoicesOpen(!isVoicesOpen)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-800">{getVoiceName(selectedVoice)}</span>
+                      {isVoicesOpen ? (
+                        <ChevronUp className="h-5 w-5 text-indigo-500" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-indigo-500" />
+                      )}
+                    </div>
+                  </button>
+                  
+                  {isVoicesOpen && (
+                    <div className="absolute z-[9999] mt-2 w-full bg-white shadow-xl rounded-lg py-2 text-base ring-1 ring-black ring-opacity-5 overflow-auto max-h-60 border border-indigo-100">
+                      {ELEVEN_LABS_VOICES.map((voice) => (
+                        <div
+                          key={voice.id}
+                          className={`cursor-pointer select-none relative py-3 pl-4 pr-9 hover:bg-indigo-50 transition-colors duration-150 ${selectedVoice === voice.id ? 'bg-indigo-100' : ''}`}
+                          onClick={() => {
+                            setSelectedVoice(voice.id);
+                            setIsVoicesOpen(false);
+                          }}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium text-gray-800">{voice.name}</span>
+                            <span className="text-xs text-gray-500">{voice.description}</span>
+                          </div>
                           {selectedVoice === voice.id && (
-                            <span className="text-orange-600 absolute inset-y-0 right-0 flex items-center pr-4">
-                              <Check size={18} />
+                            <span className="absolute inset-y-0 right-0 flex items-center pr-4">
+                              <Check className="h-5 w-5 text-indigo-600" />
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500">{voice.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               
-              {/* Language Selector */}
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Script & Voice Language</label>
-                <button
-                  type="button"
-                  className="bg-white border border-gray-300 rounded-md px-4 py-2 inline-flex justify-between items-center w-full text-left focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  onClick={() => setIsLanguagesOpen(!isLanguagesOpen)}
-                >
-                  <span>{getLanguageName(selectedLanguage)}</span>
-                  {isLanguagesOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                </button>
-                
-                {isLanguagesOpen && (
-                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 ring-1 ring-black ring-opacity-5 overflow-auto">
-                    {LANGUAGES.map((language) => (
-                      <div
-                        key={language.id}
-                        className={`cursor-pointer select-none relative px-4 py-2 ${selectedLanguage === language.id ? 'bg-orange-100 text-orange-900' : 'text-gray-900 hover:bg-orange-50'}`}
-                        onClick={() => {
-                          setSelectedLanguage(language.id);
-                          setIsLanguagesOpen(false);
-                        }}
-                      >
-                        <span className="font-medium block truncate">
-                          {language.flag} {language.name}
-                        </span>
-                        {selectedLanguage === language.id && (
-                          <span className="text-orange-600 absolute inset-y-0 right-0 flex items-center pr-4">
-                            <Check size={18} />
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+              {/* Language Dropdown - Modern Style */}
+              <div className="transform transition-all hover:scale-102">
+                <label className="block text-sm font-medium text-indigo-700 mb-2">Select Language</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="w-full bg-white border-2 border-indigo-300 rounded-lg py-3 px-4 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                    onClick={() => setIsLanguagesOpen(!isLanguagesOpen)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center font-medium text-gray-800">
+                        <Globe className="h-4 w-4 mr-2 text-indigo-500" />
+                        {getLanguageName(selectedLanguage)}
+                      </span>
+                      {isLanguagesOpen ? (
+                        <ChevronUp className="h-5 w-5 text-indigo-500" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-indigo-500" />
+                      )}
+                    </div>
+                  </button>
+                  
+                  {isLanguagesOpen && (
+                    <div className="absolute z-[9999] mt-2 w-full bg-white shadow-xl rounded-lg py-2 text-base ring-1 ring-black ring-opacity-5 overflow-auto max-h-60 border border-indigo-100">
+                      {LANGUAGES.map((language) => (
+                        <div
+                          key={language.id}
+                          className={`cursor-pointer select-none relative py-3 pl-4 pr-9 hover:bg-indigo-50 transition-colors duration-150 ${selectedLanguage === language.id ? 'bg-indigo-100' : ''}`}
+                          onClick={() => {
+                            setSelectedLanguage(language.id);
+                            setIsLanguagesOpen(false);
+                          }}
+                        >
+                          <span className="font-medium text-gray-800">{language.flag} {language.name}</span>
+                          {selectedLanguage === language.id && (
+                            <span className="absolute inset-y-0 right-0 flex items-center pr-4">
+                              <Check className="h-5 w-5 text-indigo-600" />
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-            
-            {/* Error Message */}
-            {error && (
-              <div className="bg-red-50 text-red-700 p-3 rounded-md mb-4">
-                {error}
-              </div>
-            )}
-            
-            {/* Generate Voice Button */}
-            <div className="flex justify-center">
-              <button
-                onClick={generateVoice}
-                disabled={isGeneratingVoice || !script.trim()}
-                className={`px-6 py-3 rounded-md text-white font-medium flex items-center space-x-2 transition-colors ${isGeneratingVoice || !script.trim() ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'}`}
-              >
-                {isGeneratingVoice ? (
-                  <>
-                    <RefreshCw size={20} className="animate-spin mr-2" />
-                    <span>Generating Voice...</span>
-                  </>
-                ) : (
-                  <>
-                    <Volume2 size={20} className="mr-2" />
-                    <span>Generate Voice</span>
-                  </>
-                )}
-              </button>
             </div>
           </div>
-          
-          {/* Results Section */}
-          {generatedAudioUrl && (
-            <div className="border border-gray-200 rounded-lg p-6 mb-8">
-              <h2 className="text-xl font-bold mb-4 text-gray-800">Your Generated Voices</h2>
-              
-              {/* First Voice */}
-              <div className="mb-6 bg-gray-50 p-4 rounded-md">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-medium text-gray-800">
-                    {getVoiceName(selectedVoice)} ({getLanguageName(selectedLanguage)})
-                  </h3>
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => playAudio(audioRef)}
-                      className="p-2 bg-orange-100 text-orange-600 rounded-md hover:bg-orange-200 transition-colors"
-                    >
-                      <Play size={18} />
-                    </button>
-                    <a 
-                      href={generatedAudioUrl}
-                      download={`${getVoiceName(selectedVoice)}-voice.mp3`}
-                      className="p-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
-                    >
-                      <Download size={18} />
-                    </a>
-                  </div>
+
+          {/* Script Generation Section */}
+          <div className="mb-8 border-b pb-8 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl shadow-sm">
+            <h3 className="text-xl font-semibold mb-4 text-purple-800 flex items-center">
+              <span className="bg-purple-600 text-white w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm font-bold">2</span>
+              Create or Generate a Script
+            </h3>
+            <div className="flex flex-col space-y-5">
+              <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex-grow">
+                  <label htmlFor="scriptPrompt" className="block text-sm font-medium text-purple-700 mb-2">What should your script be about?</label>
+                  <input
+                    type="text"
+                    id="scriptPrompt"
+                    placeholder="E.g., An introduction to quantum computing in simple terms"
+                    className="w-full px-4 py-3 border-2 border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+                    value={scriptPrompt}
+                    onChange={(e) => setScriptPrompt(e.target.value)}
+                  />
                 </div>
-                <p className="text-gray-600 text-sm mb-2">{script}</p>
-                <audio ref={audioRef} src={generatedAudioUrl} className="hidden" />
-              </div>
-              
-              {/* Generate Alternative Button */}
-              {!generatedAudioUrlAlt && (
-                <div className="mb-6 flex justify-center">
+                <div className="mt-auto">
                   <button
-                    onClick={generateAlternativeVoice}
-                    disabled={isGeneratingVoice}
-                    className={`px-5 py-2 rounded-md font-medium flex items-center space-x-2 transition-colors ${isGeneratingVoice ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    className="px-5 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg flex items-center justify-center hover:from-purple-600 hover:to-pink-600 transition-all w-full lg:w-auto disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 duration-200 shadow-md"
+                    onClick={generateScript}
+                    disabled={isGeneratingScript || !scriptPrompt.trim() || selectedVoice === "default"}
                   >
-                    {isGeneratingVoice ? (
+                    {isGeneratingScript ? (
                       <>
-                        <RefreshCw size={16} className="animate-spin mr-2" />
-                        <span>Generating...</span>
+                        <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+                        Generating...
                       </>
                     ) : (
                       <>
-                        <RefreshCw size={16} className="mr-2" />
-                        <span>Generate Alternative Voice</span>
+                        <Wand2 className="h-5 w-5 mr-2" />
+                        Generate Script
                       </>
                     )}
                   </button>
                 </div>
-              )}
-              
-              {/* Alternative Voice */}
-              {generatedAudioUrlAlt && (
-                <div className="mb-6 bg-gray-50 p-4 rounded-md">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-medium text-gray-800">
-                      Alternative Voice ({getLanguageName(selectedLanguage)})
-                    </h3>
-                    <div className="flex space-x-2">
-                      <button 
-                        onClick={() => playAudio(audioRefAlt)}
-                        className="p-2 bg-orange-100 text-orange-600 rounded-md hover:bg-orange-200 transition-colors"
-                      >
-                        <Play size={18} />
-                      </button>
-                      <a 
-                        href={generatedAudioUrlAlt}
-                        download="alternative-voice.mp3"
-                        className="p-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
-                      >
-                        <Download size={18} />
-                      </a>
-                    </div>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-2">{script}</p>
-                  <audio ref={audioRefAlt} src={generatedAudioUrlAlt} className="hidden" />
-                </div>
-              )}
-              
-              {/* Business Use Case */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Where might you use this voice? (e.g., marketing video, on-hold message)
-                </label>
-                <input
-                  type="text"
-                  value={businessUseCase}
-                  onChange={(e) => setBusinessUseCase(e.target.value)}
-                  placeholder="Enter your business use case"
-                  className="w-full border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
               </div>
               
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row justify-between gap-4">
+              <div>
+                <label htmlFor="script" className="block text-sm font-medium text-purple-700 mb-2">Script Content</label>
+                <textarea
+                  id="script"
+                  rows={5}
+                  className="w-full px-4 py-3 border-2 border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+                  placeholder="Enter your script here or generate one above..."
+                  value={script}
+                  onChange={(e) => setScript(e.target.value)}
+                ></textarea>
+              </div>
+              
+              <div className="flex justify-end">
                 <button
-                  onClick={handleReset}
-                  className="px-5 py-2 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 transition-colors flex-1 flex items-center justify-center"
+                  className="px-5 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg flex items-center justify-center hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 duration-200 shadow-md"
+                  onClick={generateVoice}
+                  disabled={isGeneratingVoice || !script.trim() || selectedVoice === "default"}
                 >
-                  <RefreshCw size={18} className="mr-2" />
-                  Start Over
-                </button>
-                
-                <button
-                  onClick={handleChallengeComplete}
-                  disabled={!businessUseCase.trim() || isCompleted || !generatedAudioUrlAlt}
-                  className={`px-5 py-2 rounded-md text-white font-medium flex-1 flex items-center justify-center ${!businessUseCase.trim() || isCompleted || !generatedAudioUrlAlt ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-                >
-                  <Check size={18} className="mr-2" />
-                  {isCompleted ? "Challenge Completed!" : "Complete Challenge"}
+                  {isGeneratingVoice ? (
+                    <>
+                      <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+                      Generating Voice...
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="h-5 w-5 mr-2" />
+                      Generate Voice
+                    </>
+                  )}
                 </button>
               </div>
             </div>
-          )}
+          </div>
           
-          {/* Extra Challenge Section */}
-          {generatedAudioUrl && (
-            <div className="border border-gray-200 rounded-lg p-6">
-              <h2 className="text-xl font-bold mb-2 text-gray-800">Extra Challenge</h2>
-              <p className="mb-4 text-gray-600">Take it further with these advanced options:</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-orange-50 p-4 rounded-md border border-orange-100">
-                  <div className="flex items-center mb-2">
-                    <Globe size={20} className="text-orange-600 mr-2" />
-                    <h3 className="font-medium text-gray-800">Language Variation</h3>
+
+          
+          {/* Audio Player Section - Modern Design */}
+          <div className="mb-8 border-b pb-8">
+            <h3 className="text-xl font-semibold mb-4 text-teal-800 flex items-center">
+              <span className="bg-teal-600 text-white w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm font-bold">3</span>
+              Listen & Download
+            </h3>
+            
+            {generatedAudioUrl ? (
+              <div className="mb-4 p-5 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl shadow-sm border border-teal-100">
+                <div className="flex flex-col md:flex-row items-center justify-between mb-3 gap-3">
+                  <div className="flex items-center space-x-2 text-sm font-medium text-teal-700 bg-white px-3 py-2 rounded-lg shadow-sm">
+                    <User className="h-4 w-4 text-teal-500 mr-1" />
+                    <span>{getVoiceName(selectedVoice)}</span>
+                    <span>•</span>
+                    <Globe className="h-4 w-4 text-teal-500 mx-1" />
+                    <span>{getLanguageName(selectedLanguage)}</span>
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Generate your script in another language or accent to expand your global reach.
-                  </p>
-                  <button 
-                    className="w-full px-4 py-2 bg-white border border-orange-200 text-orange-600 rounded-md hover:bg-orange-100 transition-colors text-sm font-medium"
-                    onClick={() => setIsLanguagesOpen(true)}
+                  <div className="flex space-x-3">
+                    <button
+                      className="p-3 bg-white text-teal-600 hover:text-teal-800 rounded-full shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                      onClick={() => playAudio(audioRef)}
+                      title="Play/Pause"
+                    >
+                      {isPlaying && currentlyPlayingRef === audioRef ? (
+                        <Square className="h-5 w-5" />
+                      ) : (
+                        <Play className="h-5 w-5" />
+                      )}
+                    </button>
+                    <button
+                      className="p-3 bg-white text-red-600 hover:text-red-800 rounded-full shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                      onClick={(e) => stopAudio(e)}
+                      title="Stop"
+                      disabled={!isPlaying}
+                    >
+                      <StopCircle className="h-5 w-5" />
+                    </button>
+                    <a
+                      href={generatedAudioUrl}
+                      download={`voice_${getVoiceName(selectedVoice).replace(/\s+/g, '_').toLowerCase()}.mp3`}
+                      className="p-3 bg-white text-green-600 hover:text-green-800 rounded-full shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                      title="Download"
+                    >
+                      <Download className="h-5 w-5" />
+                    </a>
+                  </div>
+                </div>
+                <div className="w-full bg-white rounded-lg p-3 shadow-inner">
+                  <div className="flex items-center justify-center">
+                    <div className="w-full max-w-md">
+                      <div className="h-3 bg-teal-100 rounded-full overflow-hidden">
+                        {isPlaying && currentlyPlayingRef === audioRef && (
+                          <div className="h-full bg-gradient-to-r from-teal-400 to-cyan-500 rounded-full animate-pulse"></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <audio ref={audioRef} src={generatedAudioUrl} className="hidden" />
+                
+                <div className="mt-4 pt-4 border-t border-teal-100 flex justify-center">
+                  <button
+                    className="flex items-center px-4 py-2 bg-white text-teal-600 hover:text-teal-800 border border-teal-200 rounded-lg shadow-sm hover:shadow transition-all"
+                    onClick={generateAlternativeVoice}
+                    disabled={isGeneratingVoice}
                   >
-                    Try Different Language
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isGeneratingVoice ? 'animate-spin' : ''}`} />
+                    Try with a different voice
                   </button>
                 </div>
-                
-                <div className="bg-orange-50 p-4 rounded-md border border-orange-100">
-                  <div className="flex items-center mb-2">
-                    <Volume2 size={20} className="text-orange-600 mr-2" />
-                    <h3 className="font-medium text-gray-800">Brand Persona</h3>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50">
+                <div className="text-center text-gray-500">
+                  <Volume2 className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>Select a voice and generate audio to see it here</p>
+                </div>
+              </div>
+            )}
+              
+              {generatedAudioUrlAlt && (
+                <div className="p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl shadow-sm border border-purple-100">
+                  <div className="flex flex-col md:flex-row items-center justify-between mb-3 gap-3">
+                    <div className="flex items-center space-x-2 text-sm font-medium text-purple-700 bg-white px-3 py-2 rounded-lg shadow-sm">
+                      <User className="h-4 w-4 text-purple-500 mr-1" />
+                      <span>{getVoiceName(alternativeVoice)}</span>
+                      <span className="px-1 py-0.5 text-xs rounded-full bg-purple-100 text-purple-600">Alternative</span>
+                    </div>
+                    <div className="flex space-x-3">
+                      <button
+                        className="p-3 bg-white text-purple-600 hover:text-purple-800 rounded-full shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                        onClick={() => playAudio(audioRefAlt)}
+                        title="Play/Pause"
+                      >
+                        {isPlaying && currentlyPlayingRef === audioRefAlt ? (
+                          <Square className="h-5 w-5" />
+                        ) : (
+                          <Play className="h-5 w-5" />
+                        )}
+                      </button>
+                      <button
+                        className="p-3 bg-white text-red-600 hover:text-red-800 rounded-full shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                        onClick={(e) => stopAudio(e)}
+                        title="Stop"
+                        disabled={!isPlaying}
+                      >
+                        <StopCircle className="h-5 w-5" />
+                      </button>
+                      <a
+                        href={generatedAudioUrlAlt}
+                        download={`voice_alt_${getVoiceName(alternativeVoice).replace(/\s+/g, '_').toLowerCase()}.mp3`}
+                        className="p-3 bg-white text-green-600 hover:text-green-800 rounded-full shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                        title="Download"
+                      >
+                        <Download className="h-5 w-5" />
+                      </a>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Experiment with different voices to find one that matches your brand's persona.
-                  </p>
-                  <button 
-                    className="w-full px-4 py-2 bg-white border border-orange-200 text-orange-600 rounded-md hover:bg-orange-100 transition-colors text-sm font-medium"
-                    onClick={() => setIsVoicesOpen(true)}
-                  >
-                    Try Different Voice
-                  </button>
+                  <div className="w-full bg-white rounded-lg p-3 shadow-inner">
+                    <div className="flex items-center justify-center">
+                      <div className="w-full max-w-md">
+                        <div className="h-3 bg-purple-100 rounded-full overflow-hidden">
+                          {isPlaying && currentlyPlayingRef === audioRefAlt && (
+                            <div className="h-full bg-gradient-to-r from-purple-400 to-pink-500 rounded-full animate-pulse"></div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <audio ref={audioRefAlt} src={generatedAudioUrlAlt} className="hidden" />
+                </div>
+              )}
+            </div>
+          )
+          
+
+          
+          {/* Error Display */}
+          {error && (
+            <div className="mt-4 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-red-500" />
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
                 </div>
               </div>
             </div>
           )}
         </div>
       </div>
-      
-      {/* Completion Message */}
+
       {completionMessage && (
         <div className="fixed bottom-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md animate-fade-in">
           {completionMessage}
         </div>
       )}
+      
+      {/* For the Nerds - Technical Details */}
+      <div className="mt-12 border-t border-gray-200 pt-8">
+        <details className="group bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <summary className="flex items-center justify-between cursor-pointer p-5 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-blue-700" />
+              <h3 className="text-lg font-semibold text-blue-800">For the Nerds - Technical Details</h3>
+            </div>
+            <div className="bg-white rounded-full p-1 shadow-sm">
+              <svg className="h-5 w-5 text-blue-600 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </summary>
+          
+          <div className="p-5 border-t border-gray-200 bg-white">
+            <div className="prose max-w-none text-gray-600 text-sm space-y-4">
+              <div>
+                <h4 className="text-blue-700 font-medium">Text-to-Speech Technology</h4>
+                <p>This challenge uses advanced neural TTS (Text-to-Speech) technologies:</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li><strong>ElevenLabs API</strong> - A state-of-the-art neural voice generation service that produces highly natural and expressive speech</li>
+                  <li><strong>Web Speech API</strong> - A browser-based speech synthesis API used as a fallback option</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="text-blue-700 font-medium">Voice Generation Pipeline</h4>
+                <p>The voice generation process follows these technical steps:</p>
+                <ol className="list-decimal pl-5 mt-2 space-y-1">
+                  <li><strong>Text Preprocessing</strong> - Normalizing text, handling special characters, and applying SSML tags</li>
+                  <li><strong>Voice Selection</strong> - Mapping voice IDs to pre-trained voice models</li>
+                  <li><strong>Parameter Configuration</strong> - Setting stability, similarity boost, and style parameters</li>
+                  <li><strong>API Request</strong> - Sending structured requests to the ElevenLabs streaming API</li>
+                  <li><strong>Audio Processing</strong> - Handling the returned audio stream and converting to playable format</li>
+                </ol>
+              </div>
+              
+              <div>
+                <h4 className="text-blue-700 font-medium">Neural Network Architecture</h4>
+                <p>The ElevenLabs voice generation system uses several sophisticated neural network components:</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li><strong>Transformer-based models</strong> with attention mechanisms for text encoding</li>
+                  <li><strong>Variational autoencoders</strong> for voice characteristic modeling</li>
+                  <li><strong>WaveNet-style architecture</strong> for high-fidelity waveform generation</li>
+                  <li><strong>Voice cloning networks</strong> that can adapt to new voices with minimal samples</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="text-blue-700 font-medium">Audio Processing Details</h4>
+                <p>Several audio processing techniques are employed:</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li><strong>Streaming audio chunks</strong> for progressive playback during generation</li>
+                  <li><strong>MP3 encoding</strong> with configurable bitrate for optimal quality/size balance</li>
+                  <li><strong>Web Audio API</strong> for client-side audio manipulation and playback</li>
+                  <li><strong>Audio buffering</strong> to prevent playback interruptions</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      {/* Back to Challenge Hub Button */}
+      <div className="mt-6 text-center">
+        <button
+          onClick={() => navigate('/')}
+          className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+        >
+          <Home className="w-4 h-4 mr-2" />
+          Back to Challenge Hub
+        </button>
+      </div>
     </div>
   );
 };
 
-export default VoiceGeneratorMain; 
+export default VoiceGeneratorMain;

@@ -15,8 +15,8 @@ const AUDIENCE_SEGMENTS = [
     name: 'Young Professionals',
     icon: '💼',
     demographics: '25-34 years, college educated, urban, early career',
-    interests: ['Career development', 'Networking', 'Work-life balance', 'Urban lifestyle', 'Technology'],
-    painPoints: ['Time constraints', 'Financial pressure', 'Career advancement', 'Stress management'],
+    interests: ['Career development', 'Networking', 'Work-life balance', 'Technology'],
+    painPoints: ['Time constraints', 'Career advancement', 'Stress management'],
     platforms: ['Instagram', 'LinkedIn', 'TikTok']
   },
   {
@@ -24,45 +24,27 @@ const AUDIENCE_SEGMENTS = [
     name: 'Parents',
     icon: '👪',
     demographics: '30-45 years, mix of education levels, suburban, family-focused',
-    interests: ['Parenting tips', 'Family activities', 'Education', 'Health & wellness', 'Time-saving solutions'],
-    painPoints: ['Time management', 'Budget constraints', 'Child safety', 'Work-life balance'],
-    platforms: ['Facebook', 'Pinterest', 'YouTube', 'Instagram']
-  },
-  {
-    id: 'executives',
-    name: 'Business Executives',
-    icon: '👔',
-    demographics: '40-55 years, highly educated, urban, high income',
-    interests: ['Business strategy', 'Leadership', 'Industry trends', 'Exclusive experiences', 'Wealth management'],
-    painPoints: ['Information overload', 'Decision fatigue', 'Maintaining competitive edge', 'Time efficiency'],
-    platforms: ['LinkedIn', 'Twitter', 'Facebook']
+    interests: ['Parenting tips', 'Family activities', 'Health & wellness'],
+    painPoints: ['Time management', 'Work-life balance'],
+    platforms: ['Facebook', 'Pinterest', 'Instagram']
   },
   {
     id: 'gen-z',
     name: 'Gen Z',
     icon: '🎮',
     demographics: '18-24 years, digital natives, diverse locations, value-driven',
-    interests: ['Social causes', 'Digital trends', 'Authentic content', 'Entertainment', 'Self-expression'],
-    painPoints: ['Financial uncertainty', 'Mental health', 'Career path anxiety', 'Information authenticity'],
-    platforms: ['TikTok', 'Instagram', 'YouTube', 'Twitch']
-  },
-  {
-    id: 'retirees',
-    name: 'Retirees & Seniors',
-    icon: '🌴',
-    demographics: '65+ years, varying education, mix of urban/suburban/rural',
-    interests: ['Health & wellness', 'Travel', 'Family connections', 'Hobbies', 'Financial security'],
-    painPoints: ['Health concerns', 'Technology learning curve', 'Fixed income management', 'Social isolation'],
-    platforms: ['Facebook', 'YouTube', 'Pinterest']
+    interests: ['Social causes', 'Digital trends', 'Entertainment', 'Self-expression'],
+    painPoints: ['Mental health', 'Information authenticity'],
+    platforms: ['TikTok', 'Instagram', 'YouTube']
   },
   {
     id: 'small-business',
     name: 'Small Business Owners',
     icon: '🏪',
     demographics: '35-55 years, self-employed, entrepreneurial, varied locations',
-    interests: ['Business growth', 'Industry networking', 'Operational efficiency', 'Marketing strategies', 'Work-life balance'],
-    painPoints: ['Limited resources', 'Time management', 'Customer acquisition', 'Competitive pressure'],
-    platforms: ['LinkedIn', 'Facebook', 'Instagram', 'Twitter']
+    interests: ['Business growth', 'Marketing strategies', 'Work-life balance'],
+    painPoints: ['Limited resources', 'Customer acquisition'],
+    platforms: ['LinkedIn', 'Facebook', 'Instagram']
   }
 ];
 
@@ -223,13 +205,73 @@ const AudienceResearch: React.FC<AudienceResearchProps> = ({ state, updateState,
     onNext();
   };
   
+  // Handle audience analysis
+  const handleGenerateAnalysis = () => {
+    generateAudienceAnalysis();
+  };
+  
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg mb-8">
-        <h2 className="text-xl font-semibold text-blue-800 mb-2">
+    <div className="relative flex min-h-screen bg-gray-50">
+      {/* Side Progress Panel - Only visible on desktop */}
+      <div className="hidden lg:block w-64 bg-gradient-to-b from-indigo-800 to-blue-900 text-white p-6 shadow-lg fixed left-0 top-0 h-full">
+        <div className="mb-8">
+          <h3 className="text-xl font-bold mb-2">Social Media Strategist</h3>
+          <p className="text-blue-200 text-sm">Building your strategy...</p>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="relative pl-8">
+            <div className="absolute left-0 top-0 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+              <span className="text-xs font-bold">1</span>
+            </div>
+            <div className="border-l-2 border-green-500 absolute left-3 top-6 h-12"></div>
+            <p className="font-medium">Brand Profiling</p>
+            <p className="text-xs text-blue-200 mt-1">Completed</p>
+          </div>
+          
+          <div className="relative pl-8">
+            <div className="absolute left-0 top-0 w-6 h-6 rounded-full bg-white text-indigo-800 flex items-center justify-center">
+              <span className="text-xs font-bold">2</span>
+            </div>
+            <div className="border-l-2 border-gray-500 absolute left-3 top-6 h-12"></div>
+            <p className="font-medium">Audience Research</p>
+            <p className="text-xs text-white mt-1">In progress</p>
+          </div>
+          
+          <div className="relative pl-8">
+            <div className="absolute left-0 top-0 w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center opacity-70">
+              <span className="text-xs font-bold">3</span>
+            </div>
+            <div className="border-l-2 border-gray-500 absolute left-3 top-6 h-12"></div>
+            <p className="font-medium text-gray-300">Platform Selection</p>
+            <p className="text-xs text-gray-400 mt-1">Not started</p>
+          </div>
+          
+          <div className="relative pl-8">
+            <div className="absolute left-0 top-0 w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center opacity-70">
+              <span className="text-xs font-bold">4</span>
+            </div>
+            <p className="font-medium text-gray-300">Content Calendar</p>
+            <p className="text-xs text-gray-400 mt-1">Not started</p>
+          </div>
+        </div>
+        
+        <div className="absolute bottom-8 left-0 right-0 px-6">
+          <div className="bg-blue-700 rounded-lg p-4">
+            <h4 className="font-medium mb-2">Need Help?</h4>
+            <p className="text-sm text-blue-200 mb-3">Our AI assistant can guide you through each step.</p>
+            <button className="w-full bg-white text-blue-800 rounded-md py-2 text-sm font-medium hover:bg-blue-50">Get AI Tips</button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="w-full lg:ml-64 p-6 max-w-4xl mx-auto">
+      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 rounded-xl mb-8 shadow-lg text-white">
+        <h2 className="text-2xl font-bold mb-3 flex items-center">
+          <span className="bg-white text-indigo-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 shadow-md">2</span>
           Identify Your Target Audience
         </h2>
-        <p className="text-gray-700">
+        <p className="text-blue-100 text-lg">
           Understanding who you're trying to reach is critical to creating relevant content and selecting the right platforms.
         </p>
       </div>
@@ -268,38 +310,43 @@ const AudienceResearch: React.FC<AudienceResearchProps> = ({ state, updateState,
       
       {/* Audience Segments Selection */}
       {!isAddingCustom && (
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-800">
-              Select Your Target Audience Segments
+        <div className="mb-10">
+          <div className="flex items-center mb-3">
+            <div className="mr-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">2</div>
+            <h3 className="text-xl font-semibold text-gray-800">
+              Select Your Target Audience
             </h3>
+          </div>
+          
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-gray-600">Choose your primary audience segments (select 1-2)</p>
             <button
               onClick={() => setIsAddingCustom(true)}
-              className="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded hover:bg-blue-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-indigo-600 border-2 border-indigo-200 rounded-lg hover:bg-indigo-50 transition-all shadow-sm hover:shadow-md"
             >
               + Add Custom Segment
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {AUDIENCE_SEGMENTS.map((segment) => (
               <div
                 key={segment.id}
-                className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                className={`p-5 border-2 rounded-xl cursor-pointer transition-all ${
                   selectedSegments.includes(segment.id) 
-                    ? 'border-blue-500 bg-blue-50 shadow-md' 
-                    : 'border-gray-200 hover:border-blue-200'
+                    ? 'border-indigo-500 bg-indigo-50 shadow-lg transform -translate-y-1' 
+                    : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
                 }`}
                 onClick={() => toggleSegment(segment.id)}
               >
-                <div className="flex items-center mb-2">
-                  <span className="text-2xl mr-3">{segment.icon}</span>
-                  <h3 className="font-medium text-gray-800">{segment.name}</h3>
+                <div className="flex items-center mb-3">
+                  <span className="text-4xl mr-4">{segment.icon}</span>
+                  <h3 className="text-lg font-medium text-gray-800">{segment.name}</h3>
                 </div>
-                <p className="text-sm text-gray-600 mb-3">
+                <p className="text-md text-gray-600 mb-4 border-b pb-3">
                   <span className="font-medium">Demographics:</span> {segment.demographics}
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div>
                     <p className="text-xs font-medium text-gray-500 mb-1">Key Interests:</p>
                     <div className="flex flex-wrap gap-1">
@@ -316,10 +363,10 @@ const AudienceResearch: React.FC<AudienceResearchProps> = ({ state, updateState,
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">Top Platforms:</p>
-                    <div className="flex flex-wrap gap-1">
+                    <p className="font-medium text-gray-700 mb-2">Top Platforms:</p>
+                    <div className="flex flex-wrap gap-2">
                       {segment.platforms.map((platform, index) => (
-                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        <span key={index} className="px-3 py-1.5 bg-blue-100 text-blue-800 text-sm rounded-full shadow-sm">
                           {platform}
                         </span>
                       ))}
@@ -623,23 +670,65 @@ const AudienceResearch: React.FC<AudienceResearchProps> = ({ state, updateState,
         </ul>
       </div>
       
-      {/* Navigation */}
-      <div className="flex justify-between mt-8">
-        <button
-          onClick={onBack}
-          className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-        >
-          Back
-        </button>
-        <button
-          onClick={handleContinue}
-          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          disabled={selectedSegments.length === 0}
-        >
-          Continue to Platform Selection
-        </button>
+      {/* Navigation buttons section */}
+      <div className="mb-12 bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-xl border border-indigo-100 shadow-md">
+        <div className="text-center md:text-left mb-4">
+          <h3 className="text-lg font-medium text-indigo-700 mb-2">Step 2: Audience Research</h3>
+          <p className="text-gray-600">Select your target audience segments to continue</p>
+        </div>
+        
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <button
+            onClick={onBack}
+            className="w-full md:w-auto px-6 py-4 bg-white border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center"
+          >
+            <span className="mr-2">←</span> Back to Brand Profile
+          </button>
+          
+          <div className="flex flex-col sm:flex-row w-full md:w-auto gap-4">
+            <button
+              onClick={handleGenerateAnalysis}
+              className="w-full px-5 py-4 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-xl hover:from-purple-600 hover:to-purple-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center font-medium"
+              disabled={selectedSegments.length === 0 || isGeneratingAnalysis}
+              style={{
+                animation: selectedSegments.length > 0 && !isGeneratingAnalysis ? 'pulse-shadow 2s infinite' : 'none',
+              }}
+            >
+              {isGeneratingAnalysis ? (
+                <>
+                  <svg className="animate-spin mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Analyzing...
+                </>
+              ) : (
+                <><span className="mr-2">🔍</span> Get AI Audience Analysis</>
+              )}
+            </button>
+            
+            <button
+              onClick={handleContinue}
+              className="w-full px-8 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl hover:from-indigo-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center font-semibold text-lg"
+              disabled={selectedSegments.length === 0}
+              style={{
+                animation: selectedSegments.length > 0 ? 'pulse-shadow 2s infinite' : 'none',
+              }}
+            >
+              Continue <span className="ml-3 text-xl">→</span>
+            </button>
+          </div>
+        </div>
+        
+        {/* Show message when buttons are disabled */}
+        {selectedSegments.length === 0 && (
+          <div className="mt-4 text-center text-orange-600 bg-orange-50 p-3 rounded-lg border border-orange-100">
+            <span className="font-medium">Please select at least one audience segment to continue</span>
+          </div>
+        )}
       </div>
     </div>
+  </div>
   );
 };
 

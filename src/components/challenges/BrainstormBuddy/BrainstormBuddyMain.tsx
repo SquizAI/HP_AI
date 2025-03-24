@@ -629,7 +629,7 @@ const BrainstormBuddyMain: React.FC = () => {
       <ChallengeHeader
         title="BrainstormBuddy Challenge"
         icon={<Lightbulb className="h-6 w-6 text-yellow-500" />}
-        challengeId="challenge-5"
+        challengeId="challenge-3"
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
         showConfetti={showConfetti}

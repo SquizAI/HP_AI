@@ -7,89 +7,44 @@ interface DatasetSelectionProps {
   onNext: () => void;
 }
 
-// Predefined dataset options
+// Simplified dataset options
 const DATASET_OPTIONS = [
   {
     id: 'sales',
     name: 'Sales Transactions',
     type: 'Sales Data',
-    description: 'Historical sales data including product categories, regions, and customer segments.',
+    description: 'Historical sales data with revenue, products, and customer segments.',
     icon: '📊'
   },
   {
     id: 'marketing',
     name: 'Marketing Campaign Results',
     type: 'Marketing Data',
-    description: 'Results from various marketing campaigns, including channels, spend, and conversion rates.',
+    description: 'Performance metrics for digital marketing campaigns.',
     icon: '📣'
-  },
-  {
-    id: 'customer',
-    name: 'Customer Survey Responses',
-    type: 'Customer Data',
-    description: 'Customer satisfaction survey responses with demographic information and product ratings.',
-    icon: '👥'
-  },
-  {
-    id: 'website',
-    name: 'Website Traffic Analytics',
-    type: 'Web Analytics',
-    description: 'Website traffic patterns, user behaviors, page performance, and conversion funnels.',
-    icon: '🌐'
-  },
-  {
-    id: 'inventory',
-    name: 'Inventory and Supply Chain',
-    type: 'Operations Data',
-    description: 'Inventory levels, warehouse data, supplier performance, and delivery times.',
-    icon: '📦'
   },
   {
     id: 'financial',
     name: 'Financial Performance',
     type: 'Financial Data',
-    description: 'Revenue, costs, profit margins, and other financial metrics across business units.',
+    description: 'Revenue, costs, and profit metrics for business units.',
     icon: '💰'
   }
 ];
 
-// Common business questions by dataset type
+// Streamlined business questions by dataset type
 const BUSINESS_QUESTIONS: Record<string, string[]> = {
   'Sales Data': [
-    'Which products are our top performers by revenue?',
-    'Are there seasonal trends in our sales data?',
-    'Which customer segments drive the most profit?',
-    'Is there a correlation between discount level and order quantity?'
+    'Which product categories generate the most revenue?',
+    'How do sales trends vary throughout the year?'
   ],
   'Marketing Data': [
     'Which marketing channels provide the best ROI?',
-    'How does campaign performance vary by customer segment?',
-    'What is the optimal frequency for our email campaigns?',
-    'How do conversion rates compare across different campaigns?'
-  ],
-  'Customer Data': [
-    'What factors most influence customer satisfaction?',
-    'Are there demographic patterns in product preferences?',
-    'How does satisfaction correlate with repeat purchases?',
-    'Which product features receive the most positive feedback?'
-  ],
-  'Web Analytics': [
-    'Which pages have the highest bounce rates?',
-    'What is the typical user journey before conversion?',
-    'How does mobile traffic compare to desktop in conversion rate?',
-    'Which content drives the most engagement?'
-  ],
-  'Operations Data': [
-    'Which products experience the most stockouts?',
-    'How does supplier performance impact delivery times?',
-    'What is the optimal inventory level for each product?',
-    'Are there seasonal patterns in our inventory turnover?'
+    'How do conversion rates compare across campaigns?'
   ],
   'Financial Data': [
     'Which business units are most profitable?',
-    'How have our profit margins changed over time?',
-    'What are our main cost drivers and how are they trending?',
-    'How does our financial performance compare to industry benchmarks?'
+    'How have profit margins changed over time?'
   ]
 };
 

@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import RecordButton from './components/RecordButton';
 import AudioVisualizer from './components/AudioVisualizer';
-import TranscriptionComparison from './components/TranscriptionComparison';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import { ChevronDown, ChevronUp, ClipboardList, ShoppingCart, FileText, Lightbulb, Check, PenLine, Loader2, Search, Share2, Download, Save, Trash2, Edit3, Star, Calendar, Globe, Mic, ListChecks, Layers, X, Plus, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, ClipboardList, ShoppingCart, FileText, Check, PenLine, Search, Share2, Download, Trash2, Globe, Mic, X, Plus, AlertCircle, Lightbulb, Edit, Save, Brain } from 'lucide-react';
+import ChallengeHeader from '../../shared/ChallengeHeader';
+import { markChallengeAsCompleted, useUserProgress } from '../../../utils/userDataManager';
+import { useNavigate } from 'react-router-dom';
+import { getOpenAIHeaders } from '../../../services/apiConfig';
+import { getApiKey } from '../../../services/openai';
 
 // List types available for processing
 type ListType = 'tasks' | 'grocery' | 'notes';
@@ -69,39 +73,7 @@ interface SavedList {
   webSearchResults?: WebSearchResult[];
 }
 
-// Features explanation content
-const featuresExplanation = [
-  {
-    icon: <Mic className="w-4 h-4 text-purple-500" />,
-    title: "Voice Dictation",
-    description: "Convert speech to text instantly",
-    howTo: "Click the mic button to start dictation"
-  },
-  {
-    icon: <ListChecks className="w-4 h-4 text-purple-500" />,
-    title: "Smart List Organization",
-    description: "Auto-categorizes as tasks, grocery, or notes",
-    howTo: "Just speak naturally - we detect the list type"
-  },
-  {
-    icon: <Layers className="w-4 h-4 text-purple-500" />,
-    title: "Multi-List Management",
-    description: "Create and manage multiple lists",
-    howTo: "Save lists to access them later"
-  },
-  {
-    icon: <Search className="w-4 h-4 text-purple-500" />,
-    title: "Web Research",
-    description: "Find information related to your lists",
-    howTo: "Say \"search for [topic]\" while recording"
-  },
-  {
-    icon: <Share2 className="w-4 h-4 text-purple-500" />,
-    title: "Export & Share",
-    description: "Save as text or share with others",
-    howTo: "Use the Export or Share buttons"
-  }
-];
+// Define list keywords and constants
 
 // Common grocery items to help with detection
 const GROCERY_KEYWORDS = [
@@ -146,6 +118,12 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
   onChallengePrevious,
   challengeState
 }) => {
+  const navigate = useNavigate();
+  const [userProgress] = useUserProgress();
+  const [isCompleted, setIsCompleted] = useState<boolean>(
+    userProgress.completedChallenges.includes('challenge-dictation-wizard')
+  );
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
   const [isListening, setIsListening] = useState(false);
   const [recording, setRecording] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +132,35 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
   const [transcript, setTranscript] = useState<string>('');
   const [transcriptionActive, setTranscriptionActive] = useState<boolean>(false);
   const [showComparison, setShowComparison] = useState<boolean>(false);
+  const [completionTriggered, setCompletionTriggered] = useState<boolean>(false);
+  
+  // Handle completing the challenge
+  const handleCompleteChallenge = () => {
+    // Mark the challenge as completed in user data
+    markChallengeAsCompleted('challenge-dictation-wizard');
+    setIsCompleted(true);
+    
+    // Show confetti effect
+    setShowConfetti(true);
+    
+    // Hide confetti after 5 seconds and navigate back to challenge hub
+    setTimeout(() => {
+      setShowConfetti(false);
+      // Navigate back to the challenge hub
+      navigate('/');
+    }, 2000);
+    
+    // Call the onComplete prop to notify parent component
+    onComplete();
+  };
+  
+  // Helper function to mark challenge as complete
+  const markChallengeComplete = () => {
+    if (!isCompleted) {
+      markChallengeAsCompleted('challenge-dictation-wizard');
+      setIsCompleted(true);
+    }
+  };
   const [processingText, setProcessingText] = useState<boolean>(false);
   const [listType, setListType] = useState<ListType>('tasks');
   const [autoDetectedType, setAutoDetectedType] = useState<ListType | null>(null);
@@ -164,7 +171,6 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
   const [completedItems, setCompletedItems] = useState<Set<number>>(new Set());
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [showEducation, setShowEducation] = useState<boolean>(false);
-  const [showFeatures, setShowFeatures] = useState<boolean>(true);
   
   // New state to prevent multiple clicks from firing multiple actions
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -198,6 +204,20 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
 
   // New state for handling voice search commands
   const [voiceSearchActive, setVoiceSearchActive] = useState<boolean>(false);
+
+  // Auto-completion monitoring effect
+  useEffect(() => {
+    // Check if challenge completion requirements are met (3+ processed items, step 3, not already completed)
+    if (currentStep >= 3 && processedList.length >= 3 && !completionTriggered && !isCompleted) {
+      console.log('Challenge completion requirements met, auto-triggering completion');
+      setCompletionTriggered(true);
+      
+      // Give the user some time to see the completion state before navigating
+      setTimeout(() => {
+        handleCompleteChallenge();
+      }, 3000);
+    }
+  }, [currentStep, processedList.length, completionTriggered, isCompleted]);
 
   // Update transcript when Web Speech API updates
   useEffect(() => {
@@ -440,6 +460,9 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
       mediaRecorder.start();
       setIsListening(true);
       
+      // Mark the challenge as complete when user starts recording
+      markChallengeComplete();
+      
       // Start Web Speech API if supported
       if (browserSupportsSpeechRecognition) {
         try {
@@ -610,7 +633,7 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
 
     try {
       // Check if we have the OpenAI API key
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+      const apiKey = getApiKey();
       if (!apiKey) {
         console.warn("OpenAI API key is missing. Using fallback local processing.");
         return null;
@@ -697,10 +720,7 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
       // Make API call to OpenAI using the newer tools format
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
+        headers: getOpenAIHeaders(),
         body: JSON.stringify({
           model: 'gpt-4-turbo',
           messages: [
@@ -1058,40 +1078,14 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
     }
   };
 
-  // Handle list type change
-  const handleListTypeChange = (type: ListType) => {
-    setListType(type);
-    if (transcript.trim()) {
-      // Re-process the list with the new type
-      processTranscriptToList();
-    }
-  };
+  // List processing happens automatically
 
   // Advance the step when actions are completed
   const advanceStep = () => {
     setCurrentStep(prev => Math.min(prev + 1, 3));
   };
 
-  // Educational content
-  const educationalContent = [
-    {
-      title: "The Power of Speech Recognition",
-      content: "Dictation can be up to three times faster than typing. By speaking your thoughts, you can capture ideas more naturally and efficiently."
-    },
-    {
-      title: "Smart Organization",
-      content: "The Dictation Wizard automatically categorizes your speech into the most appropriate format - tasks, shopping lists, or general notes."
-    },
-    {
-      title: "Tips for Effective Dictation",
-      items: [
-        "Speak clearly and at a moderate pace",
-        "Pause briefly between thoughts",
-        "Say 'period' or 'comma' for punctuation",
-        "Review and edit for accuracy afterward"
-      ]
-    }
-  ];
+  // Load saved lists code follows below
 
   // Load saved lists from localStorage on component mount
   useEffect(() => {
@@ -1114,8 +1108,19 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
       } catch (error) {
         console.error('Error saving lists to localStorage:', error);
       }
+      
+      // Check if challenge completion requirements are met
+      if (currentStep >= 3 && processedList.length >= 3 && !completionTriggered && !isCompleted) {
+        console.log('Challenge completion requirements met, auto-triggering completion');
+        setCompletionTriggered(true);
+        
+        // Give the user some time to see the completion message
+        setTimeout(() => {
+          handleCompleteChallenge();
+        }, 3000);
+      }
     }
-  }, [savedLists]);
+  }, [savedLists, currentStep, processedList.length, completionTriggered, isCompleted]);
 
   // Create a new list
   const createNewList = (name: string, type: ListType = 'tasks') => {
@@ -1278,10 +1283,7 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
       // Call OpenAI API with web search capability using the correct model and parameters
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
-        },
+        headers: getOpenAIHeaders(),
         body: JSON.stringify({
           model: "gpt-4o-search-preview",
           web_search_options: {}, // This replaces the tools configuration for web search
@@ -1420,95 +1422,106 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
     }
   };
 
-  // Start voice search function
-  const startVoiceSearch = async () => {
-    try {
-      if (browserSupportsSpeechRecognition) {
-        resetWebSpeechTranscript();
-        await SpeechRecognition.startListening({ continuous: true });
-        setVoiceSearchActive(true);
-        setTranscriptionActive(true);
-        setError(null);
-        
-        // Let user know voice search is active
-        showError("Listening for search command. Just say 'search for...' followed by your topic");
-      } else {
-        showError("Speech recognition not supported in this browser");
-      }
-    } catch (err) {
-      console.error("Error starting voice search:", err);
-      showError("Could not start voice search. Please try again.");
-    }
-  };
-
-  const stopVoiceSearch = () => {
-    if (browserSupportsSpeechRecognition && webSpeechListening) {
-      SpeechRecognition.stopListening();
-    }
-    setVoiceSearchActive(false);
-    setTranscriptionActive(false);
-    
-    // Process search query if available
+  // Simplified search handler function to avoid unused functions
+  const handleSearchRequest = () => {
     if (researchQuery.trim()) {
       performWebSearch(researchQuery);
     }
   };
 
-  // Toggle voice search
-  const toggleVoiceSearch = () => {
-    if (voiceSearchActive) {
-      stopVoiceSearch();
-    } else {
-      startVoiceSearch();
-    }
-  };
-
-  // Add a useEffect to ensure UI updates when search results change
+  // Add a useEffect to update the UI when search results are available
   useEffect(() => {
-    if (webSearchResults.length > 0) {
-      console.log("Search results updated in state, total results:", webSearchResults.length);
-      // Force UI to recognize that results are available
-      setShowWebResults(true);
+    if (webSearchResults && webSearchResults.length > 0) {
+      console.log("Search results updated");
     }
-  }, [webSearchResults, forceUpdate]);
+  }, [webSearchResults]);
 
   return (
     <div className="w-full max-w-6xl mx-auto p-3 sm:p-6 bg-gradient-to-b from-purple-50 to-white min-h-[85vh] rounded-2xl shadow-sm">
       {/* Remove DEBUG panel */}
       
-      <h1 className="text-2xl sm:text-3xl font-bold text-purple-700 mb-4 tracking-tight text-center">
-        Dictation Wizard
-      </h1>
+      {/* Use the standard ChallengeHeader component */}
+      <ChallengeHeader 
+        title="Challenge #1: AI Dictation Wizard – Talk, Type, Organize!" 
+        icon={<Mic className="h-6 w-6 text-green-600" />}
+        challengeId="challenge-dictation-wizard"
+        isCompleted={isCompleted}
+        setIsCompleted={setIsCompleted}
+        onCompleteChallenge={handleCompleteChallenge}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
+      />
+      
+      <div className="text-center mb-4">
+        <p className="text-sm text-purple-600">Use your voice to create and manage lists with AI assistance</p>
+      </div>
 
-      {/* Compressed features explanation */}
-      {showFeatures && (
-        <div className="relative bg-white rounded-xl shadow-sm border border-purple-100 p-3 mb-4 overflow-hidden">
-          <button 
-            onClick={() => setShowFeatures(false)}
-            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-4 h-4" />
-          </button>
+      {/* How AI Works for You section */}
+      <div className="bg-white rounded-xl shadow-sm border border-purple-100 p-4 mb-4">
+        <h2 className="text-lg font-semibold text-purple-700 mb-3">How AI Works for You:</h2>
+        <p className="text-gray-700 mb-4 border-l-4 border-purple-300 pl-4">AI-powered dictation instantly converts speech into text, making note-taking and list-making effortless. It automatically recognizes and sorts your words into categories like tasks, shopping lists, or general notes—so you can stay organized without lifting a finger. Plus, AI can even search the web for related information as you speak, saving you time and effort!</p>
+        
+        <h2 className="text-lg font-semibold text-purple-700 mb-2">Challenge Steps Quick View:</h2>
+        <p className="text-gray-700 mb-3">There are 3 steps required to complete the Challenge.</p>
+        <ul className="list-none space-y-2 mb-4">
+          <li className="flex items-start">
+            <span className="bg-purple-100 text-purple-700 rounded-full w-5 h-5 flex items-center justify-center mr-2 flex-shrink-0 font-medium text-xs">1</span>
+            <span className="text-gray-700"><strong>Step 1: Speak & Capture:</strong> Dictate to AI turn your voice into text instantly.</span>
+          </li>
+          <li className="flex items-start">
+            <span className="bg-purple-100 text-purple-700 rounded-full w-5 h-5 flex items-center justify-center mr-2 flex-shrink-0 font-medium text-xs">2</span>
+            <span className="text-gray-700"><strong>Step 2: Save & Share Your List (Optional):</strong> Keep your lists for later or send them with a click.</span>
+          </li>
+          <li className="flex items-start">
+            <span className="bg-purple-100 text-purple-700 rounded-full w-5 h-5 flex items-center justify-center mr-2 flex-shrink-0 font-medium text-xs">3</span>
+            <span className="text-gray-700"><strong>Step 3: Challenge Completed!</strong></span>
+          </li>
+        </ul>
+        
+        <p className="text-gray-600 italic mb-4">Please review and follow each detailed step below.</p>
+        
+        <h3 className="font-medium text-purple-700 mb-2 text-base">Key Capabilities:</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-left">
+          <div className="flex items-start">
+            <Mic className="w-5 h-5 text-purple-500 mt-0.5 mr-2 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-purple-700 text-sm">Speech-to-Text</h4>
+              <p className="text-gray-600 text-xs">Instantly converts your speech into editable text content</p>
+            </div>
+          </div>
           
-          <h3 className="text-base font-semibold text-purple-700 mb-2 flex items-center">
-            <Star className="w-4 h-4 mr-1 text-purple-500" />
-            Dictation Wizard Features
-          </h3>
+          <div className="flex items-start">
+            <ClipboardList className="w-5 h-5 text-purple-500 mt-0.5 mr-2 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-purple-700 text-sm">Task Lists</h4>
+              <p className="text-gray-600 text-xs">Creates organized to-do lists from your spoken tasks</p>
+            </div>
+          </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-            {featuresExplanation.map((feature, index) => (
-              <div key={index} className="bg-purple-50 rounded-lg p-2 hover:bg-purple-100 transition-colors">
-                <div className="flex items-center mb-1">
-                  {feature.icon}
-                  <span className="ml-1 text-xs font-medium text-purple-700">{feature.title}</span>
-                </div>
-                <p className="text-xs text-gray-600 mb-1">{feature.description}</p>
-                <p className="text-xs text-purple-600 italic">{feature.howTo}</p>
-              </div>
-            ))}
+          <div className="flex items-start">
+            <ShoppingCart className="w-5 h-5 text-purple-500 mt-0.5 mr-2 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-purple-700 text-sm">Grocery Lists</h4>
+              <p className="text-gray-600 text-xs">Auto-detects shopping items in your speech</p>
+            </div>
+          </div>
+          
+          <div className="flex items-start">
+            <Search className="w-5 h-5 text-purple-500 mt-0.5 mr-2 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-purple-700 text-sm">Web Search</h4>
+              <p className="text-gray-600 text-xs">Find information online using voice commands</p>
+            </div>
           </div>
         </div>
-      )}
+        
+      </div>
+
+      {/* Take the Challenge heading */}
+      <div className="bg-purple-100 rounded-lg p-3 mb-4 text-center">
+        <h2 className="text-xl font-bold text-purple-700">Take the Challenge!</h2>
+      </div>
 
       {/* Warnings and errors */}
       {error && (
@@ -1524,13 +1537,16 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
         </div>
       )}
 
-      {/* Mobile-first reorganized layout */}
+      {/* Main content layout - properly structured for responsive display */}
       <div className="flex flex-col space-y-4">
         {/* Centered voice control for prominent positioning */}
         <div className="bg-white border border-purple-100 rounded-xl shadow-sm overflow-hidden">
           <h3 className="text-base font-semibold text-purple-700 p-3 border-b border-purple-50 flex items-center">
             <Mic className="h-4 w-4 mr-1 text-purple-500" />
-            Voice Controls
+            <div>
+              <p className="font-semibold">Step 1: Click the Start Dictating box below to start recording.</p>
+              <p className="text-sm text-gray-600 mt-2 text-center">Tap Stop & Analyze when you are done recording.</p>
+            </div>
           </h3>
           
           <div className="p-4">
@@ -1543,9 +1559,44 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
                   size="lg"
                 />
               </div>
-              <p className="text-sm text-center text-gray-500 mb-3">
-                {isListening ? "Recording... Click to stop" : "Click to start dictating"}
+              <p className="text-sm text-center font-medium text-purple-600 mb-3">
+                {isListening ? "Recording... Tap to stop" : "Tap to dictate a list"}
               </p>
+              
+              {/* Pro-Tips and sample prompts for effective dictation */}
+              <div className="bg-purple-50 rounded-lg p-3 mb-4 text-center">
+                {/* Quick Tips - only show when not recording */}
+                {!isListening && (
+                  <>
+                    <h4 className="text-sm font-medium text-purple-700 mb-2">Quick Tips</h4>
+                    <ul className="text-xs text-gray-700 grid grid-cols-2 gap-2 mb-3" style={{textAlign: 'left'}}>
+                      <li>• Speak clearly</li>
+                      <li>• Pause between ideas</li>
+                      <li>• Say "question mark" for ?</li>
+                      <li>• Review when done</li>
+                      <li>• Say "comma" for ,</li>
+                      <li>• Speak at normal pace</li>
+                    </ul>
+                  </>
+                )}
+                
+                {/* Sample prompts - always visible */}
+                <h4 className="text-sm font-medium text-purple-700 mb-2">Try These Prompts</h4>
+                <div className="grid grid-cols-2 gap-2 mb-1" style={{textAlign: 'left'}}>
+                  <div className="bg-white rounded p-2 text-xs text-purple-700 shadow-sm">
+                    "Add milk, eggs, bread, and cheese to my grocery list"  
+                  </div>
+                  <div className="bg-white rounded p-2 text-xs text-purple-700 shadow-sm">
+                    "Call mom tomorrow, finish report by Friday, buy birthday gift"  
+                  </div>
+                  <div className="bg-white rounded p-2 text-xs text-purple-700 shadow-sm">
+                    "Search for healthy dinner recipes with chicken"  
+                  </div>
+                  <div className="bg-white rounded p-2 text-xs text-purple-700 shadow-sm">
+                    "Create a packing list for my weekend trip including clothes and toiletries"  
+                  </div>
+                </div>
+              </div>
               
               {/* Visualizer directly below the dictation button - no action buttons */}
               <div className="w-full">
@@ -1574,7 +1625,7 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
         
         {/* Processing indicator */}
         {processingText && (
-          <div className="bg-purple-50 rounded-xl p-4 border border-purple-100 flex flex-col items-center justify-center">
+          <div className="bg-purple-50 rounded-xl p-4 border border-purple-100 flex flex-col items-center justify-center md:hidden">
             <div className="flex justify-center mb-3">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
             </div>
@@ -1585,7 +1636,7 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
 
         {/* Research in progress indicator */}
         {isResearching && (
-          <div className="bg-purple-50 rounded-xl p-4 border border-purple-100 flex flex-col items-center justify-center">
+          <div className="bg-purple-50 rounded-xl p-4 border border-purple-100 flex flex-col items-center justify-center md:hidden">
             <div className="flex justify-center mb-3">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
             </div>
@@ -1596,34 +1647,37 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
 
         {/* Processed list display */}
         {!isListening && processedList.length > 0 && (
-          <div className="bg-white border border-purple-100 rounded-xl shadow-sm p-4">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-base font-semibold text-purple-700 flex items-center">
+          <div className="bg-white border border-purple-100 rounded-xl shadow-sm p-4 md:hidden">
+            <div className="flex flex-col items-center justify-center mb-4 text-center">
+              <h3 className="text-base font-semibold text-purple-700 mb-2">
+                Step 2: Review & Save Your List
+              </h3>
+              <div className="flex items-center justify-center bg-purple-50 px-3 py-1.5 rounded-lg">
                 {listType === 'tasks' ? 
-                  <><ClipboardList className="w-4 h-4 mr-1 text-purple-500" /> Task List</> : 
+                  <><ClipboardList className="w-4 h-4 mr-1.5 text-purple-500" /> <span className="text-purple-700">Task List</span></> : 
                   listType === 'grocery' ? 
-                  <><ShoppingCart className="w-4 h-4 mr-1 text-purple-500" /> Grocery List</> : 
-                  <><FileText className="w-4 h-4 mr-1 text-purple-500" /> Notes</>
+                  <><ShoppingCart className="w-4 h-4 mr-1.5 text-purple-500" /> <span className="text-purple-700">Grocery List</span></> : 
+                  <><FileText className="w-4 h-4 mr-1.5 text-purple-500" /> <span className="text-purple-700">Notes</span></>
                 }
                 {autoDetectedType && (
                   <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
                     Auto-detected
                   </span>
                 )}
-              </h3>
-              
-              <div className="flex space-x-1">
-                <button 
-                  onClick={addNewItem}
-                  className="px-2 py-1 text-xs bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex items-center"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add
-                </button>
               </div>
             </div>
+              
+            <div className="flex justify-center mb-3 mt-1">
+              <button 
+                onClick={addNewItem}
+                className="px-3 py-1.5 text-sm bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex items-center shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                Add Item
+              </button>
+            </div>
             
-            <div className="bg-gray-50 rounded-lg border border-gray-100">
+            <div className="bg-gray-50 rounded-lg border border-gray-100 mt-3">
               <ul className="divide-y divide-gray-200">
                 {processedList.map((item, index) => (
                   <li key={index} className="p-2 hover:bg-white rounded-lg transition-colors">
@@ -1723,7 +1777,7 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
         {/* Stand-alone web search results section - moved outside the list section */}
         
         {!isResearching && webSearchResults.length > 0 && (
-          <div className="bg-white border border-purple-100 rounded-xl shadow-sm p-4 mb-4">
+          <div className="bg-white border border-purple-100 rounded-xl shadow-sm p-4 mb-4 md:hidden">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-base font-semibold text-purple-700 flex items-center">
                 <Globe className="w-4 h-4 mr-1 text-purple-500" />
@@ -1819,132 +1873,15 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-green-800 mb-2">Challenge Completed!</h3>
+            <h3 className="text-xl font-bold text-green-800 mb-2">Step 3: Challenge Completed!</h3>
             <p className="text-green-700 mb-4">You've successfully used dictation to create and manage a list. Well done!</p>
-            <button 
-              onClick={onComplete}
-              className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-            >
-              Mark Challenge Complete
-            </button>
+            <p className="text-green-600 text-sm italic mb-3">Challenge completed! You'll be automatically returned to the hub in a moment.</p>
           </div>
         )}
         
-        {/* Mobile-only saved lists and other controls */}
-        <div className="md:hidden">
-          {/* Saved lists accordion for mobile */}
-          <div className="bg-white border border-purple-100 rounded-xl shadow-sm overflow-hidden mb-4">
-            <div 
-              className="p-3 flex justify-between items-center cursor-pointer hover:bg-purple-50 transition-colors"
-              onClick={() => setShowSavedLists(!showSavedLists)}
-            >
-              <h3 className="font-medium text-sm text-purple-700 flex items-center">
-                <Layers className="w-3.5 h-3.5 mr-1 text-purple-500" />
-                My Lists
-              </h3>
-              {showSavedLists ? <ChevronUp className="text-purple-500 w-3.5 h-3.5" /> : <ChevronDown className="text-purple-500 w-3.5 h-3.5" />}
-            </div>
+        {/* Mobile-only saved lists removed */}
             
-            {showSavedLists && (
-              <div className="px-4 pb-4 border-t border-purple-50">
-                {savedLists.length === 0 ? (
-                  <div className="text-center py-4 text-gray-500 text-sm">
-                    <p>No saved lists yet.</p>
-                    <p className="mt-1">Create your first list by dictating and saving!</p>
-                  </div>
-                ) : (
-                  <ul className="divide-y divide-purple-50">
-                    {savedLists.map(list => (
-                      <li 
-                        key={list.id} 
-                        className={`py-2 px-1 hover:bg-purple-50 rounded cursor-pointer transition-colors ${currentListId === list.id ? 'bg-purple-50' : ''}`}
-                        onClick={() => loadList(list.id)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            {list.type === 'tasks' ? 
-                              <ClipboardList className="w-4 h-4 text-purple-500 mr-2" /> : 
-                              list.type === 'grocery' ? 
-                              <ShoppingCart className="w-4 h-4 text-purple-500 mr-2" /> : 
-                              <FileText className="w-4 h-4 text-purple-500 mr-2" />
-                            }
-                            <span className="truncate text-sm font-medium text-gray-700" title={list.name}>
-                              {list.name}
-                            </span>
-                          </div>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); deleteList(list.id); }}
-                            className="p-1 text-gray-400 hover:text-red-500 rounded-full"
-                            title="Delete list"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
-                          <span>{list.items.length} items</span>
-                          <span>{new Date(list.updatedAt).toLocaleDateString()}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                
-                <div className="mt-3 flex items-center">
-                  <button 
-                    onClick={() => {
-                      setEditingListName(true);
-                      setNewListName('');
-                    }}
-                    className="text-xs flex items-center text-purple-600 hover:text-purple-700 px-2 py-1 rounded bg-purple-50 hover:bg-purple-100 transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    New List
-                  </button>
-                </div>
-                
-                {editingListName && (
-                  <div className="mt-3 p-2 bg-purple-50 rounded">
-                    <input 
-                      type="text"
-                      placeholder="Enter list name"
-                      value={newListName}
-                      onChange={(e) => setNewListName(e.target.value)}
-                      className="w-full p-2 text-sm border border-purple-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-300"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          createNewList(newListName);
-                          setEditingListName(false);
-                        } else if (e.key === 'Escape') {
-                          setEditingListName(false);
-                        }
-                      }}
-                    />
-                    <div className="flex justify-end mt-2 space-x-2">
-                      <button 
-                        onClick={() => setEditingListName(false)}
-                        className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
-                      >
-                        Cancel
-                      </button>
-                      <button 
-                        onClick={() => {
-                          createNewList(newListName);
-                          setEditingListName(false);
-                        }}
-                        className="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600"
-                      >
-                        Create
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+
 
         {/* Main grid for larger layouts - only appears on tablet and above */}
         <div className="hidden md:grid md:grid-cols-12 md:gap-6">
@@ -1957,10 +1894,8 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
                 onClick={() => setShowSavedLists(!showSavedLists)}
               >
                 <h3 className="font-semibold text-purple-700 flex items-center">
-                  <svg className="w-4 h-4 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0h10a2 2 0 010 4H7a2 2 0 010-4z" />
-                  </svg>
-                  My Lists
+                  <FileText className="w-4 h-4 mr-2 text-purple-500" />
+                  Saved Lists
                 </h3>
                 {showSavedLists ? <ChevronUp className="text-purple-500 w-4 h-4" /> : <ChevronDown className="text-purple-500 w-4 h-4" />}
               </div>
@@ -2099,7 +2034,7 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
                       <p className={`font-medium ${currentStep >= 2 ? 'text-purple-800' : 'text-gray-500'}`}>
                         Process Content
                       </p>
-                      <p className="text-sm text-gray-500 mt-1">Stop recording to see your organized list</p>
+                      <p className="text-xs text-gray-500 mt-1">Stop mic to organize list</p>
                     </div>
                   </div>
                 </div>
@@ -2111,9 +2046,9 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
                     </div>
                     <div className="mt-0.5">
                       <p className={`font-medium ${currentStep >= 3 ? 'text-purple-800' : 'text-gray-500'}`}>
-                        Manage Your List
+                        Manage List
                       </p>
-                      <p className="text-sm text-gray-500 mt-1">Edit, organize and save your content</p>
+                      <p className="text-xs text-gray-500 mt-1">Edit & save your list</p>
                     </div>
                   </div>
                 </div>
@@ -2127,26 +2062,39 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
                 onClick={() => setShowEducation(!showEducation)}
               >
                 <h3 className="font-semibold text-purple-700 flex items-center">
-                  <Lightbulb className="w-4 h-4 mr-2 text-purple-500" /> Tips & Benefits
+                  <Lightbulb className="w-4 h-4 mr-2 text-purple-500" /> How It Works
                 </h3>
                 {showEducation ? <ChevronUp className="text-purple-500 w-4 h-4" /> : <ChevronDown className="text-purple-500 w-4 h-4" />}
               </div>
               
               {showEducation && (
                 <div className="px-4 pb-4">
-                  <div className="text-sm text-gray-700 space-y-2">
+                  <div className="text-sm text-gray-700 space-y-3">
                     <div>
-                      <p className="font-medium text-purple-700">{educationalContent[0].title}</p>
-                      <p className="mt-1">{educationalContent[0].content}</p>
+                      <p className="font-medium text-purple-700">How It Works</p>
+                      <p className="mt-1 text-xs">AI converts your speech to text and organizes content by recognizing patterns in what you say.</p>
                     </div>
                     
                     <div className="pt-2">
-                      <p className="font-medium text-purple-700">{educationalContent[2].title}</p>
-                      <ul className="list-disc pl-5 mt-1 space-y-1">
-                        {educationalContent[2]?.items?.map((item, index) => (
-                          <li key={index}>{item}</li>
-                        ))}
+                      <p className="font-medium text-purple-700">Best Practices</p>
+                      <ul className="grid grid-cols-2 gap-1 mt-1 text-xs">
+                        <li>• Speak clearly</li>
+                        <li>• Use pauses</li>
+                        <li>• Say "period" for .</li>
+                        <li>• Review when done</li>
                       </ul>
+                    </div>
+
+                    <div className="pt-2">
+                      <p className="font-medium text-purple-700 flex items-center">
+                        <Brain className="w-3 h-3 mr-1 text-purple-500" /> For the Nerds
+                      </p>
+                      <div className="mt-1 text-xs space-y-2">
+                        <p><strong>Speech Recognition:</strong> Uses Deepgram API (cloud-based deep learning) and Web Speech API (browser-native) for converting speech to text.</p>
+                        <p><strong>Translation:</strong> Google Cloud Translation API processes text through neural machine translation models for context-aware translations.</p>
+                        <p><strong>Text-to-Speech:</strong> ElevenLabs API combines transformer models with voice encoding for natural-sounding speech synthesis.</p>
+                        <p><strong>Audio Processing:</strong> Browser's MediaRecorder API captures audio, which is processed in real-time or chunks depending on the selected API.</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2154,12 +2102,260 @@ const SimpleDictationWizard: React.FC<DictationWizardProps> = ({
             </div>
           </div>
           
-          {/* Right content area - empty on tablet and desktop since we've moved content to mobile flow */}
+          {/* Right content area - Contains AI responses, processed content, etc. */}
           <div className="md:col-span-8 lg:col-span-9">
-            {/* This area is intentionally left empty for desktop as we've moved the content up */}
+            {/* Processing indicator */}
+            {processingText && (
+              <div className="bg-purple-50 rounded-xl p-4 border border-purple-100 flex flex-col items-center justify-center mb-4">
+                <div className="flex justify-center mb-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+                </div>
+                <p className="text-purple-700 text-center text-sm font-medium mb-1">{processingText}</p>
+                <p className="text-purple-600 text-center text-xs">This may take a few moments...</p>
+              </div>
+            )}
+
+            {/* Research in progress indicator */}
+            {isResearching && (
+              <div className="bg-purple-50 rounded-xl p-4 border border-purple-100 flex flex-col items-center justify-center mb-4">
+                <div className="flex justify-center mb-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+                </div>
+                <p className="text-purple-700 text-center text-sm font-medium mb-1">Researching: {researchQuery}</p>
+                <p className="text-purple-600 text-center text-xs">Searching the web for relevant information...</p>
+              </div>
+            )}
+
+            {/* Processed list display */}
+            {!isListening && processedList.length > 0 && (
+              <div className="bg-white border border-purple-100 rounded-xl shadow-sm p-4 mb-4">
+                <div className="flex flex-col items-center justify-center mb-4 text-center">
+                  <h3 className="text-base font-semibold text-purple-700 mb-2">
+                    Step 2: Review & Save Your List
+                  </h3>
+                  <div className="flex items-center justify-center bg-purple-50 px-3 py-1.5 rounded-lg">
+                    {listType === 'tasks' ? 
+                      <><ClipboardList className="w-4 h-4 mr-1.5 text-purple-500" /> <span className="text-purple-700">Task List</span></> : 
+                      listType === 'grocery' ? 
+                      <><ShoppingCart className="w-4 h-4 mr-1.5 text-purple-500" /> <span className="text-purple-700">Grocery List</span></> : 
+                      <><FileText className="w-4 h-4 mr-1.5 text-purple-500" /> <span className="text-purple-700">Notes</span></>
+                    }
+                    {autoDetectedType && (
+                      <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                        Auto-detected
+                      </span>
+                    )}
+                  </div>
+                </div>
+                  
+                <div className="flex justify-center mb-3 mt-1">
+                  <button 
+                    onClick={addNewItem}
+                    className="px-3 py-1.5 text-sm bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex items-center shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    Add Item
+                  </button>
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg border border-gray-100 mt-3">
+                  <ul className="divide-y divide-gray-200">
+                    {processedList.map((item, index) => (
+                      <li key={index} className="p-2 hover:bg-white rounded-lg transition-colors">
+                        {editingIndex === index ? (
+                          <div className="flex items-center">
+                            <input
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              className="flex-1 p-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-300 bg-white text-sm"
+                              autoFocus
+                              onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                            />
+                            <button 
+                              onClick={saveEdit}
+                              className="ml-2 px-2 py-1 bg-purple-500 text-white text-xs rounded-lg hover:bg-purple-600 transition-colors"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center">
+                            {listType === 'tasks' && (
+                              <button 
+                                onClick={() => toggleItemCompletion(index)}
+                                className={`mr-2 w-5 h-5 flex-shrink-0 border rounded-md ${
+                                  completedItems.has(index) 
+                                    ? 'bg-purple-500 border-purple-600 text-white' 
+                                    : 'border-gray-300 hover:border-purple-300'
+                                } transition-colors`}
+                              >
+                                {completedItems.has(index) && <Check className="w-3 h-3" />}
+                              </button>
+                            )}
+                            <span 
+                              className={`flex-1 text-gray-800 text-sm ${
+                                listType === 'tasks' && completedItems.has(index) 
+                                  ? 'line-through text-gray-400' 
+                                  : ''
+                              }`}
+                            >
+                              {item}
+                            </span>
+                            <div className="flex space-x-1 ml-1">
+                              <button 
+                                onClick={() => {
+                                  setResearchQuery(item);
+                                  performWebSearch(item);
+                                }}
+                                className="p-1 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                                title="Research this item"
+                              >
+                                <Search className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => startEditing(index)}
+                                className="p-1 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                                title="Edit item"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => deleteItem(index)}
+                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete item"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                {/* Action buttons for the list */}
+                <div className="flex justify-center mt-4 space-x-2">
+                  <button 
+                    onClick={saveCurrentList}
+                    className="px-3 py-1.5 text-sm bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex items-center shadow-sm"
+                  >
+                    <Save className="w-3.5 h-3.5 mr-1.5" />
+                    Save List
+                  </button>
+                  
+                  <button 
+                    onClick={exportListAsText}
+                    className="px-3 py-1.5 text-sm bg-white border border-purple-200 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors flex items-center shadow-sm"
+                  >
+                    <Download className="w-3.5 h-3.5 mr-1.5" />
+                    Export
+                  </button>
+                  
+                  <select
+                    value={listType}
+                    onChange={(e) => setListType(e.target.value as ListType)}
+                    className="px-3 py-1.5 text-sm bg-white border border-purple-200 text-purple-600 rounded-lg hover:bg-purple-50 focus:outline-none focus:ring-1 focus:ring-purple-300"
+                  >
+                    <option value="tasks">Tasks</option>
+                    <option value="grocery">Grocery</option>
+                    <option value="notes">Notes</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            
+            {/* Web search results panel */}
+            {showWebResults && webSearchResults.length > 0 && (
+              <div className="bg-white border border-purple-100 rounded-xl shadow-sm overflow-hidden mb-4">
+                <div className="p-3 flex justify-between items-center border-b border-purple-50">
+                  <h3 className="font-semibold text-purple-700 flex items-center">
+                    <Search className="w-4 h-4 mr-2 text-purple-500" />
+                    Search Results: {researchQuery}
+                  </h3>
+                  <button onClick={() => setShowWebResults(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto p-1">
+                  {webSearchResults.map((result, idx) => (
+                    <div key={idx} className="p-3 hover:bg-gray-50 transition-colors rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-sm text-purple-700 mb-1">{result.title}</h4>
+                          <p className="text-xs text-gray-600 mb-2">{result.url}</p>
+                          <p className="text-sm text-gray-700">{result.snippet}</p>
+                          
+                          {result.imageUrl && (
+                            <div className="mt-2 rounded-lg overflow-hidden" style={{ maxWidth: '100%', height: 'auto' }}>
+                              <img 
+                                src={result.imageUrl} 
+                                alt={result.title}
+                                className="w-full h-auto object-cover"
+                                style={{ maxHeight: '120px' }}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  const parentElement = target.parentElement;
+                                  
+                                  // Make sure parent element exists before trying to modify it
+                                  if (parentElement) {
+                                    const placeholderColor = `hsl(${Math.abs(result.title.charCodeAt(0) * 10) % 360}, 70%, 80%)`;
+                                    parentElement.style.backgroundColor = placeholderColor;
+                                    parentElement.style.minHeight = '120px';
+                                    parentElement.style.display = 'flex';
+                                    parentElement.style.alignItems = 'center';
+                                    parentElement.style.justifyContent = 'center';
+                                    
+                                    // Add a text element showing the first letter of the title
+                                    const textElement = document.createElement('span');
+                                    textElement.textContent = result.title.charAt(0).toUpperCase();
+                                    textElement.style.fontSize = '48px';
+                                    textElement.style.fontWeight = 'bold';
+                                    textElement.style.color = '#fff';
+                                    
+                                    // Replace the image with the text
+                                    target.style.display = 'none';
+                                    parentElement.appendChild(textElement);
+                                  }
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <button 
+                          onClick={() => addItemFromWebSearch(result.title)}
+                          className="ml-2 p-1 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                          title="Add to list"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Challenge complete message */}
+            {currentStep >= 3 && processedList.length >= 3 && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100 shadow-sm text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full text-green-600 mb-4">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-green-800 mb-2">Step 3: Challenge Completed!</h3>
+                <p className="text-green-700 mb-4">You've successfully used dictation to create and manage a list. Well done!</p>
+                <p className="text-green-600 text-sm italic mb-3">Use the <strong>Challenge Complete</strong> button at the bottom of the screen to save your progress.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
+      
+      {/* Navigation buttons are now in the header */}
     </div>
   );
 };

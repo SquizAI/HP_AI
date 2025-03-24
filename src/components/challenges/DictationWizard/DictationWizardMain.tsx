@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
 import ChallengeHeader from '../../shared/ChallengeHeader';
-import { AlertCircle, CheckCircle, Mic, SparklesIcon, ListIcon, ClipboardListIcon, ShoppingBagIcon, FileTextIcon } from 'lucide-react';
+import { AlertCircle, CheckCircle, Mic, SparklesIcon, ListIcon, ClipboardListIcon, ShoppingBagIcon, FileTextIcon, Brain } from 'lucide-react';
 import axios from 'axios';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { TranscriptionComparison } from './components';
 import { getApiKey } from '../../../services/openai';
+import { getDeepgramConfig } from '../../../services/apiConfig';
 
 // Main component
 const DictationWizardMain: React.FC = () => {
@@ -13,7 +14,7 @@ const DictationWizardMain: React.FC = () => {
   const [userProgress, setUserProgress] = useUserProgress();
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState<boolean>(
-    userProgress.completedChallenges.includes('challenge-dictation-wizard')
+    userProgress.completedChallenges.includes('challenge-1') || userProgress.completedChallenges.includes('challenge-dictation-wizard')
   );
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
   
@@ -501,7 +502,7 @@ const DictationWizardMain: React.FC = () => {
   
   // Handle completing the challenge
   const handleCompleteChallenge = () => {
-    markChallengeAsCompleted('challenge-dictation-wizard');
+    markChallengeAsCompleted('challenge-1');
     setIsCompleted(true);
     setCompletionMessage('Challenge completed! Great job using AI for dictation and analysis!');
     
@@ -622,7 +623,7 @@ const DictationWizardMain: React.FC = () => {
         <ChallengeHeader 
           title="AI Dictation Wizard" 
           icon={<Mic className="h-6 w-6 text-green-600" />}
-          challengeId="challenge-dictation-wizard"
+          challengeId="challenge-1"
           isCompleted={isCompleted}
           setIsCompleted={setIsCompleted}
           showConfetti={showConfetti}
@@ -654,7 +655,7 @@ const DictationWizardMain: React.FC = () => {
         <ChallengeHeader 
           title="AI Dictation Wizard" 
           icon={<Mic className="h-6 w-6 text-green-600" />}
-          challengeId="challenge-dictation-wizard"
+          challengeId="challenge-1"
           isCompleted={isCompleted}
           setIsCompleted={setIsCompleted}
           showConfetti={showConfetti}
@@ -940,8 +941,91 @@ const DictationWizardMain: React.FC = () => {
             This can help you decide which technology is best for your needs.
           </p>
           
-          <TranscriptionComparison deepgramApiKey={import.meta.env.VITE_DEEPGRAM_API_KEY} />
+          <TranscriptionComparison deepgramApiKey={getDeepgramConfig().apiKey} />
         </div>
+      </div>
+      
+      {/* For the Nerds section */}
+      <div className="mt-12 border-t border-gray-200 pt-8">
+        <details className="group bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <summary className="flex items-center justify-between cursor-pointer p-5 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-blue-700" />
+              <h3 className="text-lg font-semibold text-blue-800">For the Nerds - Technical Details</h3>
+            </div>
+            <div className="bg-white rounded-full p-1 shadow-sm">
+              <svg className="h-5 w-5 text-blue-600 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </summary>
+          
+          <div className="p-5 bg-white">
+            <div className="prose max-w-none">
+              <h4 className="text-blue-700 font-medium mb-3">Technologies Used</h4>
+              
+              <h5 className="font-medium mt-4 mb-2">Speech Recognition APIs</h5>
+              <p className="text-gray-700 mb-3">
+                This application leverages two different speech recognition technologies:
+              </p>
+              <ul className="list-disc pl-5 space-y-2 text-gray-700 mb-4">
+                <li>
+                  <strong>Deepgram API:</strong> A cloud-based speech recognition service that uses deep learning to convert speech to text with high accuracy. 
+                  It provides advanced features like speaker diarization, language detection, and custom vocabulary support.
+                </li>
+                <li>
+                  <strong>Web Speech API:</strong> A browser-native API that provides speech recognition capabilities without requiring external services. 
+                  It's implemented differently across browsers and typically uses the device's operating system speech recognition services.
+                </li>
+              </ul>
+              
+              <h5 className="font-medium mt-4 mb-2">Text Translation</h5>
+              <p className="text-gray-700 mb-3">
+                For translation functionality, we use the Google Cloud Translation API, which supports over 100 languages and provides neural machine translation 
+                capabilities for more natural-sounding translations. The API processes text through Google's neural machine translation models, which analyze entire 
+                sentences rather than just individual words for context-aware translations.
+              </p>
+              
+              <h5 className="font-medium mt-4 mb-2">Text-to-Speech Synthesis</h5>
+              <p className="text-gray-700 mb-3">
+                The application uses ElevenLabs' text-to-speech API, which offers highly realistic voice synthesis with emotion and intonation control. 
+                ElevenLabs uses a proprietary deep learning architecture that combines transformer models with specialized voice encoding to create natural-sounding speech.
+              </p>
+              
+              <h5 className="font-medium mt-4 mb-2">Audio Processing Pipeline</h5>
+              <p className="text-gray-700 mb-3">
+                When you speak into the microphone, the following process occurs:
+              </p>
+              <ol className="list-decimal pl-5 space-y-2 text-gray-700 mb-4">
+                <li>Audio is captured using the browser's MediaRecorder API, which creates a stream from your microphone</li>
+                <li>The audio stream is processed in real-time or as chunks depending on the selected API</li>
+                <li>For Deepgram, audio chunks are sent to their servers via WebSockets for low-latency transcription</li>
+                <li>For Web Speech API, the browser handles recognition locally or via the operating system</li>
+                <li>The transcribed text is then displayed and can be sent for translation</li>
+                <li>Translated text can be synthesized back to speech using ElevenLabs' API</li>
+              </ol>
+              
+              <h5 className="font-medium mt-4 mb-2">Performance Considerations</h5>
+              <p className="text-gray-700">
+                Several factors affect the performance of speech recognition:
+              </p>
+              <ul className="list-disc pl-5 space-y-2 text-gray-700 mb-4">
+                <li>Network latency (for cloud-based APIs)</li>
+                <li>Background noise and microphone quality</li>
+                <li>Speaker accent and speech clarity</li>
+                <li>Technical vocabulary and domain-specific terminology</li>
+                <li>Processing power of the device (for Web Speech API)</li>
+              </ul>
+              
+              <h5 className="font-medium mt-4 mb-2">React and State Management</h5>
+              <p className="text-gray-700">
+                The UI is built with React using functional components and hooks for state management. Audio processing states are managed through 
+                useState and useEffect hooks, with useRef for maintaining references to audio elements and streams. The application uses 
+                custom hooks to encapsulate the complex logic of audio recording, transcription, and playback.
+              </p>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   );

@@ -13,13 +13,17 @@ const getPlaceholderImage = (seed: string = ''): string => {
   return `https://picsum.photos/seed/${imageId}/800/600`;
 };
 
-// Read the API key from environment variables
+// Import the centralized API configuration service
+import { getFalAIConfig } from '../services/apiConfig';
+
+// Get FAL API key from centralized service
 const getFalApiKey = (): string => {
-  if (import.meta.env.VITE_FAL_API_KEY && !isFalDisabled) {
-    return import.meta.env.VITE_FAL_API_KEY;
+  const { apiKey } = getFalAIConfig();
+  if (apiKey && !isFalDisabled) {
+    return apiKey;
   }
   // Default value for development only
-  console.warn('Warning: FAL.AI API key not found in environment variables or FAL is disabled');
+  console.warn('Warning: FAL.AI API key not found in configuration or FAL is disabled');
   return '';
 };
 
@@ -41,7 +45,7 @@ const getFalClient = () => {
   // Only for local development - in production, this should be handled by a secure proxy
   console.log('Using direct FAL API access - not recommended for production.');
   return createFalClient({
-    credentials: import.meta.env.VITE_FAL_API_KEY || '',
+    credentials: getFalApiKey(),
   });
 };
 

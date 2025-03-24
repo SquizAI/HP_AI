@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import ScrollToTop from './components/common/ScrollToTop'
 import Layout from './components/layout/Layout'
-import ChallengeHub from './components/hub/ChallengeHub'
+import ChallengeHubNew from './components/hub/ChallengeHubNew'
 import Resources from './components/resources/Resources'
 import ServiceProChallenge from './components/challenges/ServicePro/ServicePro'
 import TrendSpotterChallenge from './components/challenges/TrendSpotter/TrendSpotterMain'
@@ -45,10 +46,11 @@ function App() {
         v7_relativeSplatPath: true
       }}
     >
+      <ScrollToTop />
       <Layout>
         <Routes>
-          <Route path="/" element={<ChallengeHub />} />
-          <Route path="/challenges" element={<ChallengeHub />} />
+          <Route path="/" element={<ChallengeHubNew />} />
+          <Route path="/challenges" element={<ChallengeHubNew />} />
           <Route path="/resources" element={<Resources />} />
           <Route path="/challenge/servicepro" element={<ServiceProChallenge />} />
           <Route path="/challenge/trendspotter" element={<TrendSpotterChallenge />} />

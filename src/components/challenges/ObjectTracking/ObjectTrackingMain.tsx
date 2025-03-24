@@ -413,7 +413,7 @@ const ObjectTrackingMain: React.FC = () => {
       <ChallengeHeader
         title="AI Object Tracking"
         icon={<Target className="h-6 w-6 text-indigo-600" />}
-        challengeId="challenge-object-tracking"
+        challengeId="challenge-7"
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
         showConfetti={showConfetti}

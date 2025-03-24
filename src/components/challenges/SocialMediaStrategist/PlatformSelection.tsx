@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SocialMediaStrategy } from './SocialMediaStrategistMain';
+import { markChallengeAsCompleted } from '../../../utils/userDataManager';
 
 interface PlatformSelectionProps {
   state: SocialMediaStrategy;
@@ -116,14 +117,16 @@ const PLATFORMS = [
   }
 ];
 
+// Simplified Platform Selection Component
 const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateState, onNext, onBack }) => {
+  // Initialize state with existing values or defaults
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(state.selectedPlatforms || []);
-  const [platformPriorities, setPlatformPriorities] = useState<{[key: string]: number}>({});
-  const [showRecommendations, setShowRecommendations] = useState(false);
-  const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false);
   const [recommendations, setRecommendations] = useState<string[]>([]);
   const [customPlatformName, setCustomPlatformName] = useState('');
   const [isAddingCustom, setIsAddingCustom] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [platformPriorities, setPlatformPriorities] = useState<{[key: string]: number}>(state.platformPriorities || {});
   
   // Initial recommendation based on brand info and audience
   useEffect(() => {
@@ -212,12 +215,12 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
   
   // Generate AI recommendations
   const generateRecommendations = () => {
-    setIsGeneratingRecommendations(true);
+    setIsLoading(true);
     
     // Simulate API delay
     setTimeout(() => {
-      setShowRecommendations(true);
-      setIsGeneratingRecommendations(false);
+      setShowAnalysis(true);
+      setIsLoading(false);
     }, 2000);
   };
   
@@ -231,18 +234,34 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
     }
   };
   
-  // Continue to next step
+  // Complete the challenge
   const handleContinue = () => {
+    if (selectedPlatforms.length === 0) {
+      alert('Please select at least one platform before completing the challenge.');
+      return;
+    }
+    
+    // Disable button to prevent double clicks
+    const btnElement = document.querySelector('button[data-complete-button="true"]');
+    if (btnElement) {
+      (btnElement as HTMLButtonElement).disabled = true;
+    }
+    
     // Sort platforms by priority
     const prioritizedPlatforms = [...selectedPlatforms].sort((a, b) => 
       (platformPriorities[a] || 999) - (platformPriorities[b] || 999)
     );
     
+    // Update state with the selected platforms
     updateState({
       selectedPlatforms: prioritizedPlatforms,
       platformPriorities: platformPriorities
     });
     
+    // Mark challenge as completed using the standardized approach
+    markChallengeAsCompleted('challenge-12');
+    
+    // Proceed to the next step
     onNext();
   };
   
@@ -282,70 +301,81 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
         </div>
       </div>
       
-      {/* AI Recommendations */}
+      {/* Step 3: Platform Recommendations with Progress Indicator */}
       <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-gray-800">
+        <div className="flex items-center mb-4">
+          <div className="mr-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">3</div>
+          <h3 className="text-xl font-medium text-gray-800">
             Platform Recommendations
           </h3>
+        </div>
+        
+        <div className="flex justify-between items-center mb-4">
+          <p className="text-gray-600">View AI recommendations based on your brand inputs</p>
           <button
             onClick={generateRecommendations}
-            className="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors flex items-center"
-            disabled={isGeneratingRecommendations}
+            className="px-5 py-3 text-base bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0"
+            disabled={isLoading}
           >
-            {isGeneratingRecommendations ? (
+            {isLoading ? (
               <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 Analyzing...
               </>
             ) : (
-              <>Detailed Analysis</>
+              <>Get AI Platform Analysis</>  
             )}
           </button>
         </div>
         
-        {/* Simple recommendations (always visible) */}
-        <div className="bg-indigo-50 p-5 rounded-lg border border-indigo-200 mb-4">
-          <p className="text-gray-700 mb-3">
-            Based on your brand and audience, these platforms may be a good fit:
-          </p>
-          <div className="flex flex-wrap gap-3">
+        {/* Recommended platforms with 3D buttons */}
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg border border-indigo-100 mb-6 shadow-md">
+          <div className="flex items-center mb-3">
+            <span className="text-indigo-600 mr-2">✓</span>
+            <p className="text-gray-700 font-medium">
+              AI-Recommended platforms for your brand:
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-4 mt-4">
             {recommendations.map(platformId => {
               const platform = PLATFORMS.find(p => p.id === platformId);
               return platform ? (
-                <div 
+                <button 
                   key={platform.id}
-                  className={`flex items-center px-4 py-2 rounded-full cursor-pointer transition-colors ${
+                  className={`flex items-center justify-center px-6 py-3 rounded-lg cursor-pointer transition-all duration-300 shadow-md hover:shadow-xl ${  
                     selectedPlatforms.includes(platform.id)
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white border border-indigo-200 text-indigo-800 hover:bg-indigo-100'
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white transform scale-105'
+                      : 'bg-white border-2 border-indigo-200 text-indigo-800 hover:border-indigo-400 hover:-translate-y-1 active:translate-y-0'
                   }`}
                   onClick={() => togglePlatform(platform.id)}
                 >
-                  <span className="mr-2">{platform.icon}</span>
-                  {platform.name}
-                </div>
+                  <span className="text-xl mr-2">{platform.icon}</span>
+                  <span className="font-medium">{platform.name}</span>
+                  {selectedPlatforms.includes(platform.id) && 
+                    <span className="ml-2 bg-white bg-opacity-20 rounded-full w-5 h-5 flex items-center justify-center text-xs">✓</span>
+                  }
+                </button>
               ) : null;
             })}
           </div>
         </div>
         
         {/* Detailed AI analysis */}
-        {showRecommendations && (
-          <div className="bg-white p-5 rounded-lg border border-indigo-200 mb-4">
-            <h3 className="font-medium text-indigo-800 mb-3 flex items-center">
+        {showAnalysis && (
+          <div className="bg-white p-6 rounded-lg border border-indigo-200 mb-6 shadow-md">
+            <h3 className="font-medium text-indigo-800 mb-4 flex items-center text-lg">
               <span className="mr-2">🧠</span>
-              Detailed Platform Analysis
+              AI-Powered Platform Analysis
             </h3>
             
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div>
-                <h4 className="font-medium text-indigo-700 mb-1">Primary Recommendation</h4>
-                <p className="text-gray-700 mb-2">
-                  Based on your brand personality ({state.brandPersonality}) and audience segments, we recommend:
+                <h4 className="font-medium text-indigo-700 mb-2">Primary Recommendation</h4>
+                <p className="text-gray-700 mb-3">
+                  Based on your brand attributes and audience demographics, we recommend:
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-gray-700 mb-3">
                   {recommendations.map(platformId => {
@@ -420,41 +450,49 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
         )}
       </div>
       
-      {/* Platform Selection */}
+      {/* Step 4: Platform Selection */}
       <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-gray-800">
-            All Available Platforms
+        <div className="flex items-center mb-4">
+          <div className="mr-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">4</div>
+          <h3 className="text-xl font-medium text-gray-800">
+            Choose Your Platforms
           </h3>
+        </div>
+        
+        <div className="flex justify-between items-center mb-4">
+          <p className="text-gray-600">Select the platforms you want to include in your social media strategy</p>
           <button
             onClick={() => setIsAddingCustom(true)}
-            className="px-3 py-1 text-sm text-indigo-600 border border-indigo-200 rounded hover:bg-indigo-50 transition-colors"
+            className="px-4 py-2 text-sm bg-white border-2 border-indigo-300 text-indigo-700 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-1 active:translate-y-0 flex items-center"
           >
-            + Add Custom Platform
+            <span className="text-xl mr-1">+</span> Add Custom Platform
           </button>
         </div>
         
         {isAddingCustom && (
-          <div className="bg-white p-4 rounded-lg border border-indigo-200 mb-4">
-            <h4 className="font-medium text-indigo-800 mb-3">Add Custom Platform</h4>
-            <div className="flex items-center">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg border border-indigo-100 mb-6 shadow-lg">
+            <h4 className="font-medium text-indigo-800 mb-4 flex items-center">
+              <span className="text-indigo-600 mr-2">✨</span>
+              Add Your Custom Platform
+            </h4>
+            <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={customPlatformName}
                 onChange={(e) => setCustomPlatformName(e.target.value)}
-                className="flex-grow px-4 py-2 border border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500"
+                className="flex-grow px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-inner transition-all"
                 placeholder="e.g., Threads, Bluesky, etc."
               />
               <button
                 onClick={handleAddCustomPlatform}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-r-md hover:bg-indigo-700"
+                className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
                 disabled={!customPlatformName.trim()}
               >
-                Add
+                Add Platform
               </button>
               <button
                 onClick={() => setIsAddingCustom(false)}
-                className="ml-2 px-3 py-2 text-gray-500 hover:text-gray-700"
+                className="px-4 py-3 bg-white border-2 border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-md"
               >
                 Cancel
               </button>
@@ -462,30 +500,45 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
           </div>
         )}
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {PLATFORMS.map(platform => (
             <div
               key={platform.id}
-              className={`p-4 border rounded-lg transition-all cursor-pointer ${
+              className={`p-6 border-2 rounded-xl transition-all duration-300 cursor-pointer shadow-md relative overflow-hidden ${  
                 selectedPlatforms.includes(platform.id)
-                  ? 'border-indigo-500 bg-indigo-50'
-                  : 'border-gray-200 hover:border-indigo-300'
+                  ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 transform scale-[1.02] shadow-lg'
+                  : 'border-gray-200 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-1'
               }`}
               onClick={() => togglePlatform(platform.id)}
             >
-              <div className="flex items-center justify-between mb-2">
+              {/* Background effect for selected platforms */}
+              {selectedPlatforms.includes(platform.id) && (
+                <div className="absolute inset-0 opacity-20">
+                  <div className="absolute -right-10 -top-10 bg-indigo-300 rounded-full w-24 h-24 blur-2xl"></div>
+                  <div className="absolute -left-10 -bottom-10 bg-purple-300 rounded-full w-24 h-24 blur-2xl"></div>
+                </div>
+              )}
+              
+              {/* Pulse effect for recommended platforms */}
+              {recommendations.includes(platform.id) && !selectedPlatforms.includes(platform.id) && (
+                <div className="absolute top-2 right-2 flex items-center justify-center">
+                  <div className="absolute w-5 h-5 rounded-full bg-indigo-400 animate-ping opacity-50"></div>
+                  <div className="relative w-3 h-3 rounded-full bg-indigo-600"></div>
+                </div>
+              )}
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center">
-                  <span className="text-2xl mr-3">{platform.icon}</span>
-                  <h3 className="font-medium text-gray-800">{platform.name}</h3>
+                  <div className="text-2xl mr-3 bg-gradient-to-r from-indigo-100 to-purple-100 p-2 rounded-lg">{platform.icon}</div>
+                  <h3 className="font-semibold text-gray-800 text-lg">{platform.name}</h3>
                 </div>
                 {selectedPlatforms.includes(platform.id) && (
-                  <div className="flex items-center">
-                    <label className="text-xs text-gray-500 mr-2">Priority:</label>
+                  <div className="flex items-center bg-white rounded-lg p-1 shadow-md border border-indigo-100">
+                    <label className="text-sm text-indigo-700 mx-2 font-medium">Priority</label>
                     <select
                       value={platformPriorities[platform.id] || 999}
                       onChange={(e) => handlePriorityChange(platform.id, Number(e.target.value))}
                       onClick={(e) => e.stopPropagation()} // Prevent toggling when clicking on select
-                      className="px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+                      className="px-3 py-1 text-sm border border-indigo-200 rounded-lg bg-white shadow-inner focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"
                     >
                       {selectedPlatforms.map((_, index) => (
                         <option key={index} value={index + 1}>
@@ -496,34 +549,41 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
                   </div>
                 )}
               </div>
-              <p className="text-sm text-gray-600 mb-3">
+              <p className="text-gray-700 mb-4">
                 {platform.description}
               </p>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Best For:</p>
-                  <div className="flex flex-wrap gap-1">
+                  <p className="text-sm font-medium text-indigo-700 mb-2">Best For:</p>
+                  <div className="flex flex-wrap gap-2">
                     {platform.bestFor.slice(0, 3).map((use, index) => (
-                      <span key={index} className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                      <span key={index} className="px-3 py-1 bg-gradient-to-r from-purple-100 to-indigo-100 text-indigo-800 text-sm rounded-full shadow-sm">
                         {use}
                       </span>
                     ))}
                     {platform.bestFor.length > 3 && (
-                      <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                      <span className="px-3 py-1 bg-gradient-to-r from-purple-100 to-indigo-100 text-indigo-800 text-sm rounded-full shadow-sm">
                         +{platform.bestFor.length - 3} more
                       </span>
                     )}
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Demographics:</p>
-                  <p className="text-xs text-gray-600">{platform.demographics}</p>
+                  <p className="text-sm font-medium text-indigo-700 mb-1">Target Audience:</p>
+                  <p className="text-gray-700">{platform.demographics}</p>
                 </div>
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Time: {platform.timeCommitment}</span>
-                  <span>Engagement: {platform.engagementLevel}</span>
-                  <span>Difficulty: {platform.difficultyLevel}</span>
+                <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-700">
+                  <span className="flex items-center"><span className="text-indigo-500 mr-1">⏱️</span> Time: {platform.timeCommitment}</span>
+                  <span className="flex items-center"><span className="text-indigo-500 mr-1">💬</span> Engagement: {platform.engagementLevel}</span>
+                  <span className="flex items-center"><span className="text-indigo-500 mr-1">📊</span> Difficulty: {platform.difficultyLevel}</span>
                 </div>
+                {selectedPlatforms.includes(platform.id) && (
+                  <div className="mt-2 flex justify-end">
+                    <span className="text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full flex items-center text-sm">
+                      <span className="mr-1">✓</span> Selected
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -534,23 +594,23 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
             .map(platformId => (
               <div
                 key={platformId}
-                className="p-4 border border-indigo-500 bg-indigo-50 rounded-lg"
+                className="p-6 border-2 border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl transition-all duration-300 cursor-pointer shadow-lg transform scale-[1.02]"
                 onClick={() => togglePlatform(platformId)}
               >
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center">
-                    <span className="text-2xl mr-3">🌐</span>
-                    <h3 className="font-medium text-gray-800">
+                    <div className="text-2xl mr-3 bg-gradient-to-r from-indigo-100 to-purple-100 p-2 rounded-lg">🌐</div>
+                    <h3 className="font-semibold text-gray-800 text-lg capitalize">
                       {platformId.replace('custom-', '').replace(/-/g, ' ')}
                     </h3>
                   </div>
-                  <div className="flex items-center">
-                    <label className="text-xs text-gray-500 mr-2">Priority:</label>
+                  <div className="flex items-center bg-white rounded-lg p-1 shadow-md border border-indigo-100">
+                    <label className="text-sm text-indigo-700 mx-2 font-medium">Priority</label>
                     <select
                       value={platformPriorities[platformId] || 999}
                       onChange={(e) => handlePriorityChange(platformId, Number(e.target.value))}
                       onClick={(e) => e.stopPropagation()} // Prevent toggling when clicking on select
-                      className="px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+                      className="px-3 py-1 text-sm border border-indigo-200 rounded-lg bg-white shadow-inner focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"
                     >
                       {selectedPlatforms.map((_, index) => (
                         <option key={index} value={index + 1}>
@@ -570,9 +630,10 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
       
       {/* Summary of Selected Platforms */}
       {selectedPlatforms.length > 0 && (
-        <div className="mb-8 bg-white p-5 rounded-lg border border-gray-200">
-          <h3 className="font-medium text-gray-800 mb-3">
-            Your Selected Platforms ({selectedPlatforms.length})
+        <div className="mb-8 bg-gradient-to-r from-indigo-50 to-purple-50 p-5 rounded-lg border-2 border-indigo-200 shadow-md hover:shadow-lg transition-all duration-300">
+          <h3 className="font-medium text-indigo-800 mb-4 flex items-center">
+            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs font-bold">{selectedPlatforms.length}</span>
+            Your Selected Platforms
           </h3>
           
           <div className="space-y-3">
@@ -583,9 +644,12 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
                 const isCustom = platformId.startsWith('custom-');
                 
                 return (
-                  <div key={platformId} className="flex items-center justify-between p-3 border-b border-gray-100">
+                  <div 
+                    key={platformId} 
+                    className="flex items-center justify-between p-3 rounded-lg bg-white border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-200 transform hover:-translate-y-1 transition-all duration-300 mb-2"
+                  >
                     <div className="flex items-center">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-800 mr-3">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 shadow-sm mr-3 border border-indigo-200">
                         {platformPriorities[platformId] || '?'}
                       </div>
                       {isCustom ? (
@@ -593,8 +657,8 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
                           {platformId.replace('custom-', '').replace(/-/g, ' ')}
                         </span>
                       ) : platform ? (
-                        <span className="font-medium text-gray-800">
-                          {platform.icon} {platform.name}
+                        <span className="font-medium text-gray-800 flex items-center">
+                          <span className="mr-2 transform transition-transform duration-300 hover:scale-110">{platform.icon}</span> {platform.name}
                         </span>
                       ) : null}
                     </div>
@@ -603,7 +667,7 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
                         e.stopPropagation();
                         togglePlatform(platformId);
                       }}
-                      className="text-gray-400 hover:text-red-500"
+                      className="px-2 py-1 text-white bg-gradient-to-r from-red-400 to-red-500 rounded-md hover:from-red-500 hover:to-red-600 transition-all duration-300 transform hover:scale-105 text-xs font-medium shadow-sm"
                     >
                       Remove
                     </button>
@@ -611,46 +675,93 @@ const PlatformSelection: React.FC<PlatformSelectionProps> = ({ state, updateStat
                 );
               })}
           </div>
+          
+          <div className="mt-4 bg-white p-3 rounded-lg border border-indigo-100 shadow-inner text-sm text-gray-600">
+            <p className="flex items-center">
+              <span className="text-indigo-500 mr-2">💡</span>
+              Tip: The order of platforms determines their priority in your strategy
+            </p>
+          </div>
         </div>
       )}
       
-      {/* Pro Tips */}
-      <div className="bg-indigo-50 p-5 rounded-lg border border-indigo-100 mb-8">
-        <h3 className="font-medium text-indigo-800 mb-2 flex items-center">
-          <span className="mr-2">💡</span>
-          Pro Tips
-        </h3>
-        <ul className="space-y-1 text-indigo-800">
-          <li className="flex items-start">
-            <span className="text-indigo-500 mr-2">•</span>
-            Focus on 2-3 platforms maximum for a focused, effective strategy.
-          </li>
-          <li className="flex items-start">
-            <span className="text-indigo-500 mr-2">•</span>
-            Prioritize platforms where your audience is most active and engaged.
-          </li>
-          <li className="flex items-start">
-            <span className="text-indigo-500 mr-2">•</span>
-            Consider your content creation capacity when selecting platforms.
-          </li>
-        </ul>
+      {/* Pro Tips - Step 5 */}
+      <div className="mb-8">
+        <div className="flex items-center mb-4">
+          <div className="mr-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">5</div>
+          <h3 className="text-xl font-medium text-gray-800">Pro Tips</h3>
+        </div>
+        
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-100 shadow-md">
+          <h3 className="font-medium text-indigo-800 mb-4 flex items-center text-lg">
+            <span className="mr-2">💡</span>
+            Expert Social Media Advice
+          </h3>
+          <ul className="space-y-3 text-gray-700">
+            <li className="flex items-start bg-white p-3 rounded-lg shadow-sm border border-indigo-50">
+              <span className="text-indigo-500 mr-3 text-xl">•</span>
+              <span>Focus on 2-3 platforms maximum for a more focused and effective strategy.</span>
+            </li>
+            <li className="flex items-start bg-white p-3 rounded-lg shadow-sm border border-indigo-50">
+              <span className="text-indigo-500 mr-3 text-xl">•</span>
+              <span>Prioritize platforms where your target audience is most active and engaged.</span>
+            </li>
+            <li className="flex items-start bg-white p-3 rounded-lg shadow-sm border border-indigo-50">
+              <span className="text-indigo-500 mr-3 text-xl">•</span>
+              <span>Consider your content creation capacity and available time when selecting platforms.</span>
+            </li>
+          </ul>
+        </div>
       </div>
       
-      {/* Navigation */}
-      <div className="flex justify-between mt-8">
-        <button
-          onClick={onBack}
-          className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-        >
-          Back
-        </button>
-        <button
-          onClick={handleContinue}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-          disabled={selectedPlatforms.length === 0}
-        >
-          Continue to Content Planning
-        </button>
+      {/* Navigation buttons section */}
+      <div className="mb-12 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-100 shadow-md">
+        <div className="text-center md:text-left mb-4">
+          <h3 className="text-lg font-medium text-indigo-700 mb-2">Step 3: Platform Selection</h3>
+          <p className="text-gray-600">
+            {selectedPlatforms.length === 0 ? 
+              "Select at least one platform to continue" : 
+              `You have selected ${selectedPlatforms.length} platform${selectedPlatforms.length > 1 ? 's' : ''}`}
+          </p>
+        </div>
+        
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <button
+            onClick={onBack}
+            className="w-full md:w-auto px-6 py-4 bg-white border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center"
+          >
+            <span className="mr-2">←</span> Back to Audience Research
+          </button>
+          
+          <button
+            onClick={handleContinue}
+            className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center font-semibold text-lg"
+            disabled={selectedPlatforms.length === 0}
+            data-complete-button="true"
+            style={{
+              animation: selectedPlatforms.length > 0 ? 'pulse-shadow 2s infinite' : 'none',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <span className="relative z-10 flex items-center">
+              Complete Challenge <span className="ml-3 text-xl">✓</span>
+            </span>
+            <span 
+              className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-0 hover:opacity-40 transition-opacity duration-300"
+              style={{ 
+                clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0% 100%)',
+              }}
+            ></span>
+          </button>
+        </div>
+        
+        {/* Show message when button is disabled */}
+        {selectedPlatforms.length === 0 && (
+          <div className="mt-4 text-center text-orange-600 bg-orange-50 p-3 rounded-lg border border-orange-100">
+            <span className="font-medium">Please select at least one platform to complete the challenge</span>
+          </div>
+        )}
       </div>
     </div>
   );

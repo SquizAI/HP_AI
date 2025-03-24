@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Shield, Image as ImageIcon, Upload, RefreshCw, Check, X, AlertTriangle, Info, Award, Sliders } from 'lucide-react';
-import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
+import { Shield, Image as ImageIcon, RefreshCw, Check, AlertTriangle, Award, Sliders, Info, Lightbulb, Brain } from 'lucide-react';
+import { useChallengeStatus } from '../../../utils/userDataManager';
 import Confetti from '../../shared/Confetti';
 import ChallengeHeader from '../../shared/ChallengeHeader';
 import RealtimeFaceBlur from './components/RealtimeFaceBlur';
@@ -8,28 +8,28 @@ import RealtimeFaceBlur from './components/RealtimeFaceBlur';
 // Sample images for demonstration
 const SAMPLE_IMAGES = [
   {
-    id: 'ernesto-lee',
-    url: '/ErnestoLee.jpeg',
-    title: 'Ernesto Lee',
-    description: 'Portrait of Ernesto Lee'
-  },
-  {
-    id: 'ai-generated-1',
+    id: 'sample-1',
     url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1974&auto=format&fit=crop',
-    title: 'AI Generated Face 1',
-    description: 'Simple front-facing portrait of a person'
+    title: 'Business Meeting',
+    description: 'Group of people in a business meeting'
   },
   {
-    id: 'ai-generated-2',
+    id: 'sample-2',
     url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1887&auto=format&fit=crop',
-    title: 'AI Generated Face 2',
-    description: 'Front-facing portrait with a neutral background'
+    title: 'Conference Speaker',
+    description: 'Speaker presenting at a conference'
   },
   {
-    id: 'ai-generated-3',
+    id: 'sample-3',
     url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1887&auto=format&fit=crop',
-    title: 'AI Generated Face 3',
-    description: 'Clear front-facing portrait for easy face detection'
+    title: 'Office Team',
+    description: 'Team meeting in an office setting'
+  },
+  {
+    id: 'sample-4',
+    url: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=1887&auto=format&fit=crop',
+    title: 'Corporate Event',
+    description: 'People at a corporate event'
   }
 ];
 
@@ -41,28 +41,26 @@ interface DetectedFace {
   blurred: boolean;
 }
 
-// Add type definition for face detection result
-interface FaceDetectionResult {
-  box: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  score?: number;
-}
+// Face detection box types are handled in the RealtimeFaceBlur component
 
 const PrivacyGuardianMain: React.FC = () => {
-  // User progress tracking
-  const [userProgress, setUserProgress] = useUserProgress();
-  const [isCompleted, setIsCompleted] = useState<boolean>(false);
-  const [showConfetti, setShowConfetti] = useState<boolean>(false);
+  // Use the standardized hook for challenge status management
+  const { 
+    isCompleted, 
+    setIsCompleted, 
+    showConfetti, 
+    setShowConfetti,
+    handleCompleteChallenge,
+    challengeId 
+  } = useChallengeStatus('challenge-6'); // Use standard ID from ChallengeHubNew.tsx
   
-  // Add missing state variables
+    // Face detection state
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [detectionProgress, setDetectionProgress] = useState<number>(0);
   const [detectionMessage, setDetectionMessage] = useState<string>('');
   const [faceCount, setFaceCount] = useState<number>(0);
+  
+  // We'll use the standard showConfetti state from useChallengeStatus hook
   
   // State for the image and face detection
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -71,8 +69,7 @@ const PrivacyGuardianMain: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [progressMessage, setProgressMessage] = useState<string>('');
   const [detectedFaces, setDetectedFaces] = useState<DetectedFace[]>([]);
-  const [showInstructions, setShowInstructions] = useState<boolean>(true);
-  const [userScenario, setUserScenario] = useState<string>('');
+
   
   // Settings for the RealtimeFaceBlur component
   const [blurIntensity, setBlurIntensity] = useState<number>(20);
@@ -81,15 +78,9 @@ const PrivacyGuardianMain: React.FC = () => {
   const [isFaceApiLoaded, setIsFaceApiLoaded] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   
-  // Check if challenge is already completed
-  useEffect(() => {
-    if (userProgress.completedChallenges.includes('challenge-privacy-guardian')) {
-      setIsCompleted(true);
-    }
-  }, [userProgress]);
+  // No longer need to manually check completion status - handled by useChallengeStatus hook
   
   // Load face-api.js for facial recognition
   useEffect(() => {
@@ -238,24 +229,7 @@ const PrivacyGuardianMain: React.FC = () => {
     }
   };
   
-  const handleCompleteChallenge = () => {
-    if (!userScenario.trim()) {
-      setError('Please enter a privacy scenario to complete the challenge.');
-      return;
-    }
-    
-    // Mark the challenge as completed
-    markChallengeAsCompleted('challenge-privacy-guardian');
-    setIsCompleted(true);
-    
-    // Show confetti
-    setShowConfetti(true);
-    
-    // Reset confetti after 5 seconds
-    setTimeout(() => {
-      setShowConfetti(false);
-    }, 5000);
-  };
+  // Using the standardized handleCompleteChallenge from useChallengeStatus hook
   
   // Process static image to detect and blur faces
   const processStaticImage = async () => {
@@ -380,6 +354,20 @@ const PrivacyGuardianMain: React.FC = () => {
         setFaceCount(faces.length);
         setProcessedImage(canvas.toDataURL('image/jpeg', 0.95));
         setProgressMessage(`Privacy protection applied to ${faces.length} face(s).`);
+        
+        // Auto-complete the challenge after successful detection
+        if (faces.length > 0 && !isCompleted) {
+          // Wait a moment to let the user see the results first
+          setTimeout(() => {
+            const completeButton = document.getElementById('complete-challenge-button');
+            if (completeButton) {
+              completeButton.click();
+            } else {
+              // Fallback if button not found
+              handleCompleteChallenge();
+            }
+          }, 2000); // Wait 2 seconds before auto-completing
+        }
       } catch (detectErr) {
         console.error('Face detection error:', detectErr);
         setError(`Face detection failed. This may be due to CORS restrictions with the image source. Try using local images instead of external URLs.`);
@@ -432,22 +420,24 @@ const PrivacyGuardianMain: React.FC = () => {
       
       {/* Header with Challenge Information */}
       <ChallengeHeader
-        title="AI Privacy Guardian"
+        title="AI Image Protector: Safeguard Privacy with Smart Blurring"
         icon={<Shield className="h-6 w-6 text-emerald-600" />}
-        challengeId="challenge-privacy-guardian"
+        challengeId={challengeId}
         isCompleted={isCompleted}
         setIsCompleted={setIsCompleted}
+        showConfetti={showConfetti}
+        setShowConfetti={setShowConfetti}
         onCompleteChallenge={handleCompleteChallenge}
       />
       
       {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-2 flex items-center">
-          <Shield className="mr-2 text-emerald-600" />
-          AI Privacy Guardian
+            <Shield className="mr-2 text-emerald-600" />
+            Challenge # 6: AI Privacy Guardian: Safeguard Privacy with Smart Blurring
           </h1>
           <p className="text-gray-600">
-          Identify and blur faces in images and video to protect privacy and ensure compliance with data protection regulations.
+            Identify and blur faces in images and video to protect privacy and ensure compliance with data protection regulations.
           </p>
           {isCompleted && (
             <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
@@ -455,10 +445,101 @@ const PrivacyGuardianMain: React.FC = () => {
             </div>
           )}
         </div>
+      
+      {/* How AI Works for You section */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg border border-emerald-100 relative overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-gradient-to-br from-emerald-200/20 to-teal-200/20 rounded-full blur-xl"></div>
+        
+        <h2 className="text-xl font-bold mb-4 flex items-center relative z-10">
+          <Info className="mr-2 h-5 w-5 text-emerald-500" />
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600">How AI Works for You</span>
+        </h2>
+        
+        <div className="text-gray-700 space-y-4 relative z-10">
+          <p className="leading-relaxed">
+            AI-powered privacy tools help detect and blur faces in images and videos, ensuring compliance with data protection laws and safeguarding personal information.
+          </p>
+          
+          <p className="leading-relaxed">
+            In this challenge, AI will automatically scan an image, identify faces, and apply smart blurring to protect identities. This technology is widely used in security, media, and compliance-driven industries, helping businesses handle sensitive visuals responsibly.
+          </p>
+        </div>
+      </div>
+      
+      {/* Challenge Steps Quick View */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg border border-emerald-100 relative overflow-hidden mt-6">
+        <div className="absolute -top-24 -left-24 w-48 h-48 bg-gradient-to-br from-teal-200/20 to-emerald-200/20 rounded-full blur-xl"></div>
+        
+        <h2 className="text-xl font-bold mb-4 flex items-center relative z-10">
+          <Lightbulb className="mr-2 h-5 w-5 text-emerald-500" />
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600">Challenge Steps Quick View</span>
+        </h2>
+        
+        <div className="space-y-3 relative z-10">
+          <div className="flex items-start">
+            <div className="flex-shrink-0 h-6 w-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-800 font-semibold text-sm mr-3">1</div>
+            <div className="text-gray-700 flex items-center">
+              <span className="text-emerald-500 mr-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+              <span>Toggle to "Live Camera" mode to see real-time face detection, or select from sample images.</span>
+            </div>
+          </div>
+          
+          <div className="flex items-start">
+            <div className="flex-shrink-0 h-6 w-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-800 font-semibold text-sm mr-3">2</div>
+            <div className="text-gray-700 flex items-center">
+              <span className="text-emerald-500 mr-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+              <span>Watch AI automatically blur faces for privacy protection.</span>
+            </div>
+          </div>
+          
+          <div className="flex items-start">
+            <div className="flex-shrink-0 h-6 w-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-800 font-semibold text-sm mr-3">3</div>
+            <div className="text-gray-700 flex items-center">
+              <span className="text-emerald-500 mr-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+              <span>Adjust the blur intensity and explore different settings.</span>
+            </div>
+          </div>
+          
+          <div className="flex items-start">
+            <div className="flex-shrink-0 h-6 w-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-800 font-semibold text-sm mr-3">4</div>
+            <div className="text-gray-700 flex items-center">
+              <span className="text-emerald-500 mr-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+              <span>Challenge Completed! Click Complete & Return!</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Take the Challenge */}
+      <div className="mb-8 mt-2">
+        <h2 className="text-3xl font-extrabold flex items-center transform">
+          <Shield className="mr-3 h-7 w-7 text-emerald-500" />
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600 drop-shadow-[0.05em_0.05em_0px_rgba(5,150,105,0.3)] transform hover:scale-[1.01] transition-transform">
+            Take the Challenge!
+          </span>
+        </h2>
+      </div>
         
       {/* Main content area */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
+
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-6">
               <div className="flex justify-between items-center mb-4">
@@ -482,7 +563,7 @@ const PrivacyGuardianMain: React.FC = () => {
                     />
                   </button>
                   <span className={`text-sm ${isLiveMode ? 'font-medium text-emerald-600' : 'text-gray-500'}`}>
-                    Live Camera
+                    Live Camera <span className="text-xs text-gray-500">(OPTIONAL)</span>
                   </span>
                 </div>
                 </div>
@@ -551,30 +632,17 @@ const PrivacyGuardianMain: React.FC = () => {
                 <div>
                   {!selectedImage ? (
                     <div className="space-y-6">
-                      {/* Upload controls */}
+                      {/* Upload controls - file selector removed */}
                       <div>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <div className="border-2 border-gray-300 rounded-lg p-6 text-center">
                           <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                          <div className="mt-4 flex flex-col items-center text-sm">
-                            <p className="text-gray-600">
-                              Drag and drop an image with faces, or
+                          <div className="mt-4 text-center text-sm">
+                            <p className="text-gray-500">
+                              Select a sample image below or toggle Live Camera above
                             </p>
-                            <label className="mt-2 cursor-pointer text-indigo-600 hover:text-indigo-800">
-                              <span>Browse files</span>
-                              <input
-                                type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept="image/*"
-                                onChange={handleFileUpload}
-                              />
-                            </label>
-                            <p className="mt-2 text-xs text-gray-500">
-                              PNG, JPG, JPEG up to 5MB
-                            </p>
-                  </div>
-              </div>
-            </div>
+                          </div>
+                        </div>
+                      </div>
             
                       {/* Sample images */}
                       <div>
@@ -793,51 +861,34 @@ const PrivacyGuardianMain: React.FC = () => {
           </div>
           </div>
           
-        {/* Info panel */}
-          <div className="space-y-6">
-          {/* Challenge instructions */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* Right column with Business Impact and Complete Challenge */}
+          <div className="lg:col-span-1">
+            {/* Business impact */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
               <div className="p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-800">Challenge Instructions</h3>
-                <button
-                  onClick={() => setShowInstructions(!showInstructions)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  {showInstructions ? 'Hide' : 'Show'}
-                </button>
-              </div>
-              
-              {showInstructions && (
-                <div className="space-y-3 text-sm">
-                  <p className="text-gray-600">
-                    In this challenge, you'll learn how AI can automatically detect and blur faces in images and video to protect privacy.
-                  </p>
-                  
-                  <div className="space-y-1">
-                    <h4 className="font-medium text-gray-700">Steps:</h4>
-                    <ol className="list-decimal pl-5 text-gray-600 space-y-1">
-                      <li>Toggle to "Live Camera" mode to see real-time privacy protection.</li>
-                      <li>Observe how faces are automatically detected and blurred.</li>
-                      <li>Adjust the blur intensity and other settings.</li>
-                      <li>Describe a real-world scenario where this would be useful.</li>
-                    </ol>
-                  </div>
-                  
-                  <div className="mt-2 bg-blue-50 p-3 rounded text-blue-700 text-xs">
-                    <div className="flex">
-                      <Info size={14} className="mr-1 flex-shrink-0 mt-0.5" />
-                      <span>
-                        <strong>Note:</strong> Real privacy applications might require more advanced techniques for complete anonymization.
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
+                <h3 className="text-lg font-medium text-gray-800 mb-3">Business Impact</h3>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-start">
+                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span>Ensures GDPR compliance by protecting identifiable information</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span>Saves hours of manual editing in marketing & social media content</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span>Protects privacy in surveillance, research, and documentary footage</span>
+                  </li>
+                  <li className="flex items-start">
+                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span>Can be applied to video streams for real-time privacy protection</span>
+                  </li>
+                </ul>
               </div>
             </div>
             
-          {/* Challenge completion */}
+            {/* Challenge completion */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-5">
                 <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
@@ -846,63 +897,94 @@ const PrivacyGuardianMain: React.FC = () => {
                 </h3>
                 
                 <div className="space-y-4">
-                <div>
-                  <label htmlFor="business-scenario" className="block text-sm font-medium text-gray-700 mb-1">
-                    Describe a real scenario where this privacy feature would be valuable:
-                  </label>
-                  <textarea
-                    id="business-scenario"
-                    rows={3}
-                    value={userScenario}
-                    onChange={(e) => setUserScenario(e.target.value)}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                    placeholder="Example: For social media marketing where only employees with consent should be identifiable..."
+                  <button
+                    id="complete-challenge-button"
+                    onClick={() => {
+                      handleCompleteChallenge();
+                      setShowConfetti(true);
+                      // Hide confetti after 3 seconds
+                      setTimeout(() => {
+                        setShowConfetti(false);
+                      }, 3000);
+                    }}
                     disabled={isCompleted}
-                  />
-                </div>
-                
-                <button
-                  onClick={handleCompleteChallenge}
-                  disabled={isCompleted || !userScenario.trim()}
                     className={`w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
                       isCompleted
                         ? 'bg-green-500 cursor-not-allowed'
-                      : !userScenario.trim()
-                        ? 'bg-gray-300 cursor-not-allowed'
                         : 'bg-indigo-600 hover:bg-indigo-700'
                     }`}
                   >
                     {isCompleted ? 'Challenge Completed!' : 'Complete Challenge'}
                   </button>
+                </div>
               </div>
-              </div>
-            </div>
-            
-            {/* Business impact */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-5">
-                <h3 className="text-lg font-medium text-gray-800 mb-3">Business Impact</h3>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-start">
-                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span>Ensures GDPR compliance by protecting identifiable information</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span>Saves hours of manual editing in marketing & social media content</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span>Protects privacy in surveillance, research, and documentary footage</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check size={16} className="mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span>Can be applied to video streams for real-time privacy protection</span>
-                  </li>
-                </ul>
             </div>
           </div>
-        </div>
+          
+          {/* For the Nerds - Technical Details */}
+          <div className="mt-12 border-t border-gray-200 pt-8">
+            <details className="group bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <summary className="flex items-center justify-between cursor-pointer p-5 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-blue-700" />
+                  <h3 className="text-lg font-semibold text-blue-800">For the Nerds - Technical Details</h3>
+                </div>
+                <div className="bg-white rounded-full p-1 shadow-sm">
+                  <svg className="h-5 w-5 text-blue-600 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </summary>
+              
+              <div className="p-5 border-t border-gray-200 bg-white">
+                <div className="prose max-w-none text-gray-600 text-sm space-y-4">
+                  <div>
+                    <h4 className="text-blue-700 font-medium">Face Detection Technology</h4>
+                    <p>This privacy guardian uses advanced computer vision technologies:</p>
+                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                      <li><strong>TensorFlow.js</strong> - A JavaScript library for machine learning that enables client-side face detection</li>
+                      <li><strong>face-api.js</strong> - A specialized face detection library built on TensorFlow.js</li>
+                      <li><strong>SSD MobileNet</strong> - Single Shot MultiBox Detector with MobileNet architecture for efficient face detection</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-blue-700 font-medium">Face Anonymization Pipeline</h4>
+                    <p>The privacy protection process follows these technical steps:</p>
+                    <ol className="list-decimal pl-5 mt-2 space-y-1">
+                      <li><strong>Face Detection</strong> - Locating faces in images using neural networks</li>
+                      <li><strong>Bounding Box Generation</strong> - Creating precise coordinates for each detected face</li>
+                      <li><strong>Gaussian Blur Application</strong> - Applying a configurable blur effect to the detected region</li>
+                      <li><strong>Canvas Composition</strong> - Merging the blurred regions with the original image</li>
+                      <li><strong>Real-time Processing</strong> - Optimizing the pipeline for video streams with frame skipping</li>
+                    </ol>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-blue-700 font-medium">Performance Optimizations</h4>
+                    <p>Several techniques ensure efficient real-time processing:</p>
+                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                      <li><strong>Model quantization</strong> - Using 8-bit quantized models to reduce memory footprint</li>
+                      <li><strong>Temporal redundancy</strong> - Processing every nth frame to reduce computational load</li>
+                      <li><strong>WebGL acceleration</strong> - Leveraging GPU for tensor operations when available</li>
+                      <li><strong>Tiny face detector</strong> - Optional lightweight model for performance-constrained environments</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-blue-700 font-medium">Privacy-Preserving Design</h4>
+                    <p>The system is designed with privacy as a priority:</p>
+                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                      <li><strong>Client-side processing</strong> - All face detection happens locally without sending images to servers</li>
+                      <li><strong>No face recognition</strong> - The system only detects faces but does not identify individuals</li>
+                      <li><strong>No data persistence</strong> - Processed images are not stored unless explicitly saved by the user</li>
+                      <li><strong>Configurable blur radius</strong> - Adjustable anonymization strength based on privacy requirements</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
       </div>
     </div>
   );

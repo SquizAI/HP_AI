@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Scan, Image, AlertCircle, Upload, Trash2, FileText, Info, RefreshCw } from 'lucide-react';
+import { Scan, Image, AlertCircle, Trash2, FileText, Info, RefreshCw } from 'lucide-react';
 
 // Sample images for OCR testing
 const SAMPLE_IMAGES = [
@@ -38,6 +38,12 @@ const SAMPLE_IMAGES = [
     url: 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&q=80',
     title: 'Business Card',
     type: 'printed'
+  },
+  {
+    id: 'handwritten-meme',
+    url: 'https://preview.redd.it/fbc3ut3ffud51.png?auto=webp&s=95617bab19657fb10e4b9de05f843a9278c3e11a',
+    title: 'Handwritten Meme',
+    type: 'handwritten'
   }
 ];
 
@@ -64,6 +70,13 @@ const OCRProcessing: React.FC<OCRProcessingProps> = ({
 
   // If we're passed in isProcessing and progress props, we're in the simplified mode
   const isSimplifiedMode = isProcessing && typeof progress === 'number';
+  
+  // Initialize showSampleImages to false if we're in processing mode
+  React.useEffect(() => {
+    if (isProcessing) {
+      setShowSampleImages(false);
+    }
+  }, [isProcessing]);
 
   // If in simplified mode, just show the processing indicator
   if (isSimplifiedMode) {
@@ -172,12 +185,18 @@ const OCRProcessing: React.FC<OCRProcessingProps> = ({
   };
 
   const handleSampleImageSelect = (imageUrl: string, isHandwritten: boolean) => {
+    // Prevent multiple rapid selections
+    if (selectedImage === imageUrl) return;
+    
     setSelectedImage(imageUrl);
     setLocalIsHandwriting(isHandwritten);
     setShowSampleImages(false);
     
     if (onSampleImageSelect) {
-      onSampleImageSelect(imageUrl, isHandwritten);
+      // Add a small delay to prevent the processing element from flashing
+      setTimeout(() => {
+        onSampleImageSelect(imageUrl, isHandwritten);
+      }, 100);
     }
   };
 

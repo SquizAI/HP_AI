@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { ChallengeState } from './TrendSpotterMain'
+import { getApiKey } from '../../../services/openai'
 
 interface TrendAnalysisProps {
   state: ChallengeState;
@@ -68,8 +69,8 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
   // Get AI response using API
   const getAiResponse = async (userMessage: string): Promise<string> => {
     try {
-      // Get API key from environment variables
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+      // Get API key from openai service
+      const apiKey = getApiKey();
       if (!apiKey) {
         return "Sorry, I can't access my thinking capabilities right now. The API key seems to be missing. But I'd love to hear your thoughts on this trend!"
       }
@@ -121,7 +122,7 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({
   // Get structured analysis
   const getStructuredAnalysis = async (): Promise<StructuredAnalysis | null> => {
     try {
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+      const apiKey = getApiKey()
       if (!apiKey) return null
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {

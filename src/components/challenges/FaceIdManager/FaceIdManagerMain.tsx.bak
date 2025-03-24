@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { ArrowLeft, Upload, Camera, CheckCircle, XCircle, User, Shield, AlertTriangle, Sun, Image as ImageIcon, RefreshCw, InfoIcon } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { CheckCircle, XCircle, User, Shield, Sun, Image as ImageIcon, InfoIcon, RefreshCw, AlertTriangle } from 'lucide-react'
 import ChallengeHeader from '../../shared/ChallengeHeader'
 import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager'
 import { Scan } from 'lucide-react'
@@ -9,17 +8,22 @@ import { Scan } from 'lucide-react'
 const registeredFaces = [
   { 
     id: 1, 
-    name: 'Ernesto Lee', 
-    role: 'Security Administrator', 
+    name: 'Jordan Wilson', 
+    role: 'IT Administrator', 
     confidence: 0.97, 
     authorized: true, 
     lastSeen: 'Today', 
-    imageUrl: '/ErnestoLee.jpeg' 
+    imageUrl: '/samples/sample-face-1.jpg' 
   },
   { id: 2, name: 'Taylor Rodriguez', role: 'Software Engineer', confidence: 0.98, authorized: true, lastSeen: '1 hour ago', imageUrl: '/samples/face-2.jpg' },
   { id: 3, name: 'Morgan Chen', role: 'Product Manager', confidence: 0.95, authorized: true, lastSeen: 'Today', imageUrl: '/samples/face-3.jpg' },
   { id: 4, name: 'Jamie Smith', role: 'UX Designer', confidence: 0.94, authorized: false, lastSeen: '3 days ago', imageUrl: '/samples/face-4.jpg' },
   { id: 5, name: 'Casey Williams', role: 'Data Scientist', confidence: 0.96, authorized: true, lastSeen: 'Today', imageUrl: '/samples/face-5.jpg' },
+  { id: 6, name: 'Alex Johnson', role: 'HR Manager', confidence: 0.93, authorized: true, lastSeen: '2 days ago', imageUrl: '/samples/sample-face-6.jpg' },
+  { id: 7, name: 'Riley Kumar', role: 'Marketing Director', confidence: 0.97, authorized: true, lastSeen: 'Yesterday', imageUrl: '/samples/sample-face-7.jpg' },
+  { id: 8, name: 'Sam Washington', role: 'Finance Analyst', confidence: 0.92, authorized: false, lastSeen: '1 week ago', imageUrl: '/samples/sample-face-8.jpg' },
+  { id: 9, name: 'Drew Garcia', role: 'Operations Manager', confidence: 0.95, authorized: true, lastSeen: 'Today', imageUrl: '/samples/sample-face-9.jpg' },
+  { id: 10, name: 'Quinn Patel', role: 'Security Officer', confidence: 0.98, authorized: true, lastSeen: '3 hours ago', imageUrl: '/samples/sample-face-10.jpg' }
 ]
 
 // Sample factors that can affect recognition accuracy
@@ -29,20 +33,22 @@ const environmentalFactors = [
   { name: 'Changes in Appearance', icon: <User size={20} />, description: 'Glasses, masks, or hairstyle changes may require system retraining.' },
 ]
 
-// Sample business use cases
+// Sample business use cases for real-world uses
 const businessUses = [
-  { name: 'Event Check-in', description: 'Streamline registration at conferences and corporate events.' },
-  { name: 'Office Access', description: 'Secure entry to buildings and sensitive areas without physical badges.' },
-  { name: 'Time Tracking', description: 'Automate employee attendance and time recording.' },
-  { name: 'VIP Recognition', description: 'Identify and provide personalized service to important customers.' },
+  { name: 'Smartphone Security', description: 'Apple Face ID and Android face unlock replace passwords with secure 3D facial mapping.' },
+  { name: 'Airport Check-Ins', description: 'AI matches travelers to passport photos, speeding up security and immigration.' },
+  { name: 'Banking & Payments', description: 'Facial verification adds extra security for account access and transactions.' },
+  { name: 'Retail & Customer Experience', description: 'Stores personalize service and analyze shopper trends using facial recognition.' },
+  { name: 'Healthcare', description: 'AI helps identify patients, assess pain levels, and assist in diagnosing genetic conditions.' },
 ]
 
 // Sample privacy considerations
 const privacyConsiderations = [
-  { name: 'Data Storage', description: 'Store only facial vectors rather than actual images when possible.' },
-  { name: 'Consent', description: 'Always obtain explicit consent before collecting facial data.' },
-  { name: 'Opt-out Options', description: 'Provide alternative methods for those who decline facial recognition.' },
-  { name: 'Transparency', description: 'Clearly communicate how and why facial data is being collected and used.' },
+  { name: 'Secure Data Handling', description: 'Facial recognition systems should store data securely, using encryption and local processing where possible to protect privacy.' },
+  { name: 'Consent & Transparency', description: 'Ethical AI should always require clear user consent before collecting facial data and provide information on how it will be used, stored, and shared.' },
+  { name: 'Avoiding Bias', description: 'AI models can sometimes struggle with accuracy across different skin tones, genders, or ages. Ensuring fairness requires diverse training data and ongoing testing.' },
+  { name: 'Thoughtful Use', description: 'Facial recognition should be applied only where necessary, balancing security benefits with privacy rights and ethical considerations.' },
+  { name: 'Following Global Laws', description: 'Organizations must comply with privacy regulations like GDPR, CCPA, and other international standards to ensure responsible and legal use of biometric data.' },
 ]
 
 // Add Window interface extension to properly type the faceapi global object
@@ -61,7 +67,6 @@ const FaceIdManagerMain: React.FC = () => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.9)
   const [isAuthorizedOnly, setIsAuthorizedOnly] = useState(true)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isModelLoaded, setIsModelLoaded] = useState(false)
@@ -89,7 +94,6 @@ const FaceIdManagerMain: React.FC = () => {
   
   // Add new state variables for local face detection
   const [useLocalDetection, setUseLocalDetection] = useState<boolean>(false);
-  const [hasBrowserFaceDetector, setHasBrowserFaceDetector] = useState<boolean>(false);
   
   // Check if browser supports the FaceDetector API
   useEffect(() => {
@@ -101,16 +105,15 @@ const FaceIdManagerMain: React.FC = () => {
           // @ts-ignore - FaceDetector might not be recognized by TypeScript
           const faceDetector = new window.FaceDetector();
           console.log('Browser FaceDetector API is available');
-          setHasBrowserFaceDetector(true);
           // If it's available, use it by default
           setUseLocalDetection(true);
         } catch (err) {
           console.warn('Face Detector API is available but not working:', err);
-          setHasBrowserFaceDetector(false);
+          setUseLocalDetection(false);
         }
       } else {
         console.warn('Face Detector API is not available in this browser');
-        setHasBrowserFaceDetector(false);
+        setUseLocalDetection(false);
       }
     };
     
@@ -317,23 +320,14 @@ const FaceIdManagerMain: React.FC = () => {
     });
   };
   
-  // Handle file upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setUploadedImage(event.target?.result as string)
-        setDemoStage('upload')
-      }
-      reader.readAsDataURL(file)
-    }
-  }
+
   
-  // Handle sample image selection - updated to use Ernesto's image
+  // Handle sample image selection
   const handleSampleImage = (sampleNumber: number) => {
-    if (sampleNumber === 1) {
-      setUploadedImage('/ErnestoLee.jpeg');
+    const selectedFace = registeredFaces.find(face => face.id === sampleNumber);
+    if (selectedFace) {
+      setUploadedImage(selectedFace.imageUrl);
+      processImage();
     } else {
       setUploadedImage(`/samples/face-${sampleNumber}.jpg`);
     }
@@ -1602,19 +1596,15 @@ const FaceIdManagerMain: React.FC = () => {
         return;
       }
       
-      // If no match with registered user or no registered user, use sample images
-      if (uploadedImage.includes('ErnestoLee')) {
-        setRecognitionResult({...registeredFaces[0], confidence: 0.94});
-      } else if (uploadedImage.includes('/samples/')) {
-        // If it's one of the sample images, get the corresponding face
-        const sampleNumber = parseInt(uploadedImage.match(/face-(\d)\.jpg/)?.[1] || '0');
-        if (sampleNumber > 0 && sampleNumber <= registeredFaces.length) {
-          setRecognitionResult(registeredFaces[sampleNumber - 1]);
-        } else {
-          // Random selection for other sample images
-          const randomIndex = Math.floor(Math.random() * registeredFaces.length);
-          setRecognitionResult(registeredFaces[randomIndex]);
-        }
+      // Find the matching face based on the image URL
+      const matchedFace = registeredFaces.find(face => uploadedImage && uploadedImage.includes(face.imageUrl));
+      
+      if (matchedFace) {
+        setRecognitionResult({...matchedFace, confidence: matchedFace.confidence});
+      } else if (uploadedImage && uploadedImage.includes('/samples/')) {
+        // If it's one of the sample images but no direct match, use a random face
+        const randomIndex = Math.floor(Math.random() * registeredFaces.length);
+        setRecognitionResult(registeredFaces[randomIndex]);
       } else {
         // For other images, random selection if it meets confidence threshold
         setRecognitionResult(null);
@@ -1770,7 +1760,7 @@ const FaceIdManagerMain: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto p-4">
       <ChallengeHeader
-        title="Face ID Manager Challenge"
+        title="Challenge # 5: AI Facial Recognition How Machines Recognize Faces"
         icon={<Scan className="h-6 w-6 text-blue-600" />}
         challengeId="challenge-7"
         isCompleted={isCompleted}
@@ -1781,18 +1771,97 @@ const FaceIdManagerMain: React.FC = () => {
         isHPChallenge={true}
       />
       
-      {/* Add a banner for the new version */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-        <div>
-          <h3 className="font-medium text-blue-800">Having trouble with this version?</h3>
-          <p className="text-sm text-gray-600">We've created a simplified version of the Face ID component that might work better.</p>
-        </div>
-        <Link to="/simplfaceid" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 whitespace-nowrap">
-          Try Simplified Version
-        </Link>
+      {/* Add How AI Works For You section */}
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <h3 className="font-medium text-blue-800 mb-2">How AI Works for You</h3>
+        <p className="text-sm text-gray-600">
+          AI-powered facial recognition is transforming security and access control, making identity verification fast, seamless, and smart. In this challenge, you'll select sample images and watch AI in action as it determines whether they are authorized users in a simulated business setting. Using deep learning, AI maps key facial features—like eye distance and jawline shape—to create a unique digital "faceprint" for verification. See firsthand how AI enhances security, speeds up check-ins, and ensures only the right people get access!
+        </p>
+      </div>
+      
+      {/* Challenge Steps Quick View */}
+      <div className="mb-6 p-4 bg-white border border-gray-200 rounded-lg">
+        <h3 className="font-medium text-gray-800 mb-2">Challenge Steps Quick View:</h3>
+        <p className="text-sm text-gray-600 mb-2">There are 3 steps required to complete the Challenge.</p>
+        <ul className="list-disc pl-6 text-sm text-gray-600">
+          <li>Step 1: Read through Understanding Facial Recognition</li>
+          <li>Step 2: Select from Sample Images to have AI perform facial recognition.</li>
+          <li>Step 3: Challenge Completed!</li>
+        </ul>
+        <p className="text-sm text-gray-600 mt-2">Please review and follow each detailed step below.</p>
       </div>
       
       <div className="bg-white shadow-md rounded-lg p-6">
+        <h2 className="text-xl font-bold mb-4">Take the Challenge!</h2>
+        <h3 className="font-medium text-gray-800 mb-3">Step 1: Read through Understanding Facial Recognition to learn how AI performs this incredible task, and how business are applying this technology today.</h3>
+        
+        {/* Educational Content - Always visible */}
+        <div className="mb-8 p-4 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-medium mb-4">Understanding Facial Recognition</h3>
+          <p className="text-gray-600 mb-4">Learn how facial recognition works and its applications in modern technology.</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="p-4 bg-white rounded-md shadow-sm">
+              <h4 className="font-medium text-blue-800 mb-2">What It Is</h4>
+              <p className="text-sm text-gray-600">Facial recognition identifies or verifies a person using their unique facial features, creating a digital "faceprint" for comparison.</p>
+            </div>
+            
+            <div className="p-4 bg-white rounded-md shadow-sm">
+              <h4 className="font-medium text-blue-800 mb-2">How It Works</h4>
+              <p className="text-sm text-gray-600">AI analyzes key facial points (eye distance, jawline, nose width) using deep learning to recognize individuals, similar to a fingerprint but for your face.</p>
+            </div>
+            
+            <div className="p-4 bg-white rounded-md shadow-sm">
+              <h4 className="font-medium text-blue-800 mb-2">Where It's Used</h4>
+              <p className="text-sm text-gray-600">Found in security systems, phone unlocking, payment verification, law enforcement, attendance tracking, and personalized marketing.</p>
+            </div>
+            
+            <div className="p-4 bg-white rounded-md shadow-sm">
+              <h4 className="font-medium text-blue-800 mb-2">Privacy & Ethics</h4>
+              <p className="text-sm text-gray-600">While powerful, it raises concerns. Best practices include consent, transparency, security, and user control over biometric data.</p>
+            </div>
+          </div>
+          
+          <h3 className="text-lg font-medium mb-4">Real-World Uses of Facial Recognition</h3>
+          <ul className="space-y-2 mb-6">
+            {businessUses.map((use, index) => (
+              <li key={index} className="flex items-start">
+                <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mr-2 mt-0.5">
+                  <span className="text-xs">{index + 1}</span>
+                </div>
+                <div>
+                  <span className="font-medium">{use.name}</span> - {use.description}
+                </div>
+              </li>
+            ))}
+          </ul>
+          
+          <h3 className="text-lg font-medium mb-4">Understanding Facial Recognition Accuracy</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-white rounded-md shadow-sm">
+              <h4 className="font-medium text-blue-800 mb-2">False Accept Rate (FAR)</h4>
+              <p className="text-sm text-gray-600">How often the system mistakenly approves the wrong person. A lower rate means better security.</p>
+            </div>
+            
+            <div className="p-4 bg-white rounded-md shadow-sm">
+              <h4 className="font-medium text-blue-800 mb-2">False Reject Rate (FRR)</h4>
+              <p className="text-sm text-gray-600">How often the system wrongly denies an authorized user. A lower rate means better reliability.</p>
+            </div>
+            
+            <div className="p-4 bg-white rounded-md shadow-sm">
+              <h4 className="font-medium text-blue-800 mb-2">Equal Error Rate (EER)</h4>
+              <p className="text-sm text-gray-600">The balance point where FAR and FRR are equal, used to compare system performance. Lower is better.</p>
+            </div>
+            
+            <div className="p-4 bg-white rounded-md shadow-sm">
+              <h4 className="font-medium text-blue-800 mb-2">Accuracy</h4>
+              <p className="text-sm text-gray-600">The overall success rate of correctly identifying people. The higher, the better!</p>
+            </div>
+          </div>
+        </div>
+        
+        <h3 className="font-medium text-gray-800 mb-3">Step 2: Select from Sample Images to have AI perform facial recognition and review the results.</h3>
+        
         {/* Status Indicator and Detection Mode Toggle */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
           <div className="mb-2 sm:mb-0">
@@ -1930,55 +1999,18 @@ const FaceIdManagerMain: React.FC = () => {
                     </div>
                   )}
 
-              {/* Upload Interface */}
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
-              >
-                <Upload size={48} className="mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">Upload a Face Image</h3>
-                <p className="text-gray-500 mb-4">Click to upload an image or drag and drop</p>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                  Select Image
-                </button>
-                <input 
-                  ref={fileInputRef}
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleImageUpload} 
-                  className="hidden" 
-                />
-              </div>
-                  
-                  {/* Camera Option */}
-                  <div className="mt-4 text-center">
-                    <button 
-                      onClick={startCamera}
-                      className="flex items-center justify-center mx-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                    >
-                      <Camera size={18} className="mr-2" />
-                      Use Camera for Authentication
-                    </button>
-              </div>
-              
               {/* Sample Images */}
               <div className="mt-6">
-                <h3 className="text-md font-medium mb-3">Or use a sample image:</h3>
-                <div className="grid grid-cols-5 gap-2">
-                      <button 
-                        key={1}
-                        onClick={() => handleSampleImage(1)}
-                        className="p-2 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 text-center transition-colors"
-                      >
-                        Ernesto Lee
-                      </button>
-                      {[2, 3, 4, 5].map((num) => (
+                <h3 className="text-md font-medium mb-3">Select a sample image for AI analysis:</h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {registeredFaces.map((face) => (
                     <button 
-                      key={num}
-                      onClick={() => handleSampleImage(num)}
-                      className="p-2 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 text-center transition-colors"
+                      key={face.id}
+                      onClick={() => handleSampleImage(face.id)}
+                      className="p-3 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 text-center transition-colors"
                     >
-                      Sample {num}
+                      {face.name}
+                      <div className="text-xs text-gray-500">{face.role}</div>
                     </button>
                   ))}
                 </div>
@@ -2212,7 +2244,7 @@ const FaceIdManagerMain: React.FC = () => {
             </div>
             
             <div className="mb-6">
-              <h3 className="text-lg font-medium mb-4">Recognition Result</h3>
+              <h3 className="text-lg font-medium mb-4">Facial Recognition Results</h3>
               
               {recognitionResult ? (
                 <div className="border rounded-lg p-4 bg-green-50 border-green-200">
@@ -2265,13 +2297,13 @@ const FaceIdManagerMain: React.FC = () => {
                 onClick={() => setDemoStage('upload')}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
-                Try Again
+                Try Another Sample
               </button>
               <button 
-                onClick={resetDemo}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+                onClick={handleCompleteChallenge}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
               >
-                Reset
+                Challenge Completed
               </button>
             </div>
           </div>
@@ -2314,13 +2346,8 @@ const FaceIdManagerMain: React.FC = () => {
         
         {/* Privacy & Security - Fixed styling */}
         <div className="mt-10 pt-6 border-t border-gray-200 mb-6">
-          <h2 className="text-xl font-bold mb-4">Privacy & Security</h2>
+          <h2 className="text-xl font-bold mb-4">Privacy & Ethical Considerations</h2>
           <div className="mb-6">
-            <h3 className="font-medium text-red-800 mb-2">Important Considerations</h3>
-            <p className="text-gray-600 text-sm mb-4">
-              Facial recognition raises significant privacy concerns. When implementing such systems:
-            </p>
-            
             <ul className="space-y-3 mb-6">
               {privacyConsiderations.map((item, index) => (
                 <li key={index} className="flex">
@@ -2332,20 +2359,6 @@ const FaceIdManagerMain: React.FC = () => {
                 </li>
               ))}
             </ul>
-          </div>
-          
-          {/* Vulnerabilities */}
-          <div className="mb-6">
-            <h3 className="font-medium text-yellow-800 mb-2">Potential Vulnerabilities</h3>
-            <div className="bg-yellow-50 p-4 rounded-md">
-              <div className="flex">
-                <AlertTriangle size={18} className="mr-2 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-gray-700">
-                  Face recognition systems can be vulnerable to spoofing attempts using photos, masks, or deepfakes. 
-                  Consider implementing liveness detection and multiple authentication factors for high-security applications.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </div>

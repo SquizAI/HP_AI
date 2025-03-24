@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Award, CheckCircle, Info } from 'lucide-react';
+import { ArrowLeft, Award, CheckCircle } from 'lucide-react';
 import { markChallengeAsCompleted } from '../../utils/userDataManager';
 import Confetti from './Confetti';
 
@@ -31,13 +31,35 @@ const ChallengeHeader: React.FC<ChallengeHeaderProps> = ({
   onCompleteChallenge,
   isHPChallenge = false
 }) => {
+  // Challenge number is now extracted directly in the JSX
   const navigate = useNavigate();
   const [showBackTooltip, setShowBackTooltip] = useState(false);
   const [showCompleteTooltip, setShowCompleteTooltip] = useState(false);
+  const [fontSize, setFontSize] = useState("text-xl");
+  const headerRef = useRef<HTMLDivElement>(null);
   
+  // Handle dynamic font sizing based on scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      if (headerRef.current) {
+        // When the header is sticky (scrolled), use a smaller font size
+        if (window.scrollY > 20) {
+          setFontSize("text-lg");
+        } else {
+          setFontSize("text-xl");
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
   // Listen for mobile navigation completion event
   useEffect(() => {
-    const handleMobileComplete = (e: Event) => {
+    const handleMobileComplete = () => {
       // Trigger the same completion logic as the desktop button
       if (onCompleteChallenge) {
         onCompleteChallenge();
@@ -82,6 +104,7 @@ const ChallengeHeader: React.FC<ChallengeHeaderProps> = ({
       };
 
   const handleBack = () => {
+    // Navigate to the challenge hub
     navigate('/');
   };
 
@@ -105,6 +128,7 @@ const ChallengeHeader: React.FC<ChallengeHeaderProps> = ({
     }
     
     setTimeout(() => {
+      // Navigate to the challenge hub
       navigate('/');
     }, 2000);
   };
@@ -115,7 +139,9 @@ const ChallengeHeader: React.FC<ChallengeHeaderProps> = ({
         <Confetti active={showConfetti} />
       )}
       
-      <div className={`bg-white shadow-md py-3 px-4 mb-6 rounded-lg sticky top-0 z-50 ${isHPChallenge ? 'border-l-4 border-blue-500' : ''}`}>
+      <div 
+        ref={headerRef}
+        className={`bg-white shadow-md py-3 px-4 mb-6 rounded-lg sticky top-0 z-50 transition-all duration-200 ${isHPChallenge ? 'border-l-4 border-blue-500' : ''}`}>
         <div className="flex justify-between items-center">
           <div className="relative hidden md:block">
             <button
@@ -139,11 +165,21 @@ const ChallengeHeader: React.FC<ChallengeHeaderProps> = ({
           
           <div className="flex items-center">
             {icon && <span className="mr-2">{icon}</span>}
-            <h1 className="text-xl font-bold">{title}</h1>
+            <h1 className={`${fontSize} font-bold transition-all duration-200`}>
+              {challengeId.startsWith('challenge-') && !isNaN(parseInt(challengeId.replace('challenge-', ''))) ? 
+                `Challenge #${challengeId.replace('challenge-', '')}: ${title}` : 
+               challengeId.startsWith('hp-challenge-') ? 
+                `HP Challenge #${challengeId.replace('hp-challenge-', '')}: ${title}` : 
+                title}
+            </h1>
           </div>
           
           {isCompleted ? (
-            <div className={`flex items-center px-4 py-2 ${baseColors.secondary} rounded-lg hidden md:flex`}>
+            <div 
+              className={`flex items-center px-4 py-2 ${baseColors.secondary} rounded-lg hidden md:flex cursor-pointer hover:bg-green-200`}
+              onClick={() => navigate('/')}
+              data-component-name="ChallengeHeader"
+            >
               <CheckCircle className="h-5 w-5 mr-2" />
               <span className="font-medium">Challenge Completed!</span>
             </div>

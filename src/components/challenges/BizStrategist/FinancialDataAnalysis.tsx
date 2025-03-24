@@ -592,7 +592,7 @@ ${customPrompt ? `\nRegarding your specific question about "${customPrompt}": Ba
         {/* Financial Data Section */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Company Financial Data</h3>
+            <h3 className="text-lg font-bold text-blue-800 mb-4">Step 1: Review the Company Financial Data, Key Financial Metrics and Notable Trends data below.</h3>
             
             {/* Revenue & Profit Chart - Improved version */}
             <div className="bg-gray-50 p-4 rounded-lg mb-6">
@@ -734,12 +734,25 @@ ${customPrompt ? `\nRegarding your specific question about "${customPrompt}": Ba
               </div>
             </div>
             
+            {/* Notable Trends */}
+            <div className="mb-6">
+              <h4 className="font-medium text-gray-700 mb-3">Notable Trends</h4>
+              <ul className="space-y-2">
+                {getKeyTrends().map((trend, index) => (
+                  <li key={index} className="flex items-start p-2 bg-gray-50 rounded-lg">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span className="text-gray-700">{trend}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
             {/* Key Data Points & Insights Selection */}
             <div className="mb-6">
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-medium text-gray-800 flex items-center">
+                <h4 className="font-bold text-blue-800 flex items-center">
                   <Lightbulb size={18} className="mr-2 text-amber-500" />
-                  Select Key Financial Insights
+                  Step 2: Choose a few Key Financial Insights
                 </h4>
                 <span className="text-sm bg-gray-100 px-3 py-1 rounded-full">
                   <span className={selectedInsights.length === maxInsights ? 'text-amber-600 font-medium' : 'text-gray-600'}>
@@ -783,45 +796,7 @@ ${customPrompt ? `\nRegarding your specific question about "${customPrompt}": Ba
                 ))}
               </div>
               
-              {/* Add Your Own Insight */}
-              <div className="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <label className="block font-medium text-gray-700 mb-2 flex items-center">
-                  Add Your Own Insight
-                  <button 
-                    className="ml-2 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200"
-                    onMouseEnter={() => setShowTooltip('addInsight')}
-                    onMouseLeave={() => setShowTooltip('')}
-                  >
-                    <AlertCircle size={14} />
-                  </button>
-                  {renderTooltip('addInsight')}
-                </label>
-                <div className="flex">
-                  <input
-                    type="text"
-                    className="flex-grow border border-gray-300 rounded-l-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#0097A7] text-base"
-                    value={customInsight}
-                    onChange={(e) => setCustomInsight(e.target.value)}
-                    placeholder="E.g.: Despite rising costs, profit margins improved in Q4..."
-                    disabled={selectedInsights.length >= maxInsights}
-                  />
-                  <button
-                    className="bg-[#0097A7] text-white px-4 py-2 rounded-r-md hover:bg-[#00838F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                    onClick={handleAddCustomInsight}
-                    disabled={!customInsight.trim() || selectedInsights.length >= maxInsights}
-                  >
-                    <span className="mr-1">+</span> Add
-                  </button>
-                </div>
-                {selectedInsights.length >= maxInsights && (
-                  <div className="flex items-center mt-2 p-2 bg-amber-50 rounded-lg border border-amber-200 text-amber-700">
-                    <AlertCircle size={16} className="mr-2" />
-                    <p className="text-sm">
-                      You've selected the maximum number of insights. Remove some to add your own.
-                    </p>
-                  </div>
-                )}
-              </div>
+              {/* Add Your Own Insight - Hidden as per requirements */}
               
               {/* Selected Insights */}
               {selectedInsights.length > 0 && (
@@ -870,30 +845,38 @@ ${customPrompt ? `\nRegarding your specific question about "${customPrompt}": Ba
               )}
             </div>
             
-            {/* Notable Trends */}
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-700 mb-3">Notable Trends</h4>
-              <ul className="space-y-2">
-                {getKeyTrends().map((trend, index) => (
-                  <li key={index} className="flex items-start p-2 bg-gray-50 rounded-lg">
-                    <span className="text-blue-500 mr-2">•</span>
-                    <span className="text-gray-700">{trend}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+
           </div>
           
           {/* AI Analysis Section */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <h3 className="text-lg font-bold text-blue-800 mb-4 flex items-center">
               <Brain className="mr-2 text-[#0097A7]" size={20} />
-              Get AI-Powered Strategic Insights
+              Step 3: Select Your Analysis to Get AI-Powered Strategic Insights and check out the results!
             </h3>
             
             <div className="mb-4">
+              <ul className="text-gray-700 mb-4 space-y-2">
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2">•</span>
+                  <span>Select an Analysis Type from below.</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2">•</span>
+                  <span>Watch AI work its magic while it analyzes the data based on your requested insight.</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2">•</span>
+                  <span>Review the AI-driven results.</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-500 mr-2">•</span>
+                  <span>Want to see another Insight? Click on another analysis type to regenerate results.</span>
+                </li>
+              </ul>
+              
               <p className="text-gray-600 mb-3">
-                Select an analysis type or ask your own question about the financial data:
+                Select an analysis type. You can click through several types to see what AI initially recommends for your business based on the financial data.
               </p>
               
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">

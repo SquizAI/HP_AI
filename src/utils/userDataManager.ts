@@ -1,5 +1,5 @@
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 // Types for user data
 export interface UserProgress {
@@ -46,7 +46,7 @@ export const getUserId = (): string => {
 };
 
 // Hooks for accessing user data
-export const useUserProgress = (): [any, React.Dispatch<React.SetStateAction<any>>] => {
+export const useUserProgress = <T extends Record<string, any> = Record<string, any>>(): [T, React.Dispatch<React.SetStateAction<T>>] => {
   const [userProgress, setUserProgress] = React.useState(() => {
     // Initialize from localStorage if available
     const saved = localStorage.getItem('userProgress');
@@ -90,7 +90,7 @@ export const saveChallengeTrend = (
   trendName: string,
   analysis: string
 ): void => {
-  const userProgress = JSON.parse(localStorage.getItem('ai_hub_user_progress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
+  const userProgress = JSON.parse(localStorage.getItem('userProgress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
   
   if (!userProgress.challengeData[challengeId]) {
     userProgress.challengeData[challengeId] = {};
@@ -104,7 +104,7 @@ export const saveChallengeTrend = (
   };
   
   userProgress.lastActive = new Date().toISOString();
-  localStorage.setItem('ai_hub_user_progress', JSON.stringify(userProgress));
+  localStorage.setItem('userProgress', JSON.stringify(userProgress));
 };
 
 export const saveChallengeBizStrategy = (
@@ -115,7 +115,7 @@ export const saveChallengeBizStrategy = (
   strategyElements: string[],
   assessment: string
 ): void => {
-  const userProgress = JSON.parse(localStorage.getItem('ai_hub_user_progress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
+  const userProgress = JSON.parse(localStorage.getItem('userProgress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
   
   if (!userProgress.challengeData[challengeId]) {
     userProgress.challengeData[challengeId] = {};
@@ -131,7 +131,7 @@ export const saveChallengeBizStrategy = (
   };
   
   userProgress.lastActive = new Date().toISOString();
-  localStorage.setItem('ai_hub_user_progress', JSON.stringify(userProgress));
+  localStorage.setItem('userProgress', JSON.stringify(userProgress));
 };
 
 export const saveChallengeBrainstorm = (
@@ -144,7 +144,7 @@ export const saveChallengeBrainstorm = (
   },
   implementation: string
 ): void => {
-  const userProgress = JSON.parse(localStorage.getItem('ai_hub_user_progress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
+  const userProgress = JSON.parse(localStorage.getItem('userProgress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
   
   if (!userProgress.challengeData[challengeId]) {
     userProgress.challengeData[challengeId] = {};
@@ -164,7 +164,7 @@ export const saveChallengeBrainstorm = (
   }
   
   userProgress.lastActive = new Date().toISOString();
-  localStorage.setItem('ai_hub_user_progress', JSON.stringify(userProgress));
+  localStorage.setItem('userProgress', JSON.stringify(userProgress));
   
   // Update the leaderboard
   updateLeaderboard(calculateUserScore());
@@ -173,7 +173,7 @@ export const saveChallengeBrainstorm = (
 export const updateLeaderboard = (score: number): void => {
   const userId = getUserId();
   const username = (JSON.parse(localStorage.getItem('ai_hub_user_preferences') || JSON.stringify(DEFAULT_USER_PREFERENCES)) as UserPreferences).username;
-  const userProgress = JSON.parse(localStorage.getItem('ai_hub_user_progress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
+  const userProgress = JSON.parse(localStorage.getItem('userProgress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
   
   const leaderboard = JSON.parse(localStorage.getItem('ai_hub_leaderboard') || '[]') as LeaderboardEntry[];
   
@@ -209,7 +209,7 @@ export const updateLeaderboard = (score: number): void => {
 
 // Function to clear user data (useful for testing or user-initiated resets)
 export const clearUserData = (): void => {
-  localStorage.removeItem('ai_hub_user_progress');
+  localStorage.removeItem('userProgress');
   localStorage.removeItem('ai_hub_user_preferences');
   
   // Don't clear the user ID or leaderboard by default
@@ -219,7 +219,7 @@ export const clearUserData = (): void => {
 
 // Calculate a score based on user progress
 export const calculateUserScore = (): number => {
-  const userProgress = JSON.parse(localStorage.getItem('ai_hub_user_progress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
+  const userProgress = JSON.parse(localStorage.getItem('userProgress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
   
   // Basic scoring: 100 points per completed challenge
   const challengePoints = userProgress.completedChallenges.length * 100;
@@ -234,7 +234,7 @@ export const calculateUserScore = (): number => {
 // Function to get user progress data from localStorage
 const getUserProgress = () => {
   try {
-    const userProgressData = localStorage.getItem('ai_hub_user_progress');
+    const userProgressData = localStorage.getItem('userProgress');
     if (!userProgressData) {
       return {
         completedChallenges: [],
@@ -256,7 +256,7 @@ const getUserProgress = () => {
 // Function to save user progress data to localStorage
 const saveUserProgress = (userProgress: any) => {
   try {
-    localStorage.setItem('ai_hub_user_progress', JSON.stringify(userProgress));
+    localStorage.setItem('userProgress', JSON.stringify(userProgress));
   } catch (error) {
     console.error('Error saving user progress:', error);
   }
@@ -294,7 +294,7 @@ export const saveChallengeSlidemaster = (
   totalSlides: number,
   generatedImages: number
 ): void => {
-  const userProgress = JSON.parse(localStorage.getItem('ai_hub_user_progress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
+  const userProgress = JSON.parse(localStorage.getItem('userProgress') || JSON.stringify(DEFAULT_USER_PROGRESS)) as UserProgress;
   
   if (!userProgress.challengeData[challengeId]) {
     userProgress.challengeData[challengeId] = {};
@@ -314,7 +314,7 @@ export const saveChallengeSlidemaster = (
   }
   
   userProgress.lastActive = new Date().toISOString();
-  localStorage.setItem('ai_hub_user_progress', JSON.stringify(userProgress));
+  localStorage.setItem('userProgress', JSON.stringify(userProgress));
 };
 
 // Function to save Global Communicator challenge data
@@ -347,6 +347,30 @@ export const saveChallengeGlobalCommunicator = (translationData: any): void => {
     saveUserProgress(userProgress);
   } catch (error) {
     console.error('Error saving global communicator challenge data:', error);
+  }
+};
+
+// Function to save Data Analyst challenge data
+export const saveChallengeDataAnalyst = (
+  challengeId: string,
+  data: any
+): void => {
+  try {
+    const userProgress = getUserProgress();
+    
+    if (!userProgress.challengeData[challengeId]) {
+      userProgress.challengeData[challengeId] = {};
+    }
+    
+    userProgress.challengeData[challengeId].dataAnalyst = {
+      ...data,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    userProgress.lastActive = new Date().toISOString();
+    saveUserProgress(userProgress);
+  } catch (error) {
+    console.error('Error saving data analyst challenge data:', error);
   }
 };
 
@@ -392,27 +416,149 @@ export const saveChallengeData = async (challengeId: string, data: any) => {
   }
 };
 
+// Custom event for challenge completion
+export const CHALLENGE_COMPLETED_EVENT = 'challenge-completed';
+
+// Interface for the challenge completion event
+export interface ChallengeCompletedEvent {
+  challengeId: string;
+  completedAt: string;
+}
+
+/**
+ * Map of challenge alias IDs to their standardized IDs from ChallengeHubNew.tsx
+ * This helps maintain consistency between different naming conventions used throughout the app
+ */
+export const CHALLENGE_ID_MAP: Record<string, string> = {
+  // Standard mapping based on ChallengeHubNew.tsx
+  'challenge-dictation-wizard': 'challenge-1',
+  'challenge-image-classifier': 'challenge-2',
+  'challenge-face-id': 'challenge-3',
+  'challenge-ocr': 'challenge-4',
+  'challenge-creative-vision': 'challenge-5',
+  'challenge-privacy-guardian': 'challenge-6',
+  'challenge-voice-generator': 'challenge-7',
+  'challenge-global-communicator': 'challenge-8',
+  'challenge-object-detection': 'challenge-9',
+  'challenge-emotional-insight': 'challenge-10',
+  'challenge-smartselect': 'challenge-11',
+  'challenge-social-media': 'challenge-12',
+  'challenge-bizstrategist': 'challenge-13',
+  'challenge-agent-magic': 'challenge-14',
+  'challenge-slides-master': 'challenge-15',
+  'challenge-hp-powerbi': 'challenge-16',
+  'challenge-detective-league': 'challenge-17',
+  'challenge-18': 'challenge-18', // Already using standard ID
+  'challenge-object-tracking': 'challenge-19',
+  'challenge-image-search': 'challenge-20',
+  
+  // Legacy IDs should still work
+  'challenge-3': 'challenge-3' // Already standard
+};
+
+/**
+ * Normalizes a challenge ID to its standard form as defined in ChallengeHubNew.tsx
+ * @param id The challenge ID to normalize
+ * @returns The standardized challenge ID
+ */
+export const normalizeChalllengeId = (id: string): string => {
+  return CHALLENGE_ID_MAP[id] || id;
+}
+
+/**
+ * Hook to standardize challenge completion handling across all challenge components
+ * Use this with the ChallengeHeader component to ensure consistent behavior
+ * 
+ * @param challengeId The ID of the challenge (will be normalized)
+ * @returns An object with state and handlers for challenge completion
+ */
+export const useChallengeStatus = (challengeId: string) => {
+  const normalizedId = normalizeChalllengeId(challengeId);
+  const [userProgress] = useUserProgress();
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  // Check if challenge is already completed on mount
+  useEffect(() => {
+    if (userProgress?.completedChallenges?.includes(normalizedId)) {
+      setIsCompleted(true);
+    }
+  }, [normalizedId, userProgress]);
+
+  // Handler for completing the challenge
+  const handleCompleteChallenge = () => {
+    markChallengeAsCompleted(normalizedId);
+    setIsCompleted(true);
+    setShowConfetti(true);
+    
+    // Auto-hide confetti after 5 seconds
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 5000);
+  };
+
+  return {
+    isCompleted,
+    setIsCompleted,
+    showConfetti,
+    setShowConfetti,
+    handleCompleteChallenge,
+    challengeId: normalizedId
+  };
+};
+
 // Function to manually mark a challenge as completed
 export const markChallengeAsCompleted = (challengeId: string): boolean => {
   try {
-    const userProgress = getUserProgress();
+    // Normalize the challenge ID to ensure consistency
+    const normalizedId = normalizeChalllengeId(challengeId);
+    
+    // Get current user progress from localStorage
+    const savedProgress = localStorage.getItem('userProgress');
+    let userProgress;
+    if (savedProgress) {
+      userProgress = JSON.parse(savedProgress);
+    } else {
+      userProgress = {
+        completedChallenges: [],
+        lastActive: new Date().toISOString(),
+        preferences: {},
+        challengeData: {}
+      };
+    }
+    
+    const wasAlreadyCompleted = userProgress.completedChallenges.includes(normalizedId);
     
     // Always add the challenge to completedChallenges, regardless of whether it was there before
     // This ensures challenges can be re-completed after being unchecked
-    if (!userProgress.completedChallenges.includes(challengeId)) {
-      userProgress.completedChallenges.push(challengeId);
+    if (!wasAlreadyCompleted) {
+      userProgress.completedChallenges.push(normalizedId);
       userProgress.lastActive = new Date().toISOString();
-      saveUserProgress(userProgress);
+      
+      // Save to 'userProgress'
+      localStorage.setItem('userProgress', JSON.stringify(userProgress));
       
       // Update the leaderboard
       updateLeaderboard(calculateUserScore());
       
-      console.log(`Challenge ${challengeId} marked as completed`);
-      return true;
+      console.log(`Challenge ${normalizedId} marked as completed`);
     } else {
-      console.log(`Challenge ${challengeId} was already completed`);
-      return false;
+      console.log(`Challenge ${normalizedId} was already completed`);
     }
+    
+    // Dispatch a global event to notify all components of the challenge completion
+    // This allows any component to respond to the challenge completion
+    const completedAt = new Date().toISOString();
+    const event = new CustomEvent<ChallengeCompletedEvent>(CHALLENGE_COMPLETED_EVENT, {
+      detail: {
+        challengeId: normalizedId,
+        completedAt
+      },
+      bubbles: true
+    });
+    document.dispatchEvent(event);
+    
+    return !wasAlreadyCompleted;
   } catch (error) {
     console.error('Error marking challenge as completed:', error);
     return false;
