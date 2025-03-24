@@ -397,39 +397,22 @@ const AgentHub: React.FC<AgentHubProps> = ({ onSelectProject }) => {
             ))}
           </div>
           
-          {/* Case Study */}
+          {/* Information section about agent workflows */}
           <div className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-xl p-8">
             <div className="max-w-3xl mx-auto">
-              <h3 className="text-2xl font-bold mb-4">Case Study: HP Marketing Team</h3>
+              <h3 className="text-2xl font-bold mb-4">About Agent Workflows</h3>
               <p className="mb-6 opacity-90">
-                The HP marketing team deployed agent workflows to create a global product launch campaign for new sustainable laptop models. The agent workflow handled market research, messaging development, content creation, and visual design.
+                Agent workflows combine multiple specialized AI agents to tackle complex business challenges. Each agent contributes unique capabilities to the workflow, creating a powerful system that can handle diverse tasks seamlessly.
               </p>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                  <div className="text-3xl font-bold text-white mb-1">67%</div>
-                  <div className="text-sm text-white opacity-90">Reduction in campaign creation time</div>
-                </div>
-                
-                <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                  <div className="text-3xl font-bold text-white mb-1">42%</div>
-                  <div className="text-sm text-white opacity-90">Increase in campaign engagement</div>
-                </div>
-                
-                <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                  <div className="text-3xl font-bold text-white mb-1">$1.2M</div>
-                  <div className="text-sm text-white opacity-90">Estimated cost savings</div>
-                </div>
-              </div>
               
               <div className="flex justify-center">
                 <a 
-                  href="https://www.hp.com/gb-en/shop/" 
+                  href="https://www.hp.com/us-en/solutions/ai-software.html" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="bg-white text-indigo-700 hover:bg-opacity-90 transition-colors px-4 py-2 rounded-lg text-sm font-medium flex items-center"
                 >
-                  <span>Explore HP Products</span>
+                  <span>Learn More About HP AI Solutions</span>
                   <ExternalLink size={14} className="ml-1.5" />
                 </a>
               </div>
