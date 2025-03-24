@@ -353,12 +353,12 @@ const ChallengeHubNew: React.FC = () => {
     },
     {
       id: 'hp-challenge-3',
-      title: 'HP Amuze',
+      title: 'HP Amuse',
       description: 'Create engaging multimedia experiences powered by HP and AI technologies.',
       skillLevel: 'hp-partner',
       icon: '🎭',
       modality: 'presentation',
-      path: '/challenge/hp-amuze',
+      path: '/challenge/hp-amuse',
       badge: 'HP Expert',
       partner: 'HP',
       implementationStatus: 'complete'

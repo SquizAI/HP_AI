@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Award, ChevronDown, ChevronUp, CheckCircle, Home } from 'lucide-react';
 import { useUserProgress, markChallengeAsCompleted } from '../../../utils/userDataManager';
 
-const HPAmuzeMain: React.FC = () => {
+const HPAmuseMain: React.FC = () => {
   const navigate = useNavigate();
   // User progress tracking
   const [userProgress, setUserProgress] = useUserProgress();
@@ -19,7 +19,7 @@ const HPAmuzeMain: React.FC = () => {
 
   // Check if challenge is already completed
   useEffect(() => {
-    if (userProgress.completedChallenges.includes('challenge-hp-amuze')) {
+    if (userProgress.completedChallenges.includes('challenge-hp-amuse')) {
       setIsCompleted(true);
     }
   }, [userProgress]);
@@ -33,7 +33,7 @@ const HPAmuzeMain: React.FC = () => {
 
   // Handle challenge completion
   const handleCompleteChallenge = () => {
-    markChallengeAsCompleted('challenge-hp-amuze');
+    markChallengeAsCompleted('challenge-hp-amuse');
     setIsCompleted(true);
   };
 
@@ -322,4 +322,4 @@ const HPAmuzeMain: React.FC = () => {
   );
 };
 
-export default HPAmuzeMain; 
+export default HPAmuseMain; 

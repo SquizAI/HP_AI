@@ -117,10 +117,10 @@ const hpChallenges = [
     path: '/challenge/hp-companion'
   },
   {
-    id: 'challenge-hp-amuze',
+    id: 'challenge-hp-amuse',
     challengeNumber: 3,
-    title: 'HP Challenge 3: HP Amuze',
-    path: '/challenge/hp-amuze'
+    title: 'HP Challenge 3: HP Amuse',
+    path: '/challenge/hp-amuse'
   }
 ];
 

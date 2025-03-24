@@ -29,7 +29,7 @@ import AgentMagicMain from './components/challenges/AgentMagic/AgentMagicMain'
 // Import HP Challenge Components
 import HPPowerBIMain from './components/challenges/HPPowerBI'
 import HPAICompanionMain from './components/challenges/HPAICompanion'
-import HPAmuzeMain from './components/challenges/HPAmuze'
+import HPAmuseMain from './components/challenges/HPAmuse'
 // Import for the Face ID challenge
 import SimpleFaceId from './components/challenges/FaceIdManager/SimpleFaceId'
 import FaceDetectionTest from './components/challenges/EmotionalInsight/components/FaceDetectionTest'
@@ -79,7 +79,7 @@ function App() {
           {/* HP Challenge Routes */}
           <Route path="/challenge/hp-powerbi" element={<HPPowerBIMain />} />
           <Route path="/challenge/hp-companion" element={<HPAICompanionMain />} />
-          <Route path="/challenge/hp-amuze" element={<HPAmuzeMain />} />
+          <Route path="/challenge/hp-amuse" element={<HPAmuseMain />} />
           {/* Individual Emotion Analysis Pages */}
           <Route path="/face-detection-test" element={<FaceDetectionTest />} />
           <Route path="/challenge/face-emotion" element={<FaceEmotionPage />} />
